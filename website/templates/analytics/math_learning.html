@@ -1,0 +1,163 @@
+{% block content %}
+
+<h2 align="center">Quant Maths Analytics</h2>
+<div class="container my-4">
+    {% if not quiz_results %}
+    <div class="alert alert-warning text-center" role="alert">
+        Sorry, no quiz results.
+    </div>
+    {% else %}
+    <table class="table table-sm table-bordered table-hover small-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Total (s)</th>
+                <th>Bayes (s)</th>
+                <th>Coupon (s)</th>
+                <th>Option (s)</th>
+                <th>EV (s)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in quiz_results|reverse %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ result.timestamp.strftime('%Y-%m-%d') if result.timestamp else 'N/A' }}</td>
+                <td>{{ result.total_time }}</td>
+                <td>{{ result.mean_bayes_time }}</td>
+                <td>{{ result.mean_coupon_time }}</td>
+                <td>{{ result.mean_option_time }}</td>
+                <td>{{ result.mean_ev_time }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#chartContainer" aria-expanded="false" aria-controls="chartContainer">
+        View Charts
+    </button>
+
+    <div class="collapse mt-4" id="chartContainer">
+        <h3>Total Time</h3>
+        <canvas id="totalTimeChart" height="100"></canvas>
+        <br>
+        <h3>Mean Times</h3>
+        <canvas id="meanTimesChart" height="100"></canvas>
+    </div>
+
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var labels = [
+        {% for result in quiz_results|reverse %}
+            "{{ result.timestamp.strftime('%Y-%m-%d') }}",
+        {% endfor %}
+    ];
+
+    var totalTimeData = [
+        {% for result in quiz_results|reverse %}
+            {{ result.total_time }},
+        {% endfor %}
+    ];
+
+    var bayesTimeData = [
+        {% for result in quiz_results|reverse %}
+            {{ result.mean_bayes_time }},
+        {% endfor %}
+    ];
+
+    var couponTimeData = [
+        {% for result in quiz_results|reverse %}
+            {{ result.mean_coupon_time }},
+        {% endfor %}
+    ];
+
+    var optionTimeData = [
+        {% for result in quiz_results|reverse %}
+            {{ result.mean_option_time }},
+        {% endfor %}
+    ];
+
+    var evTimeData = [
+        {% for result in quiz_results|reverse %}
+            {{ result.mean_ev_time }},
+        {% endfor %}
+    ];
+
+    // Chart 1: Total Time
+    var chartCanvas1 = document.getElementById('totalTimeChart').getContext('2d');
+    new Chart(chartCanvas1, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Total Time',
+                    data: totalTimeData,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Chart 2: Mean Times (Bayes, Coupon, Option, EV)
+    var chartCanvas2 = document.getElementById('meanTimesChart').getContext('2d');
+    new Chart(chartCanvas2, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Bayes Mean Time',
+                    data: bayesTimeData,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    fill: false
+                },
+                {
+                    label: 'Coupon Mean Time',
+                    data: couponTimeData,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    fill: false
+                },
+                {
+                    label: 'Option Mean Time',
+                    data: optionTimeData,
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    borderWidth: 2,
+                    fill: false
+                },
+                {
+                    label: 'EV Mean Time',
+                    data: evTimeData,
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 2,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

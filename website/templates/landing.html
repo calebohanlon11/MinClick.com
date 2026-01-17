@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Min-Click.com — Poker Analytics{% endblock %}
+
+{% block content %}
+<div class="py-5">
+  <div class="row align-items-center">
+    <div class="col-md-6">
+      <h1 class="display-5 fw-bold">Min-Click.com</h1>
+      <p class="lead text-muted">
+        A professional poker analytics platform to upload sessions, view metrics, and track your performance over time.
+      </p>
+      <ul class="text-muted mb-4">
+        <li>Upload hand histories and generate session metrics</li>
+        <li>Street-by-street analysis: preflop, flop, turn, river</li>
+        <li>Personal profile with aggregated stats and trends</li>
+        <li>Learning modules for math and poker concepts</li>
+      </ul>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">
+          <i class="fas fa-sign-in-alt me-1"></i> Login
+        </a>
+        <a href="{{ url_for('auth.sign_up') }}" class="btn btn-outline-secondary btn-lg">
+          <i class="fas fa-user-plus me-1"></i> Sign Up
+        </a>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><i class="fas fa-chart-line me-2"></i>What you can do</h5>
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-upload text-primary me-3 mt-1"></i>
+                <div>
+                  <strong>Upload sessions</strong>
+                  <div class="text-muted small">Import your hand histories and we’ll structure them into a clean dataset.</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-table text-success me-3 mt-1"></i>
+                <div>
+                  <strong>Analyze results</strong>
+                  <div class="text-muted small">See VPIP, BB/100, earnings, position stats, and more—broken down by streets.</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-user text-info me-3 mt-1"></i>
+                <div>
+                  <strong>Track your progress</strong>
+                  <div class="text-muted small">Your profile aggregates all sessions with bankroll and performance trends.</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-graduation-cap text-warning me-3 mt-1"></i>
+                <div>
+                  <strong>Learn & improve</strong>
+                  <div class="text-muted small">Use built-in learning modules to sharpen math and poker skills.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <hr class="my-4">
+          <div class="text-muted small">
+            Already have an account? <a href="{{ url_for('auth.login') }}">Login</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,855 @@
+{% block metrics %}
+<!-- Definitions -->
+<div class="alert alert-primary mb-4">
+    <h5 class="mb-3"><strong>Key Definitions:</strong></h5>
+    <ul class="mb-0">
+        <li><strong>Viable Hands / Total Hands:</strong> Total number of hands in the dataset (all hands dealt to Hero)</li>
+        <li><strong>VPIP (Voluntarily Put In Pot):</strong> Number of hands where Hero put chips in from any position (includes RFI, call, limp, 3-bet, 4-bet, etc.)</li>
+        <li><strong>RFI VPIP (Raise First In):</strong> Number of hands where Hero was the FIRST person to open raise into the pot (RFI only, not limp or call)</li>
+    </ul>
+</div>
+
+{% if metrics.get('Comprehensive Preflop Metrics') %}
+{% set comp_metrics = metrics['Comprehensive Preflop Metrics'] %}
+
+<!-- Section 1: Total Hands (All hands dealt, including folds) -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">1. Total Hands Dealt</h2>
+        <p class="mb-0"><small>All hands you were dealt, including folds preflop</small></p>
+    </div>
+    <div class="card-body">
+        <h4 class="text-center mb-3">Total: <strong>{{ comp_metrics.get('total_hands', {}).get('total', 0) }}</strong> hands</h4>
+        <table class="table table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>UTG</th>
+                    <th>MP</th>
+                    <th>CO</th>
+                    <th>BTN</th>
+                    <th>SB</th>
+                    <th>BB</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ comp_metrics.get('total_hands', {}).get('by_position', {}).get('UTG', 0) }}</td>
+                    <td>{{ comp_metrics.get('total_hands', {}).get('by_position', {}).get('MP', 0) }}</td>
+                    <td>{{ comp_metrics.get('total_hands', {}).get('by_position', {}).get('CO', 0) }}</td>
+                    <td>{{ comp_metrics.get('total_hands', {}).get('by_position', {}).get('BTN', 0) }}</td>
+                    <td>{{ comp_metrics.get('total_hands', {}).get('by_position', {}).get('SB', 0) }}</td>
+                    <td>{{ comp_metrics.get('total_hands', {}).get('by_position', {}).get('BB', 0) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Section 2: RFI Hands (Raise First In) -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h2 class="mb-0">2. RFI Hands (Raise First In)</h2>
+        <p class="mb-0"><small>Hands where you raised first in or limped (opened the pot)</small></p>
+    </div>
+    <div class="card-body">
+        <h4 class="text-center mb-3">Total: <strong>{{ comp_metrics.get('rfi_hands', {}).get('total', 0) }}</strong> hands ({{ "%.1f"|format((comp_metrics.get('rfi_hands', {}).get('total', 0) / comp_metrics.get('total_hands', {}).get('total', 1) * 100) if comp_metrics.get('total_hands', {}).get('total', 0) > 0 else 0) }}% of total)</h4>
+        <table class="table table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>UTG</th>
+                    <th>MP</th>
+                    <th>CO</th>
+                    <th>BTN</th>
+                    <th>SB</th>
+                    <th>BB</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        {{ comp_metrics.get('rfi_hands', {}).get('by_position', {}).get('UTG', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('rfi_hands', {}).get('percent_by_position', {}).get('UTG', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('rfi_hands', {}).get('by_position', {}).get('MP', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('rfi_hands', {}).get('percent_by_position', {}).get('MP', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('rfi_hands', {}).get('by_position', {}).get('CO', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('rfi_hands', {}).get('percent_by_position', {}).get('CO', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('rfi_hands', {}).get('by_position', {}).get('BTN', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('rfi_hands', {}).get('percent_by_position', {}).get('BTN', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('rfi_hands', {}).get('by_position', {}).get('SB', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('rfi_hands', {}).get('percent_by_position', {}).get('SB', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('rfi_hands', {}).get('by_position', {}).get('BB', 0) }}<br/>
+                        <small class="text-muted">(N/A - BB can't RFI)</small>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Section 3: VPIP Hands (All hands where chips were put in) -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h2 class="mb-0">3. VPIP Hands (Voluntarily Put In Pot)</h2>
+        <p class="mb-0"><small>All hands where you put chips in: RFI, call, limp, 3-bet, 4-bet, etc.</small></p>
+    </div>
+    <div class="card-body">
+        <h4 class="text-center mb-3">Total: <strong>{{ comp_metrics.get('vpip_hands', {}).get('total', 0) }}</strong> hands ({{ "%.1f"|format((comp_metrics.get('vpip_hands', {}).get('total', 0) / comp_metrics.get('total_hands', {}).get('total', 1) * 100) if comp_metrics.get('total_hands', {}).get('total', 0) > 0 else 0) }}% of total)</h4>
+        <table class="table table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>UTG</th>
+                    <th>MP</th>
+                    <th>CO</th>
+                    <th>BTN</th>
+                    <th>SB</th>
+                    <th>BB</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        {{ comp_metrics.get('vpip_hands', {}).get('by_position', {}).get('UTG', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('vpip_hands', {}).get('percent_by_position', {}).get('UTG', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('vpip_hands', {}).get('by_position', {}).get('MP', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('vpip_hands', {}).get('percent_by_position', {}).get('MP', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('vpip_hands', {}).get('by_position', {}).get('CO', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('vpip_hands', {}).get('percent_by_position', {}).get('CO', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('vpip_hands', {}).get('by_position', {}).get('BTN', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('vpip_hands', {}).get('percent_by_position', {}).get('BTN', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('vpip_hands', {}).get('by_position', {}).get('SB', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('vpip_hands', {}).get('percent_by_position', {}).get('SB', 0) }}%)</small>
+                    </td>
+                    <td>
+                        {{ comp_metrics.get('vpip_hands', {}).get('by_position', {}).get('BB', 0) }}<br/>
+                        <small class="text-muted">({{ comp_metrics.get('vpip_hands', {}).get('percent_by_position', {}).get('BB', 0) }}%)</small>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<!-- Fallback to old format if comprehensive metrics not available -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h2 class="mb-0">VPIP Summary</h2>
+    </div>
+    <div class="card-body">
+        {% set total_hands = metrics.get('Total Hands', metrics.get('VPIP Info', {}).get('num_viable_hands', 0)) %}
+        {% set vpip_count = metrics.get('VPIP Info', {}).get('vpip_count', 0) %}
+        {% set vpip_percent = metrics.get('VPIP Info', {}).get('general_vpip', 0) %}
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Total Hands in Dataset</h5>
+                        <h3 class="mb-0">{{ total_hands }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">VPIP Hands</h5>
+                        <h3 class="mb-0">{{ vpip_count }}</h3>
+                        <p class="text-muted mb-0">{{ vpip_percent }}% VPIP</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <strong>VPIP Rate:</strong> {{ vpip_count }} out of {{ total_hands }} hands = <strong>{{ "%.1f"|format((vpip_count / total_hands * 100) if total_hands > 0 else 0) }}%</strong>
+            <br><small><strong>VPIP</strong> = Voluntarily Put In Pot (all hands where you put chips in: RFI, call, limp, 3-bet, 4-bet, etc.)</small>
+        </div>
+    </div>
+</div>
+
+<h2>VPIP by Position ({{ metrics.get('VPIP Info', {}).get('num_viable_hands', 0) }} Total Hands)</h2>
+{% set vpip_info = metrics.get('VPIP Info', {}) %}
+{% set positional_vpip = vpip_info.get('positional_vpip', {}) %}
+{% set positional_hand_counts = vpip_info.get('positional_hand_counts', {}) %}
+
+<!-- DEBUG: Show what we're receiving -->
+<div class="alert alert-warning">
+    <strong>DEBUG INFO (Template Values):</strong><br>
+    positional_hand_counts exists: {{ positional_hand_counts is defined }}<br>
+    positional_hand_counts value: {{ positional_hand_counts }}<br>
+    UTG: {{ positional_hand_counts.get('UTG', 'NOT_FOUND') }}<br>
+    MP: {{ positional_hand_counts.get('MP', 'NOT_FOUND') }}<br>
+    CO: {{ positional_hand_counts.get('CO', 'NOT_FOUND') }}<br>
+    BTN: {{ positional_hand_counts.get('BTN', 'NOT_FOUND') }}<br>
+    SB: {{ positional_hand_counts.get('SB', 'NOT_FOUND') }}<br>
+    BB: {{ positional_hand_counts.get('BB', 'NOT_FOUND') }}<br>
+    <small>If all values show 0 or NOT_FOUND, the data isn't being passed correctly from views.py</small>
+</div>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>UTG</th>
+            <th>MP</th>
+            <th>CO</th>
+            <th>BTN</th>
+            <th>SB</th>
+            <th>BB</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>{{ positional_vpip.get('UTG', 0) }}%</td>
+            <td>{{ positional_vpip.get('MP', 0) }}%</td>
+            <td>{{ positional_vpip.get('CO', 0) }}%</td>
+            <td>{{ positional_vpip.get('BTN', 0) }}%</td>
+            <td>{{ positional_vpip.get('SB', 0) }}%</td>
+            <td>{{ positional_vpip.get('BB', 0) }}%</td>
+        </tr>
+        <tr class="table-secondary">
+            <td><strong>{{ positional_hand_counts.get('UTG', 0) }} hands</strong></td>
+            <td><strong>{{ positional_hand_counts.get('MP', 0) }} hands</strong></td>
+            <td><strong>{{ positional_hand_counts.get('CO', 0) }} hands</strong></td>
+            <td><strong>{{ positional_hand_counts.get('BTN', 0) }} hands</strong></td>
+            <td><strong>{{ positional_hand_counts.get('SB', 0) }} hands</strong></td>
+            <td><strong>{{ positional_hand_counts.get('BB', 0) }} hands</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h2 class="mb-0">RFI VPIP Summary</h2>
+        <p class="mb-0"><small>RFI = Raise First In (first person to open raise into the pot)</small></p>
+    </div>
+    <div class="card-body">
+        {% set rfi_viable_hands = metrics.get('RFI VPIP Info', {}).get('num_viable_hands', 0) %}
+        {% set rfi_count = metrics.get('RFI VPIP Info', {}).get('rfi_count', 0) %}
+        {% set rfi_percent = metrics.get('RFI VPIP Info', {}).get('general_rfi_vpip', 0) %}
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Total Non-BB Hands</h5>
+                        <p class="text-muted mb-1"><small>(BB can't RFI since they're already in the pot)</small></p>
+                        <h3 class="mb-0">{{ rfi_viable_hands }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">RFI Hands</h5>
+                        <h3 class="mb-0">{{ rfi_count }}</h3>
+                        <p class="text-muted mb-0">{{ rfi_percent }}% RFI VPIP</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-success">
+            <strong>RFI VPIP Rate:</strong> {{ rfi_count }} out of {{ rfi_viable_hands }} non-BB hands = <strong>{{ "%.1f"|format((rfi_count / rfi_viable_hands * 100) if rfi_viable_hands > 0 else 0) }}%</strong>
+        </div>
+    </div>
+</div>
+
+<h2>RFI VPIP by Position ({{ metrics.get('RFI VPIP Info', {}).get('num_viable_hands', 0) }} Non-BB Hands)</h2>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>UTG</th>
+            <th>MP</th>
+            <th>CO</th>
+            <th>BTN</th>
+            <th>SB</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('UTG', 0) }}</td>
+            <td>{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('MP', 0) }}</td>
+            <td>{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('CO', 0) }}</td>
+            <td>{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('BTN', 0) }}</td>
+            <td>{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('SB', 0) }}</td>
+        </tr>
+    </tbody>
+</table>
+{% endif %}
+<br/>
+<br/>
+
+<!-- Section 4: Three Bet Metrics -->
+{% set three_bet = metrics.get('Three bet info', {}) %}
+{% set total_3bets = three_bet.get('Num_three_bets', 0) %}
+{% set viable_hands = three_bet.get('Viable_hands', 1) %}
+{% set total_bb = three_bet.get('Sum_results_BB', 0) %}
+{% set avg_bb = three_bet.get('Avg_result_BB', 0) %}
+{% set preflop_wins = three_bet.get('Num_three_bet_wins', 0) %}
+{% set win_rate = (preflop_wins / total_3bets * 100) if total_3bets > 0 else 0 %}
+{% set three_bet_freq = (total_3bets / viable_hands * 100) if viable_hands > 0 else 0 %}
+{% set positions = ['MP', 'CO', 'BTN', 'SB', 'BB'] %}
+
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h2 class="mb-0">4. Three Bet Metrics</h2>
+        <p class="mb-0"><small>Aggressive re-raising statistics and profitability</small></p>
+    </div>
+    <div class="card-body">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total 3-Bets</h5>
+                        <h3 class="text-primary">{{ total_3bets }}</h3>
+                        <small class="text-muted">{{ "%.1f"|format(three_bet_freq) }}% frequency</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Preflop Win Rate</h5>
+                        <h3 class="text-success">{{ "%.1f"|format(win_rate) }}%</h3>
+                        <small class="text-muted">{{ preflop_wins }} wins</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center {% if total_bb >= 0 %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total Profit/Loss</h5>
+                        <h3 class="{% if total_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(total_bb) }} BB
+                        </h3>
+                        <small class="text-muted">All positions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center {% if avg_bb >= 0 %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Avg per 3-Bet</h5>
+                        <h3 class="{% if avg_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(avg_bb) }} BB
+                        </h3>
+                        <small class="text-muted">Per hand</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Three Bet Counts by Position -->
+        <h4 class="mb-3">Three Bet Frequency by Position</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Position</th>
+                    <th>3-Bets</th>
+                    <th>Preflop Wins</th>
+                    <th>Win Rate</th>
+                    <th>Total BB</th>
+                    <th>Avg BB/3-Bet</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set positions_with_utg = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+                {% for pos in positions_with_utg %}
+                {% set pos_3bets = three_bet.get('Num_three_bets_position', {}).get(pos, 0) %}
+                {% set pos_wins = three_bet.get('Num_three_bet_wins_position', {}).get(pos, 0) %}
+                {% set pos_win_rate = (pos_wins / pos_3bets * 100) if pos_3bets > 0 else 0 %}
+                {% set pos_bb = three_bet.get('Sum_results_position_BB', {}).get(pos, 0) %}
+                {% set pos_avg_bb = (pos_bb / pos_3bets) if pos_3bets > 0 else 0 %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td>{{ pos_3bets|int }}</td>
+                    <td>{{ pos_wins|int }}</td>
+                    <td>
+                        <span class="badge {% if pos_win_rate >= 50 %}bg-success{% elif pos_win_rate >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ "%.1f"|format(pos_win_rate) }}%
+                        </span>
+                    </td>
+                    <td class="{% if pos_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_bb) }} BB</strong>
+                    </td>
+                    <td class="{% if pos_avg_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_avg_bb) }} BB
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Profitability Breakdown: Preflop vs Postflop -->
+        <h4 class="mb-3">Profitability Breakdown: Preflop vs Postflop</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Position</th>
+                    <th>Preflop BB</th>
+                    <th>Postflop BB</th>
+                    <th>Total BB</th>
+                    <th>% Preflop</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pos in positions_with_utg %}
+                {% set pos_no_flop = three_bet.get('Sum_results_position_no_flop_BB', {}).get(pos, 0) %}
+                {% set pos_flop = three_bet.get('Sum_results_position_flop_BB', {}).get(pos, 0) %}
+                {% set pos_total = pos_no_flop + pos_flop %}
+                {% set preflop_pct = (pos_no_flop / pos_total * 100) if pos_total != 0 else 0 %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td class="{% if pos_no_flop >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_no_flop) }} BB
+                    </td>
+                    <td class="{% if pos_flop >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_flop) }} BB
+                    </td>
+                    <td class="{% if pos_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_total) }} BB</strong>
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar {% if preflop_pct >= 50 %}bg-success{% else %}bg-info{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ preflop_pct|abs }}%"
+                                 aria-valuenow="{{ preflop_pct|abs }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ "%.1f"|format(preflop_pct) }}%
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Key Insights -->
+        <div class="alert alert-info">
+            <h5><i class="fas fa-lightbulb"></i> Key Insights:</h5>
+            <ul class="mb-0">
+                <li><strong>3-Bet Frequency:</strong> You're 3-betting {{ "%.1f"|format(three_bet_freq) }}% of viable hands ({{ total_3bets }} out of {{ viable_hands }} hands)</li>
+                <li><strong>Fold Equity:</strong> You win {{ "%.1f"|format(win_rate) }}% of 3-bets preflop ({{ preflop_wins }} out of {{ total_3bets }})</li>
+                <li><strong>Overall Profitability:</strong> Your 3-bets are generating {{ "%.2f"|format(total_bb) }} BB total ({{ "%.2f"|format(avg_bb) }} BB per 3-bet on average)</li>
+                {% if total_bb < 0 %}
+                <li class="text-danger"><strong>Warning:</strong> Your 3-bets are currently unprofitable. Consider tightening your 3-betting range or improving postflop play.</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Chart Visualization -->
+        {% if total_3bets > 0 %}
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h5 class="text-center mb-3">3-Bet Frequency by Position</h5>
+                <canvas id="threeBetFrequencyChart" style="max-height: 300px;"></canvas>
+            </div>
+            <div class="col-md-6">
+                <h5 class="text-center mb-3">3-Bet Profitability by Position</h5>
+                <canvas id="threeBetProfitabilityChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning mt-4">
+            <i class="fas fa-info-circle"></i> No 3-bets recorded in this session. 3-bet metrics will appear here once you have 3-bet hands.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Section 5: Iso-Raise Metrics -->
+{% set iso_raise = metrics.get('Iso Raise info', {}) %}
+{% set total_iso_raises = iso_raise.get('Num_iso_raises', 0) %}
+{% set viable_hands_iso = iso_raise.get('Viable_hands', 1) %}
+{% set total_bb_iso = iso_raise.get('Sum_results_BB', 0) %}
+{% set avg_bb_iso = iso_raise.get('Avg_result_BB', 0) %}
+{% set preflop_wins_iso = iso_raise.get('Num_iso_raise_wins', 0) %}
+{% set win_rate_iso = (preflop_wins_iso / total_iso_raises * 100) if total_iso_raises > 0 else 0 %}
+{% set iso_raise_freq = (total_iso_raises / viable_hands_iso * 100) if viable_hands_iso > 0 else 0 %}
+{% set positions_iso = ['MP', 'CO', 'BTN', 'SB', 'BB'] %}
+
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+        <h2 class="mb-0">5. Iso-Raise Metrics</h2>
+        <p class="mb-0"><small>Isolation raises: Raising after players limped (to isolate limpers)</small></p>
+    </div>
+    <div class="card-body">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total Iso-Raises</h5>
+                        <h3 class="text-primary">{{ total_iso_raises }}</h3>
+                        <small class="text-muted">{{ "%.1f"|format(iso_raise_freq) }}% frequency</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Preflop Win Rate</h5>
+                        <h3 class="text-success">{{ "%.1f"|format(win_rate_iso) }}%</h3>
+                        <small class="text-muted">{{ preflop_wins_iso|int }} wins</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center {% if total_bb_iso >= 0 %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total Profit/Loss</h5>
+                        <h3 class="{% if total_bb_iso >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(total_bb_iso) }} BB
+                        </h3>
+                        <small class="text-muted">All positions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center {% if avg_bb_iso >= 0 %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Avg per Iso-Raise</h5>
+                        <h3 class="{% if avg_bb_iso >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(avg_bb_iso) }} BB
+                        </h3>
+                        <small class="text-muted">Per hand</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Iso-Raise Counts by Position -->
+        {% if total_iso_raises > 0 %}
+        <h4 class="mb-3">Iso-Raise Frequency by Position</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Position</th>
+                    <th>Iso-Raises</th>
+                    <th>Preflop Wins</th>
+                    <th>Win Rate</th>
+                    <th>Total BB</th>
+                    <th>Avg BB/Iso-Raise</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pos in positions_iso %}
+                {% set pos_iso = iso_raise.get('Num_iso_raises_position', {}).get(pos, 0) %}
+                {% set pos_wins = iso_raise.get('Num_iso_raise_wins_position', {}).get(pos, 0) %}
+                {% set pos_win_rate = (pos_wins / pos_iso * 100) if pos_iso > 0 else 0 %}
+                {% set pos_bb = iso_raise.get('Sum_results_position_BB', {}).get(pos, 0) %}
+                {% set pos_avg_bb = (pos_bb / pos_iso) if pos_iso > 0 else 0 %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td>{{ pos_iso|int }}</td>
+                    <td>{{ pos_wins|int }}</td>
+                    <td>
+                        <span class="badge {% if pos_win_rate >= 50 %}bg-success{% elif pos_win_rate >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ "%.1f"|format(pos_win_rate) }}%
+                        </span>
+                    </td>
+                    <td class="{% if pos_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_bb) }} BB</strong>
+                    </td>
+                    <td class="{% if pos_avg_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_avg_bb) }} BB
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Profitability Breakdown: Preflop vs Postflop -->
+        <h4 class="mb-3">Profitability Breakdown: Preflop vs Postflop</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Position</th>
+                    <th>Preflop BB</th>
+                    <th>Postflop BB</th>
+                    <th>Total BB</th>
+                    <th>% Preflop</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pos in positions_iso %}
+                {% set pos_no_flop = iso_raise.get('Sum_results_position_no_flop_BB', {}).get(pos, 0) %}
+                {% set pos_flop = iso_raise.get('Sum_results_position_flop_BB', {}).get(pos, 0) %}
+                {% set pos_total = pos_no_flop + pos_flop %}
+                {% set preflop_pct = (pos_no_flop / pos_total * 100) if pos_total != 0 else 0 %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td class="{% if pos_no_flop >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_no_flop) }} BB
+                    </td>
+                    <td class="{% if pos_flop >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_flop) }} BB
+                    </td>
+                    <td class="{% if pos_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_total) }} BB</strong>
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar {% if preflop_pct >= 50 %}bg-success{% else %}bg-info{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ preflop_pct|abs }}%"
+                                 aria-valuenow="{{ preflop_pct|abs }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ "%.1f"|format(preflop_pct) }}%
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Key Insights -->
+        <div class="alert alert-info">
+            <h5><i class="fas fa-lightbulb"></i> Key Insights:</h5>
+            <ul class="mb-0">
+                <li><strong>Iso-Raise Frequency:</strong> You're iso-raising {{ "%.1f"|format(iso_raise_freq) }}% of viable hands ({{ total_iso_raises }} out of {{ viable_hands_iso }} hands)</li>
+                <li><strong>Fold Equity:</strong> You win {{ "%.1f"|format(win_rate_iso) }}% of iso-raises preflop ({{ preflop_wins_iso|int }} out of {{ total_iso_raises }})</li>
+                <li><strong>Overall Profitability:</strong> Your iso-raises are generating {{ "%.2f"|format(total_bb_iso) }} BB total ({{ "%.2f"|format(avg_bb_iso) }} BB per iso-raise on average)</li>
+                {% if total_bb_iso < 0 %}
+                <li class="text-danger"><strong>Warning:</strong> Your iso-raises are currently unprofitable. Consider adjusting your iso-raising range or improving postflop play.</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-info-circle"></i> No iso-raises recorded in this session. Iso-raise metrics will appear here once you have hands where you raised after players limped.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var vpipCtx = document.getElementById('vpipChart').getContext('2d');
+    var vpipChart = new Chart(vpipCtx, {
+        type: 'bar',
+        data: {
+            labels: ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'],
+            datasets: [{
+                label: 'Player VPIP',
+                data: [{{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('UTG', 0) }},
+                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('MP', 0) }},
+                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('CO', 0) }},
+                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('BTN', 0) }},
+                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('SB', 0) }},
+                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('BB', 0) }}],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                barThickness: 20  // Make the bars skinnier
+            },
+            {
+                label: 'Optimal VPIP',
+                data: [null, null, null, null, null, null],
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+                barThickness: 20  // Make the bars skinnier
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 1,  // Set minimum value to 1
+                    max: 100,  // Set maximum value to 100
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    var rfiVpipCtx = document.getElementById('rfiVpipChart').getContext('2d');
+    var rfiVpipChart = new Chart(rfiVpipCtx, {
+        type: 'bar',
+        data: {
+            labels: ['UTG', 'MP', 'CO', 'BTN', 'SB'],
+            datasets: [{
+                label: 'Player RFI VPIP',
+                data: [{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('UTG', 0) }},
+                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('MP', 0) }},
+                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('CO', 0) }},
+                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('BTN', 0) }},
+                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('SB', 0) }}],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                barThickness: 20  // Make the bars skinnier
+            },
+            {
+                label: 'Optimal RFI VPIP',
+                data: [17.5, 21.5, 30, 45, 42],
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+                barThickness: 20  // Make the bars skinnier
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 1,  // Set minimum value to 1
+                    max: 100,  // Set maximum value to 100
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Three Bet Frequency Chart
+    {% if three_bet.get('Num_three_bets', 0) > 0 %}
+    var threeBetFreqCtx = document.getElementById('threeBetFrequencyChart');
+    if (threeBetFreqCtx) {
+        var threeBetFreqChart = new Chart(threeBetFreqCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['MP', 'CO', 'BTN', 'SB', 'BB'],
+                datasets: [{
+                    label: '3-Bets',
+                    data: [
+                        {{ three_bet.get('Num_three_bets_position', {}).get('MP', 0) }},
+                        {{ three_bet.get('Num_three_bets_position', {}).get('CO', 0) }},
+                        {{ three_bet.get('Num_three_bets_position', {}).get('BTN', 0) }},
+                        {{ three_bet.get('Num_three_bets_position', {}).get('SB', 0) }},
+                        {{ three_bet.get('Num_three_bets_position', {}).get('BB', 0) }}
+                    ],
+                    backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 2
+                }, {
+                    label: 'Preflop Wins',
+                    data: [
+                        {{ three_bet.get('Num_three_bet_wins_position', {}).get('MP', 0) }},
+                        {{ three_bet.get('Num_three_bet_wins_position', {}).get('CO', 0) }},
+                        {{ three_bet.get('Num_three_bet_wins_position', {}).get('BTN', 0) }},
+                        {{ three_bet.get('Num_three_bet_wins_position', {}).get('SB', 0) }},
+                        {{ three_bet.get('Num_three_bet_wins_position', {}).get('BB', 0) }}
+                    ],
+                    backgroundColor: 'rgba(40, 167, 69, 0.6)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+
+    // Three Bet Profitability Chart
+    var threeBetProfitCtx = document.getElementById('threeBetProfitabilityChart');
+    if (threeBetProfitCtx) {
+        var threeBetProfitChart = new Chart(threeBetProfitCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['MP', 'CO', 'BTN', 'SB', 'BB'],
+                datasets: [{
+                    label: 'BB Won/Lost',
+                    data: [
+                        {{ three_bet.get('Sum_results_position_BB', {}).get('MP', 0) }},
+                        {{ three_bet.get('Sum_results_position_BB', {}).get('CO', 0) }},
+                        {{ three_bet.get('Sum_results_position_BB', {}).get('BTN', 0) }},
+                        {{ three_bet.get('Sum_results_position_BB', {}).get('SB', 0) }},
+                        {{ three_bet.get('Sum_results_position_BB', {}).get('BB', 0) }}
+                    ],
+                    backgroundColor: function(context) {
+                        var value = context.parsed.y;
+                        return value >= 0 ? 'rgba(40, 167, 69, 0.6)' : 'rgba(220, 53, 69, 0.6)';
+                    },
+                    borderColor: function(context) {
+                        var value = context.parsed.y;
+                        return value >= 0 ? 'rgba(40, 167, 69, 1)' : 'rgba(220, 53, 69, 1)';
+                    },
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(1) + ' BB';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'BB: ' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+});
+
+
+</script>
+</br>
+</br>
+</br>
+{% endblock %}

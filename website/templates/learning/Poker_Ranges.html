@@ -1,0 +1,1118 @@
+<div class="container-fluid px-4 py-4" style="background: #1a1a1a; min-height: 100vh;">
+    <div class="container-fluid">
+        <!-- Top Header Bar -->
+        <div class="top-header-bar mb-3">
+            <div class="header-left">
+                <span class="game-settings">Cash 100bb</span>
+                <span class="game-settings">6max NL50</span>
+                <span class="game-settings">General 2.5x</span>
+                <span class="game-settings">3b: GTO</span>
+            </div>
+            <div class="header-right">
+                <button class="btn-change">Change</button>
+                <button id="editModeToggle" class="btn-edit-mode">Edit Ranges</button>
+                <button id="saveRangesBtn" class="btn-save" style="display: none;">Save Changes</button>
+                <button id="resetRangesBtn" class="btn-reset" style="display: none;">Reset to Default</button>
+            </div>
+        </div>
+
+        <!-- Position Selection Bar -->
+        <div class="position-bar mb-4" id="positionBar">
+            <!-- Will be populated by JavaScript -->
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content-area">
+            <!-- Left: Matrix Section -->
+            <div class="matrix-area">
+                <div id="current-matrix" class="hand-matrix"></div>
+            </div>
+
+            <!-- Right: Analytics Section -->
+            <div class="analytics-area">
+                <div class="analytics-tabs">
+                    <button class="analytics-tab active" data-tab="overview">Overview</button>
+                    <button class="analytics-tab" data-tab="table">Table</button>
+                    <button class="analytics-tab" data-tab="equity">Equity chart</button>
+                </div>
+                
+                <div class="analytics-content">
+                    <div id="analytics-overview" class="analytics-panel active">
+                        <div class="action-overview-section">
+                            <h3 class="section-title">Actions</h3>
+                            <div id="current-actions" class="action-cards"></div>
+                        </div>
+                    </div>
+                    <div id="analytics-table" class="analytics-panel">
+                        <p style="color: #b8b8b8;">Table view coming soon...</p>
+                    </div>
+                    <div id="analytics-equity" class="analytics-panel">
+                        <p style="color: #b8b8b8;">Equity chart coming soon...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Top Header Bar */
+.top-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-left {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.game-settings {
+    color: #fff;
+    font-size: 0.9rem;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-change {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-change:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Position Bar - matches GTO Wizard style */
+.position-bar {
+    display: flex;
+    gap: 15px;
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow-x: auto;
+}
+
+.position-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+    padding: 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.position-item.active {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: #4CAF50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+.position-item:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.position-name {
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.position-stack {
+    color: #b8b8b8;
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+}
+
+.position-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.action-button {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.action-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.action-button.active {
+    background: rgba(220, 53, 69, 0.3);
+    border-color: #dc3545;
+}
+
+.action-button.fold.active {
+    background: rgba(26, 26, 26, 0.6);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Main Content Area */
+.main-content-area {
+    display: flex;
+    gap: 25px;
+}
+
+.matrix-area {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.analytics-area {
+    flex: 0 0 350px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Analytics Tabs */
+.analytics-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.analytics-tab {
+    background: transparent;
+    border: none;
+    color: #b8b8b8;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+}
+
+.analytics-tab:hover {
+    color: #fff;
+}
+
+.analytics-tab.active {
+    color: #fff;
+    border-bottom-color: #4CAF50;
+}
+
+.analytics-panel {
+    display: none;
+}
+
+.analytics-panel.active {
+    display: block;
+}
+
+/* Matrix */
+.matrix-area {
+    min-height: 600px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+.hand-matrix {
+    display: block;
+    width: 100%;
+    min-height: 600px;
+}
+
+.matrix-container {
+    display: block;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 6px;
+    overflow: visible;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    min-width: 600px;
+    min-height: 600px;
+}
+
+.matrix-row {
+    display: flex;
+}
+
+.matrix-cell {
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: #fff;
+    position: relative;
+    text-align: center;
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+}
+
+.matrix-cell:hover {
+    transform: scale(1.1);
+    z-index: 10;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    border: 2px solid #fff;
+}
+
+.matrix-cell.editable {
+    cursor: pointer;
+}
+
+.matrix-cell.editable:hover {
+    border: 2px solid #4CAF50;
+}
+
+.frequency-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #4CAF50;
+    color: #fff;
+    font-size: 0.65rem;
+    text-align: center;
+    z-index: 20;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.matrix-cell.editable:hover .frequency-input {
+    opacity: 1;
+}
+
+.frequency-input:focus {
+    opacity: 1;
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.btn-edit-mode, .btn-save, .btn-reset {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-edit-mode:hover, .btn-save:hover, .btn-reset:hover {
+    background: #45a049;
+}
+
+.btn-edit-mode.active {
+    background: #f44336;
+}
+
+.btn-edit-mode.active:hover {
+    background: #da190b;
+}
+
+.btn-reset {
+    background: #ff9800;
+}
+
+.btn-reset:hover {
+    background: #f57c00;
+}
+
+/* Partial fill support - straight horizontal fill */
+.matrix-cell.partial-fill {
+    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.matrix-cell.partial-fill::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--fill-percent, 0%);
+    height: 100%;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    z-index: 1;
+}
+
+.matrix-cell.partial-fill > span,
+.matrix-cell > span.hand-label {
+    position: relative;
+    z-index: 2;
+    font-weight: 600;
+}
+
+.matrix-cell > span.hand-label {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.matrix-cell.full-raise {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
+
+.matrix-cell.full-fold {
+    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+    color: #fff;
+    opacity: 0.9;
+}
+
+/* Analytics Section */
+.section-title {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.action-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.action-card {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    padding: 12px 15px;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.action-card.raise {
+    background: rgba(220, 53, 69, 0.2);
+    border: 1px solid rgba(220, 53, 69, 0.4);
+}
+
+.action-card.fold {
+    background: rgba(26, 26, 26, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.action-card.allin {
+    background: rgba(139, 0, 0, 0.3);
+    border: 1px solid rgba(139, 0, 0, 0.5);
+}
+
+.action-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.action-label {
+    color: #b8b8b8;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.action-value {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.action-combos {
+    color: #b8b8b8;
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .main-content-area {
+        flex-direction: column;
+    }
+    
+    .analytics-area {
+        flex: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .matrix-cell {
+        width: 35px;
+        height: 35px;
+        font-size: 0.6rem;
+    }
+    
+    .position-item {
+        min-width: 80px;
+    }
+}
+</style>
+
+<script>
+// Define RFI ranges with frequencies for each position (GTO Wizard exact data)
+// Format: { hand: frequency (0-100) }
+// UTG target: 17.6% raise = 233.91 combos out of 1326 total
+const rangeFrequencies = {
+    utg: {
+        // Pairs - small pairs with specific frequencies
+        '22': 16, '33': 16, '44': 16, '55': 16, '66': 25, '77': 75,
+        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
+        // Suited - All A2s-AKs, K5s-KQs, Q9s-QJs, J9s-JTs, T9s, 98s, 87s, 76s, 65s, 54s, 43s, 32s
+        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
+        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
+        'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
+        'Q9s': 100, 'QTs': 100, 'QJs': 100,
+        'J9s': 100, 'JTs': 100,
+        'T9s': 100,
+        '98s': 100,
+        '87s': 100,
+        '76s': 100,
+        '65s': 100,
+        '54s': 100,
+        '43s': 100,
+        '32s': 100,
+        // Offsuit - ATo-AKo, KJo-KQo, QJo, JTo
+        'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
+        'KJo': 100, 'KQo': 100,
+        'QJo': 100,
+        'JTo': 100
+    },
+    hj: {
+        // Pairs - all 100% for HJ
+        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
+        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
+        // Suited
+        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
+        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
+        'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
+        'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
+        'J8s': 100, 'J9s': 100, 'JTs': 100,
+        'T8s': 100, 'T9s': 100,
+        '97s': 100, '98s': 100,
+        '86s': 100, '87s': 100,
+        '76s': 100,
+        // Offsuit
+        'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
+        'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
+        'Q9o': 100, 'QTo': 100, 'QJo': 100,
+        'J9o': 100, 'JTo': 100,
+        'T9o': 100
+    },
+    co: {
+        // All hands 100% for CO
+        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
+        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
+        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
+        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
+        'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
+        'Q7s': 100, 'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
+        'J7s': 100, 'J8s': 100, 'J9s': 100, 'JTs': 100,
+        'T7s': 100, 'T8s': 100, 'T9s': 100,
+        '96s': 100, '97s': 100, '98s': 100,
+        '85s': 100, '86s': 100, '87s': 100,
+        '74s': 100, '75s': 100, '76s': 100,
+        '63s': 100, '64s': 100, '65s': 100,
+        '52s': 100, '53s': 100, '54s': 100,
+        '42s': 100, '43s': 100,
+        '32s': 100,
+        'A4o': 100, 'A5o': 100, 'A6o': 100, 'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
+        'K8o': 100, 'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
+        'Q8o': 100, 'Q9o': 100, 'QTo': 100, 'QJo': 100,
+        'J8o': 100, 'J9o': 100, 'JTo': 100,
+        'T8o': 100, 'T9o': 100,
+        '98o': 100
+    },
+    btn: {
+        // All hands 100% for BTN
+        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
+        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
+        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
+        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
+        'K2s': 100, 'K3s': 100, 'K4s': 100, 'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
+        'Q2s': 100, 'Q3s': 100, 'Q4s': 100, 'Q5s': 100, 'Q6s': 100, 'Q7s': 100, 'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
+        'J5s': 100, 'J6s': 100, 'J7s': 100, 'J8s': 100, 'J9s': 100, 'JTs': 100,
+        'T6s': 100, 'T7s': 100, 'T8s': 100, 'T9s': 100,
+        '96s': 100, '97s': 100, '98s': 100,
+        '85s': 100, '86s': 100, '87s': 100,
+        '74s': 100, '75s': 100, '76s': 100,
+        '63s': 100, '64s': 100, '65s': 100,
+        '52s': 100, '53s': 100, '54s': 100,
+        '32s': 100, '42s': 100, '43s': 100,
+        'A2o': 100, 'A3o': 100, 'A4o': 100, 'A5o': 100, 'A6o': 100, 'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
+        'K7o': 100, 'K8o': 100, 'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
+        'Q8o': 100, 'Q9o': 100, 'QTo': 100, 'QJo': 100,
+        'J8o': 100, 'J9o': 100, 'JTo': 100,
+        'T8o': 100, 'T9o': 100,
+        '98o': 100,
+        '87o': 100,
+        '76o': 100,
+        '65o': 100,
+        '54o': 100
+    },
+    sb: {
+        // All hands 100% for SB
+        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
+        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
+        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
+        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
+        'K2s': 100, 'K3s': 100, 'K4s': 100, 'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
+        'Q4s': 100, 'Q5s': 100, 'Q6s': 100, 'Q7s': 100, 'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
+        'J6s': 100, 'J7s': 100, 'J8s': 100, 'J9s': 100, 'JTs': 100,
+        'T6s': 100, 'T7s': 100, 'T8s': 100, 'T9s': 100,
+        '96s': 100, '97s': 100, '98s': 100,
+        '85s': 100, '86s': 100, '87s': 100,
+        '74s': 100, '75s': 100, '76s': 100,
+        '43s': 100, '53s': 100, '54s': 100, '63s': 100, '64s': 100, '65s': 100,
+        'A3o': 100, 'A4o': 100, 'A5o': 100, 'A6o': 100, 'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
+        'K6o': 100, 'K7o': 100, 'K8o': 100, 'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
+        'Q7o': 100, 'Q8o': 100, 'Q9o': 100, 'QTo': 100, 'QJo': 100,
+        'J8o': 100, 'J9o': 100, 'JTo': 100,
+        'T8o': 100, 'T9o': 100,
+        '98o': 100,
+        '87o': 100,
+        '76o': 100
+    }
+};
+
+// Card ranks
+const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+
+// Current selected position
+let currentPosition = 'utg';
+
+// Edit mode state
+let editMode = false;
+let originalRanges = null; // Will be initialized after DOM loads
+
+// Edit mode state
+let editMode = false;
+let originalRanges = JSON.parse(JSON.stringify(rangeFrequencies)); // Deep copy for reset
+
+// Position data with stack sizes
+const positionData = {
+    utg: { name: 'UTG', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
+    hj: { name: 'HJ', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
+    co: { name: 'CO', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
+    btn: { name: 'BTN', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
+    sb: { name: 'SB', stack: 99.5, actions: ['Fold', 'Call', 'Raise 3', 'Allin 100'] },
+    bb: { name: 'BB', stack: 99, actions: ['Fold', 'Call', 'Raise 3', 'Allin 100'] }
+};
+
+// Get number of combos for a hand
+function getCombos(hand) {
+    if (hand.length === 2) {
+        return 6; // Pair
+    } else if (hand.includes('s')) {
+        return 4; // Suited
+    } else {
+        return 12; // Offsuit
+    }
+}
+
+// Get frequency for a hand
+function getFrequency(hand, position) {
+    if (position === 'bb') return 0;
+    const freq = rangeFrequencies[position];
+    if (!freq) return 0;
+    
+    // Normalize: uppercase the ranks but keep 's' and 'o' lowercase
+    // e.g., "AKs" -> "AKs", "AKo" -> "AKo", "AA" -> "AA"
+    let normalized = hand.toUpperCase();
+    // If it ends with 'S' or 'O', convert back to lowercase
+    if (normalized.endsWith('S')) {
+        normalized = normalized.slice(0, -1) + 's';
+    } else if (normalized.endsWith('O')) {
+        normalized = normalized.slice(0, -1) + 'o';
+    }
+    
+    return freq[normalized] || 0;
+}
+
+// Calculate position stats
+function calculatePositionStats(position) {
+    let totalCombos = 0;
+    let raiseCombos = 0;
+    let foldCombos = 0;
+    
+    ranks.forEach((rank1, i) => {
+        ranks.forEach((rank2, j) => {
+            let hand;
+            if (i === j) {
+                hand = rank1 + rank2;
+            } else if (i < j) {
+                hand = rank1 + rank2 + 's';
+            } else {
+                hand = rank2 + rank1 + 'o';
+            }
+            
+            const frequency = getFrequency(hand, position);
+            const combos = getCombos(hand);
+            const raiseComboCount = (frequency / 100) * combos;
+            
+            totalCombos += combos;
+            raiseCombos += raiseComboCount;
+            foldCombos += (combos - raiseComboCount);
+        });
+    });
+    
+    return {
+        total: totalCombos,
+        raise: Math.round(raiseCombos * 100) / 100,
+        fold: Math.round(foldCombos * 100) / 100,
+        raisePercent: (raiseCombos / totalCombos * 100).toFixed(1),
+        foldPercent: (foldCombos / totalCombos * 100).toFixed(1)
+    };
+}
+
+// Create position bar
+function createPositionBar() {
+    const bar = document.getElementById('positionBar');
+    let html = '';
+    
+    Object.keys(positionData).forEach(posKey => {
+        const pos = positionData[posKey];
+        const stats = calculatePositionStats(posKey);
+        const isActive = posKey === currentPosition;
+        
+        html += `<div class="position-item ${isActive ? 'active' : ''}" data-position="${posKey}">`;
+        html += `<div class="position-name" style="color: ${isActive ? '#4CAF50' : '#fff'};">${pos.name}</div>`;
+        html += `<div class="position-stack">${pos.stack}</div>`;
+        html += `<div class="position-actions">`;
+        pos.actions.forEach(action => {
+            const isRaise = action.includes('Raise');
+            const isFold = action === 'Fold';
+            const actionClass = isRaise ? 'raise' : (isFold ? 'fold' : '');
+            html += `<button class="action-button ${actionClass} ${isActive && isRaise ? 'active' : ''}">${action}</button>`;
+        });
+        html += `</div>`;
+        html += `<div class="position-stats" style="margin-top: 8px; font-size: 0.7rem; color: #b8b8b8;">`;
+        html += `<div>Raise: ${stats.raisePercent}%</div>`;
+        html += `<div>Fold: ${stats.foldPercent}%</div>`;
+        html += `</div>`;
+        html += `</div>`;
+    });
+    
+    bar.innerHTML = html;
+    
+    // Add click handlers
+    document.querySelectorAll('.position-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const newPosition = this.getAttribute('data-position');
+            if (newPosition !== currentPosition) {
+                currentPosition = newPosition;
+                createPositionBar();
+                createMatrix(currentPosition);
+                updateAnalytics(currentPosition);
+            }
+        });
+    });
+}
+
+// Create matrix
+function createMatrix(position) {
+    const matrix = document.getElementById('current-matrix');
+    if (!matrix) {
+        console.error('Matrix element not found!');
+        alert('Error: Matrix element not found. Please refresh the page.');
+        return;
+    }
+    
+    // Clear any existing content
+    matrix.innerHTML = '';
+    
+    console.log('Creating matrix for position:', position);
+    
+    let html = '<div class="matrix-container">';
+    let totalCells = 0;
+    let redCells = 0;
+    
+    ranks.forEach((rank1, i) => {
+        html += '<div class="matrix-row">';
+        
+        ranks.forEach((rank2, j) => {
+            let hand, displayText;
+            
+            if (i === j) {
+                hand = rank1 + rank2;
+                displayText = rank1 + rank2;
+            } else if (i < j) {
+                hand = rank1 + rank2 + 's';
+                displayText = rank1 + rank2 + 's';
+            } else {
+                hand = rank2 + rank1 + 'o';
+                displayText = rank2 + rank1 + 'o';
+            }
+            
+            const frequency = getFrequency(hand, position);
+            
+            let cellClass;
+            if (frequency === 100) {
+                cellClass = 'full-raise';
+                redCells++;
+            } else if (frequency === 0) {
+                cellClass = 'full-fold';
+            } else {
+                cellClass = 'partial-fill';
+                redCells++;
+            }
+            
+            const style = frequency > 0 && frequency < 100 ? `style="--fill-percent: ${frequency}%"` : '';
+            const editClass = editMode ? 'editable' : '';
+            
+            html += `<div class="matrix-cell ${cellClass} ${editClass}" ${style} data-hand="${hand}" data-position="${position}" title="${displayText}: ${frequency.toFixed(1)}%">`;
+            html += `<span class="hand-label">${displayText}</span>`;
+            if (editMode) {
+                html += `<input type="number" class="frequency-input" value="${frequency.toFixed(1)}" min="0" max="100" step="0.1" data-hand="${hand}" placeholder="${frequency.toFixed(1)}">`;
+            }
+            html += `</div>`;
+            totalCells++;
+        });
+        
+        html += '</div>';
+    });
+    
+    html += '</div>';
+    
+    console.log('Setting matrix innerHTML, HTML length:', html.length);
+    matrix.innerHTML = html;
+    console.log('Matrix HTML set, total cells:', totalCells, 'Matrix children:', matrix.children.length);
+    
+    // Verify matrix was created
+    const container = matrix.querySelector('.matrix-container');
+    if (!container) {
+        console.error('Matrix container not found after setting innerHTML!');
+        matrix.innerHTML = '<div style="color: white; padding: 20px; background: red;">ERROR: Matrix container failed to render!</div>';
+        return;
+    }
+    
+    const rows = container.querySelectorAll('.matrix-row');
+    console.log('Matrix rows created:', rows.length, 'Expected: 13');
+    
+    if (rows.length === 0) {
+        console.error('No matrix rows found!');
+        matrix.innerHTML = '<div style="color: white; padding: 20px; background: red;">ERROR: No matrix rows created!</div>';
+        return;
+    }
+    
+    // Add event listeners for editable cells
+    if (editMode) {
+        document.querySelectorAll('.frequency-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const hand = this.getAttribute('data-hand');
+                const cell = this.closest('.matrix-cell');
+                const position = cell.getAttribute('data-position');
+                const newFreq = parseFloat(this.value) || 0;
+                const clampedFreq = Math.max(0, Math.min(100, newFreq));
+                
+                // Update the range data
+                if (!rangeFrequencies[position]) {
+                    rangeFrequencies[position] = {};
+                }
+                rangeFrequencies[position][hand] = clampedFreq;
+                
+                // Update the cell display
+                updateCellDisplay(cell, clampedFreq);
+                
+                // Update analytics
+                updateAnalytics(position);
+            });
+            
+            input.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        });
+    }
+}
+
+// Update cell display based on frequency
+function updateCellDisplay(cell, frequency) {
+    const hand = cell.getAttribute('data-hand');
+    const position = cell.getAttribute('data-position');
+    
+    // Remove old classes
+    cell.classList.remove('full-raise', 'full-fold', 'partial-fill');
+    
+    // Add appropriate class
+    if (frequency === 100) {
+        cell.classList.add('full-raise');
+        cell.style.removeProperty('--fill-percent');
+    } else if (frequency === 0) {
+        cell.classList.add('full-fold');
+        cell.style.removeProperty('--fill-percent');
+    } else {
+        cell.classList.add('partial-fill');
+        cell.style.setProperty('--fill-percent', `${frequency}%`);
+    }
+    
+    // Update title
+    cell.setAttribute('title', `${hand}: ${frequency.toFixed(1)}%`);
+    
+    // Update input value
+    const input = cell.querySelector('.frequency-input');
+    if (input) {
+        input.value = frequency.toFixed(1);
+    }
+}
+
+// Update analytics
+function updateAnalytics(position) {
+    const stats = calculatePositionStats(position);
+    const actionsDiv = document.getElementById('current-actions');
+    
+    actionsDiv.innerHTML = `
+        <div class="action-card allin">
+            <div class="action-info">
+                <div class="action-label">Allin 100</div>
+                <div class="action-value">0%</div>
+                <div class="action-combos">(0 combos)</div>
+            </div>
+        </div>
+        <div class="action-card raise">
+            <div class="action-info">
+                <div class="action-label">Raise 2.5</div>
+                <div class="action-value">${stats.raisePercent}%</div>
+                <div class="action-combos">(${stats.raise.toFixed(2)} combos)</div>
+            </div>
+        </div>
+        <div class="action-card fold">
+            <div class="action-info">
+                <div class="action-label">Fold</div>
+                <div class="action-value">${stats.foldPercent}%</div>
+                <div class="action-combos">(${stats.fold.toFixed(2)} combos)</div>
+            </div>
+        </div>
+    `;
+}
+
+// Toggle edit mode
+function toggleEditMode() {
+    editMode = !editMode;
+    const toggleBtn = document.getElementById('editModeToggle');
+    const saveBtn = document.getElementById('saveRangesBtn');
+    const resetBtn = document.getElementById('resetRangesBtn');
+    
+    if (editMode) {
+        toggleBtn.textContent = 'Exit Edit Mode';
+        toggleBtn.classList.add('active');
+        saveBtn.style.display = 'inline-block';
+        resetBtn.style.display = 'inline-block';
+    } else {
+        toggleBtn.textContent = 'Edit Ranges';
+        toggleBtn.classList.remove('active');
+        saveBtn.style.display = 'none';
+        resetBtn.style.display = 'none';
+    }
+    
+    // Recreate matrix with edit mode
+    createMatrix(currentPosition);
+}
+
+// Save ranges to localStorage
+function saveRanges() {
+    localStorage.setItem('customRanges', JSON.stringify(rangeFrequencies));
+    alert('Ranges saved successfully!');
+}
+
+// Load ranges from localStorage
+function loadSavedRanges() {
+    const saved = localStorage.getItem('customRanges');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            // Merge saved ranges with defaults
+            Object.keys(parsed).forEach(position => {
+                if (rangeFrequencies[position]) {
+                    Object.assign(rangeFrequencies[position], parsed[position]);
+                }
+            });
+        } catch (e) {
+            console.error('Error loading saved ranges:', e);
+        }
+    }
+}
+
+// Reset to original ranges
+function resetRanges() {
+    if (confirm('Are you sure you want to reset all ranges to default? This cannot be undone.')) {
+        rangeFrequencies = JSON.parse(JSON.stringify(originalRanges));
+        localStorage.removeItem('customRanges');
+        createMatrix(currentPosition);
+        updateAnalytics(currentPosition);
+        alert('Ranges reset to default!');
+    }
+}
+
+// Toggle edit mode
+function toggleEditMode() {
+    editMode = !editMode;
+    const toggleBtn = document.getElementById('editModeToggle');
+    const saveBtn = document.getElementById('saveRangesBtn');
+    const resetBtn = document.getElementById('resetRangesBtn');
+    
+    if (editMode) {
+        toggleBtn.textContent = 'Exit Edit Mode';
+        toggleBtn.classList.add('active');
+        saveBtn.style.display = 'inline-block';
+        resetBtn.style.display = 'inline-block';
+    } else {
+        toggleBtn.textContent = 'Edit Ranges';
+        toggleBtn.classList.remove('active');
+        saveBtn.style.display = 'none';
+        resetBtn.style.display = 'none';
+    }
+    
+    // Recreate matrix with edit mode
+    createMatrix(currentPosition);
+}
+
+// Save ranges to localStorage
+function saveRanges() {
+    localStorage.setItem('customRanges', JSON.stringify(rangeFrequencies));
+    alert('Ranges saved successfully!');
+}
+
+// Load ranges from localStorage
+function loadSavedRanges() {
+    const saved = localStorage.getItem('customRanges');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            // Merge saved ranges with defaults
+            Object.keys(parsed).forEach(position => {
+                if (rangeFrequencies[position]) {
+                    Object.assign(rangeFrequencies[position], parsed[position]);
+                }
+            });
+        } catch (e) {
+            console.error('Error loading saved ranges:', e);
+        }
+    }
+}
+
+// Reset to original ranges
+function resetRanges() {
+    if (confirm('Are you sure you want to reset all ranges to default? This cannot be undone.')) {
+        rangeFrequencies = JSON.parse(JSON.stringify(originalRanges));
+        localStorage.removeItem('customRanges');
+        createMatrix(currentPosition);
+        updateAnalytics(currentPosition);
+        alert('Ranges reset to default!');
+    }
+}
+
+// Analytics tab switching
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // Initialize original ranges for reset functionality
+        if (!originalRanges) {
+            originalRanges = JSON.parse(JSON.stringify(rangeFrequencies));
+        }
+        
+        // Load saved ranges
+        loadSavedRanges();
+        
+        // Initialize
+        console.log('Initializing ranges page...');
+        console.log('Matrix element exists?', !!document.getElementById('current-matrix'));
+        
+        createPositionBar();
+        console.log('Position bar created');
+        
+        // Force matrix creation with delay to ensure DOM is ready
+        setTimeout(() => {
+            createMatrix(currentPosition);
+            console.log('Matrix created');
+            updateAnalytics(currentPosition);
+            console.log('Analytics updated');
+            
+            // Verify matrix is visible
+            const matrixEl = document.getElementById('current-matrix');
+            if (matrixEl) {
+                const container = matrixEl.querySelector('.matrix-container');
+                if (container) {
+                    console.log('Matrix container found, dimensions:', container.offsetWidth, 'x', container.offsetHeight);
+                } else {
+                    console.error('Matrix container NOT found after creation!');
+                }
+            }
+        }, 100);
+    } catch (error) {
+        console.error('Error initializing ranges page:', error);
+        alert('Error loading ranges page. Please refresh and check console for details.');
+    }
+    
+    // Edit mode toggle
+    document.getElementById('editModeToggle').addEventListener('click', toggleEditMode);
+    document.getElementById('saveRangesBtn').addEventListener('click', saveRanges);
+    document.getElementById('resetRangesBtn').addEventListener('click', resetRanges);
+    
+    // Analytics tab handlers
+    document.querySelectorAll('.analytics-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            
+            // Update tab buttons
+            document.querySelectorAll('.analytics-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update panels
+            document.querySelectorAll('.analytics-panel').forEach(p => p.classList.remove('active'));
+            const targetPanel = document.getElementById(`analytics-${targetTab}`);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
+        });
+    });
+});
+</script>

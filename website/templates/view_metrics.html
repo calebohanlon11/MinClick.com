@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}View Metrics{% endblock %}
+{% block content %}
+<h1 align="center">View Metrics ({{ metrics['VPIP Info']['num_viable_hands'] }} Viable Hands)</h1>
+
+
+<!-- Second Header with Buttons -->
+<div class="container my-4">
+  <div class="btn-group btn-group-lg d-flex justify-content-center" role="group">
+    {% set stage = request.args.get('stage', 'preflop') %}
+    <a href="?stage=preflop" class="btn {% if stage == 'preflop' %}btn-primary{% else %}btn-secondary{% endif %}">Pre-Flop</a>
+    <a href="?stage=flop" class="btn {% if stage == 'flop' %}btn-primary{% else %}btn-secondary{% endif %}">Flop</a>
+    <a href="?stage=turn" class="btn {% if stage == 'turn' %}btn-primary{% else %}btn-secondary{% endif %}">Turn</a>
+    <a href="?stage=river" class="btn {% if stage == 'river' %}btn-primary{% else %}btn-secondary{% endif %}">River</a>
+    <a href="?stage=board_and_hands" class="btn {% if stage == 'board_and_hands' %}btn-primary{% else %}btn-secondary{% endif %}">Board and Hands</a>
+    <a href="?stage=leak_detection" class="btn {% if stage == 'leak_detection' %}btn-primary{% else %}btn-secondary{% endif %}">Leak Detection</a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <div class="card-header">
+      <h2>Key Session Metrics</h2>
+    </div>
+    <div class="card-body">
+      <table class="table table-bordered">
+        <tbody>
+          <tr>
+            <th>Session Earnings</th>
+            <td>${{ metrics['Session Earnings'] }}</td>
+          </tr>
+          <tr>
+            <th>Session BB Earnings</th>
+            <td>{{ metrics['Session BB Earnings'] }} BB</td>
+          </tr>
+          <tr>
+            <th>BB per 100 Hands</th>
+            <td>{{ metrics['BB per 100 hands'] }} BB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <br/>
+  
+  {% if stage == 'preflop' %}
+    {% include 'streets/preflop_metrics.html' %}
+  {% elif stage == 'flop' %}
+    {% include 'streets/flop_metrics.html' %}
+  {% elif stage == 'turn' %}
+    {% include 'streets/turn_metrics.html' %}
+  {% elif stage == 'river' %}
+    {% include 'streets/river_metrics.html' %}
+  {% elif stage == 'board_and_hands' %}
+    {% include 'streets/board_and_hands_metrics.html' with context %}
+  {% elif stage == 'leak_detection' %}
+    {% include 'streets/leak_detection.html' %}
+  {% endif %}
+</div>
+{% endblock %}

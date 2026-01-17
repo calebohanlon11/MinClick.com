@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                    <i class="fas fa-filter me-1"></i>Filter Posts
+                </button>
+                {% if filter_applied %}
+                <a href="{{ url_for('views.all_posts') }}" class="btn btn-outline-danger ms-2">
+                    <i class="fas fa-times me-1"></i>Clear Filter
+                </a>
+                {% endif %}
+                <form method="POST" action="{{ url_for('views.reprocess_all_posts') }}" class="d-inline ms-2" onsubmit="return confirm('This will reprocess all your Ladbrooks posts. This may take a few moments. Continue?');">
+                    <button type="submit" class="btn btn-outline-warning">
+                        <i class="fas fa-sync-alt me-1"></i>Reprocess All My Posts
+                    </button>
+                </form>
+            </div>
+            <div>
+                <a href="{{ url_for('views.create_post') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Create a Post
+                </a>
+            </div>
+        </div>
+
+        <!-- Posts Section -->
+        <div class="row">
+            <div class="col-12">
+                {% if posts %}
+                    {% for post in posts %}
+                        <div class="card post-card">
+                            <div class="post-header">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        <h6 class="mb-0 fw-bold text-primary">
+                                            <i class="fas fa-user me-1"></i>
+                                            <a href="{{ url_for('views.user_profile', username=post.user.username) }}" class="text-decoration-none">
+                                                {{ post.user.username }}
+                                            </a>
+                                        </h6>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>{{ post.date_created.strftime('%d/%m/%y') }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <span class="badge bg-info">{{ post.stake }}</span>
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        <span class="badge bg-secondary">{{ post.category.title() }}</span>
+                                        {% if user.id == post.author or user.admin %}
+                                        <div class="dropdown d-inline-block ms-2">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item text-danger" href="{{ url_for('views.delete_post', id=post.id) }}">
+                                                    <i class="fas fa-trash me-1"></i>Delete
+                                                </a></li>
+                                            </ul>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <p class="card-text">{{ post.text }}</p>
+                                
+                                <div class="d-flex gap-2 mb-3">
+                                    {% if post.data_frame %}
+                                    <a href="{{ url_for('views.view_dataframe', post_id=post.id) }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-table me-1"></i>View DataFrame
+                                    </a>
+                                    {% endif %}
+                                    {% if post.data_frame_results %}
+                                    <a href="{{ url_for('views.view_metrics', post_id=post.id) }}" class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-chart-line me-1"></i>View Metrics
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="comment-section">
+                                    <h6 class="text-muted mb-3">
+                                        <i class="fas fa-comments me-1"></i>
+                                        Comments ({{ post.comments|length }})
+                                    </h6>
+                                    
+                                    {% if post.comments %}
+                                        {% for comment in post.comments %}
+                                            <div class="d-flex justify-content-between align-items-start mb-2 p-2 bg-white rounded">
+                                                <div class="flex-grow-1">
+                                                    <strong class="text-primary">
+                                                        <a href="{{ url_for('views.user_profile', username=comment.user.username) }}" class="text-decoration-none">
+                                                            {{ comment.user.username }}
+                                                        </a>:
+                                                    </strong> 
+                                                    <span>{{ comment.text }}</span>
+                                                    <small class="text-muted d-block">{{ comment.date_created.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                                                </div>
+                                                {% if user.id == comment.author or user.id == post.author %}
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li><a class="dropdown-item text-danger" href="{{ url_for('views.delete_comment', comment_id=comment.id) }}">
+                                                            <i class="fas fa-trash me-1"></i>Delete
+                                                        </a></li>
+                                                    </ul>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-muted mb-3">No comments yet</p>
+                                    {% endif %}
+                                    
+                                    <form method="POST" action="{{ url_for('views.create_comment', post_id=post.id) }}">
+                                        <div class="input-group">
+                                            <input type="text" name="text" class="form-control" placeholder="Comment something!" required>
+                                            <button class="btn btn-primary" type="submit">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No posts yet</h4>
+                        <p class="text-muted">Be the first to create a post!</p>
+                        <a href="{{ url_for('views.create_post') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create Your First Post
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Posts</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="GET" action="{{ url_for('views.filter_posts') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Stakes</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value=".01/.02" id="stake1">
+                                    <label class="form-check-label" for="stake1">.01/.02</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value=".05/.1" id="stake2">
+                                    <label class="form-check-label" for="stake2">.05/.1</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value=".1/.25" id="stake3">
+                                    <label class="form-check-label" for="stake3">.1/.25</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value=".25/.5" id="stake4">
+                                    <label class="form-check-label" for="stake4">.25/.5</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value=".5/1" id="stake5">
+                                    <label class="form-check-label" for="stake5">.5/1</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value="1/2" id="stake6">
+                                    <label class="form-check-label" for="stake6">1/2</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value="2/5" id="stake7">
+                                    <label class="form-check-label" for="stake7">2/5</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value="5/10" id="stake8">
+                                    <label class="form-check-label" for="stake8">5/10</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="stakes" value="10/20" id="stake9">
+                                    <label class="form-check-label" for="stake9">10/20</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Site</label>
+                        <select class="form-select" name="site">
+                            <option value="">All Sites</option>
+                            <option value="ladbrooks">Ladbrooks</option>
+                            <option value="stars">Stars</option>
+                            <option value="gg">GG</option>
+                        </select>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="my_sessions" value="true" id="mySessions">
+                        <label class="form-check-label" for="mySessions">My Sessions Only</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

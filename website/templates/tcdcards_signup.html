@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block content %}
+<form method="POST">
+  <h3 align="center">Sign Up To Trinity College Cards</h3>
+  <div class="form-group">
+    <label for="email">Email Address</label>
+    <input type="text" id="email" name="email" class="form-control" placeholder="Enter Email" />
+
+    <label for="first_name">First Name</label>
+    <input type="text" id="first_name" name="first_name" class="form-control" placeholder="Enter first name" />
+
+    <label for="last_name">Last Name</label>
+    <input type="text" id="last_name" name="last_name" class="form-control" placeholder="Enter last name" />
+
+    <label for="course">Course</label>
+    <input type="text" id="course" name="course" class="form-control" placeholder="Enter Course" />
+
+    <label for="year">Year</label>
+    <select id="year" name="year" class="form-control">
+      <option value="" disabled selected>Select your year</option>
+      {% for year in range(1, 7) %}
+        <option value="{{ year }}">{{ year }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="sex">Sex</label>
+    <select id="sex" name="sex" class="form-control">
+      <option value="" disabled selected>Select your gender</option>
+      <option value="male">Male</option>
+      <option value="female">Female</option>
+      <option value="other">Other</option>
+    </select>
+
+    <br />
+    <div align="center">
+      <button class="btn btn-primary" type="submit">Sign Up to tcdCards</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Create Post{% endblock %}
+{% block content %}
+<div class="container my-4">
+<h1 align="center">Make a Post</h1>
+
+<form method="POST" enctype="multipart/form-data">
+    <div class="card mb-3">
+      <div class="card-header">
+        <h5 class="mb-0">Post Details</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label for="text" class="form-label">Post Text:</label>
+          <textarea name="text" id="text" class="form-control" placeholder="Enter your post text here" rows="3"></textarea>
+        </div>
+        
+        <div class="mb-3">
+          <label for="file" class="form-label">Upload Hand History File:</label>
+    <input type="file" id="file" name="file" class="form-control" accept=".txt" required>
+  </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <h5 class="mb-0">Game Information</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Game Type:</label>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="cash" name="game_type" value="cash" checked>
+              <label class="form-check-label" for="cash">Cash Game</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="tournament" name="game_type" value="tournament">
+              <label class="form-check-label" for="tournament">Tournament</label>
+            </div>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label for="table_size" class="form-label">Table Size:</label>
+            <select class="form-select" id="table_size" name="table_size">
+              <option value="">Select table size</option>
+              <option value="6-max">6-max</option>
+              <option value="9-max">9-max</option>
+              <option value="full ring">Full Ring</option>
+              <option value="heads-up">Heads-up</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="game_name" class="form-label">Game Name:</label>
+            <input type="text" class="form-control" id="game_name" name="game_name" placeholder="e.g., Texas Hold'em">
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label for="currency" class="form-label">Currency:</label>
+            <select class="form-select" id="currency" name="currency">
+              <option value="USD" selected>USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="CAD">CAD (C$)</option>
+              <option value="AUD">AUD (A$)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="buy_in" class="form-label">Buy-in:</label>
+            <input type="number" step="0.01" class="form-control" id="buy_in" name="buy_in" placeholder="0.00">
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label for="cash_out" class="form-label">Cash-out:</label>
+            <input type="number" step="0.01" class="form-control" id="cash_out" name="cash_out" placeholder="0.00">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <h5 class="mb-0">Poker Site</h5>
+      </div>
+      <div class="card-body">
+        <label class="form-label">Choose a Category:</label>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" id="ladbrooks" name="category" value="ladbrooks" checked required>
+      <label class="form-check-label" for="ladbrooks">Ladbrooks</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" id="stars" name="category" value="stars" required>
+      <label class="form-check-label" for="stars">Stars</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" id="gg" name="category" value="gg" required>
+      <label class="form-check-label" for="gg">GG</label>
+    </div>
+        <div class="alert alert-info mt-3 mb-0">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Note:</strong> Stake levels will be automatically detected from your hand history file. 
+          If your file contains multiple stake levels, separate posts will be created for each stake.
+        </div>
+  </div>
+  </div>
+
+  <div align="center">
+    <button type="submit" class="btn btn-lg btn-primary">Post</button>
+      <a href="{{ url_for('views.all_posts') }}" class="btn btn-lg btn-secondary">Back</a>
+  </div>
+</form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', (event) => {
+    const categoryRadios = document.querySelectorAll('input[name="category"]');
+    categoryRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value !== 'ladbrooks') {
+                alert('Sorry, currently only ladbrooks is supported');
+                document.getElementById('ladbrooks').checked = true;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+<div id="posts">
+  {% for post in posts %}
+  <div class="card border-dark">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <a href="/posts/{{post.user.username}}">{{post.user.username}}</a>
+      <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"></button>
+        <ul class="dropdown-menu">
+          <li>
+            <form method="POST" action="{{ url_for('views.admin_delete_post') }}">
+              <input type="hidden" name="post_id" value="{{ post.id }}">
+              <button type="submit" class="dropdown-item">Delete Post</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-text">{{post.text}}</div>
+      <br />
+      {% if post.data_frame %}
+      <a href="/view-dataframe/{{post.id}}"><small>View DataFrame</small></a>
+      {% endif %}
+      <br />
+      {% if post.data_frame_results %}
+      <a href="/view-metrics/{{post.id}}"><small>View Metrics</small></a>
+      {% endif %}
+      <br />
+      <div class="collapse" id="comments-{{post.id}}">
+        <div class="card">
+          <div class="card-body" id="comments-expanded-{{post.id}}">
+            {% for comment in post.comments %}
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <a href="/posts/{{comment.user.username}}">{{comment.user.username}}</a>: {{comment.text}}
+              </div>
+              <div>
+                <small class="text-muted"> {{comment.date_created}}</small>
+                <div class="btn-group">
+                  <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"></button>
+                  <ul class="dropdown-menu">
+                    <li>
+                      <form method="POST" action="{{ url_for('views.admin_delete_comment') }}">
+                        <input type="hidden" name="comment_id" value="{{ comment.id }}">
+                        <button type="submit" class="dropdown-item">Delete Comment</button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <p class="card-text">
+        {% if post.comments|length > 0 %}
+        <a data-bs-toggle="collapse" href="#comments-{{post.id}}" role="button">
+          <small>View {{post.comments|length}} Comments</small>
+        </a>
+        {% else %}
+        <small class="text-muted">No Comments</small>
+        {% endif %}
+      </p>
+      <form class="input-group mb-3" method="POST" action="/create-comment/{{post.id}}">
+        <input type="text" id="text" name="text" class="form-control" placeholder="Comment something!"/>
+        <button type="submit" class="btn btn-primary">Comment</button>
+      </form>
+    </div>
+    <div class="card-footer text-muted">{{post.date_created}}</div>
+  </div>
+  <br />
+  {% endfor %}
+</div>

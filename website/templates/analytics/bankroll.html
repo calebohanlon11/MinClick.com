@@ -1,0 +1,282 @@
+{% if bankroll_data %}
+<div class="container-fluid py-4">
+    <h2 class="mb-4">Cash Game Bankroll Analytics</h2>
+    <p class="text-muted mb-3">Includes both online sessions and live sessions (converted to USD)</p>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Current Bankroll</h5>
+                    <h3 class="mb-0 {% if bankroll_data.current_bankroll >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ "%.2f"|format(bankroll_data.current_bankroll) }}
+                    </h3>
+                    <small class="text-muted">{{ "%.1f"|format(bankroll_data.current_bankroll_bb) }} BB</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Total P/L</h5>
+                    <h3 class="mb-0 {% if bankroll_data.total_profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ "%.2f"|format(bankroll_data.total_profit_loss) }}
+                    </h3>
+                    <small class="text-muted">{{ "%.1f"|format(bankroll_data.total_profit_loss_bb) }} BB</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">This Month P/L</h5>
+                    <h3 class="mb-0 {% if bankroll_data.month_profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ "%.2f"|format(bankroll_data.month_profit_loss) }}
+                    </h3>
+                    <small class="text-muted">{{ "%.1f"|format(bankroll_data.month_profit_loss_bb) }} BB</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Overall BB/100</h5>
+                    <h3 class="mb-0 {% if bankroll_data.overall_bb_per_100 >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(bankroll_data.overall_bb_per_100) }}
+                    </h3>
+                    <small class="text-muted">{{ bankroll_data.total_hands }} hands</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stake Breakdown Table -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4 class="mb-0">Performance by Stake</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Stake</th>
+                            <th>Hands Played</th>
+                            <th>Total Winnings ($)</th>
+                            <th>Total Winnings (BB)</th>
+                            <th>BB/100</th>
+                            <th>Winrate</th>
+                            <th>Sessions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stake, data in bankroll_data.stake_breakdown.items()|sort %}
+                        <tr>
+                            <td><strong>{{ stake }}</strong></td>
+                            <td>
+                                {% if data.hands > 0 %}
+                                    {{ "{:,}".format(data.hands) }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="{% if data.earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ "%.2f"|format(data.earnings) }}
+                            </td>
+                            <td class="{% if data.bb_earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ "%.1f"|format(data.bb_earnings) }} BB
+                            </td>
+                            <td class="{% if data.bb_per_100 is not none %}{% if data.bb_per_100 >= 0 %}text-success{% else %}text-danger{% endif %}{% endif %}">
+                                {% if data.bb_per_100 is not none %}
+                                    {{ "%.2f"|format(data.bb_per_100) }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ "%.1f"|format(data.winrate) }}%</td>
+                            <td>{{ data.sessions }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance Graph -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+            <h4 class="mb-0">Performance Over Time</h4>
+            <div class="d-flex gap-2 flex-wrap">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" onclick="setViewType('dollars')">$</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setViewType('bb')">BB</button>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary active" onclick="setChartType('cumulative')">Cumulative</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setChartType('session')">Per Session</button>
+                </div>
+                <select class="form-select form-select-sm" id="stakeFilter" onchange="updateChart()" style="width: auto;">
+                    <option value="all">All Stakes</option>
+                    {% for stake in bankroll_data.stake_breakdown.keys()|sort %}
+                    <option value="{{ stake }}">{{ stake }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <canvas id="bankrollChart" height="80"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    const bankrollData = {{ bankroll_data.running_bankroll|tojson }};
+    const sessionData = {{ bankroll_data.session_data|tojson }};
+    let chart = null;
+    let currentView = 'dollars';
+    let chartType = 'cumulative';
+    
+    function setViewType(view) {
+        currentView = view;
+        // Update button states for view type
+        document.querySelectorAll('.btn-group')[0].querySelectorAll('button').forEach((btn, idx) => {
+            btn.classList.toggle('active', (idx === 0 && view === 'dollars') || (idx === 1 && view === 'bb'));
+        });
+        updateChart();
+    }
+    
+    function setChartType(type) {
+        chartType = type;
+        // Update button states for chart type
+        document.querySelectorAll('.btn-group')[1].querySelectorAll('button').forEach((btn, idx) => {
+            btn.classList.toggle('active', (idx === 0 && type === 'cumulative') || (idx === 1 && type === 'session'));
+        });
+        updateChart();
+    }
+    
+    function updateChart() {
+        const stakeFilter = document.getElementById('stakeFilter').value;
+        
+        // Filter session data by stake if needed
+        let filteredSessions = sessionData;
+        if (stakeFilter !== 'all') {
+            filteredSessions = sessionData.filter(s => s.stake === stakeFilter);
+        }
+        
+        let labels, data, label, color;
+        
+        if (chartType === 'cumulative') {
+            // Cumulative bankroll
+            let cumulative = 0;
+            let cumulativeBB = 0;
+            const cumulativeData = [];
+            
+            filteredSessions.forEach(session => {
+                cumulative += session.earnings;
+                cumulativeBB += session.bb_earnings;
+                cumulativeData.push({
+                    date: session.date,
+                    value: currentView === 'dollars' ? cumulative : cumulativeBB
+                });
+            });
+            
+            labels = cumulativeData.map(d => {
+                const date = new Date(d.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            data = cumulativeData.map(d => d.value);
+            label = currentView === 'dollars' ? 'Cumulative Bankroll ($)' : 'Cumulative Bankroll (BB)';
+            color = currentView === 'dollars' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)';
+        } else {
+            // Per session winnings
+            labels = filteredSessions.map(s => {
+                const date = new Date(s.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            data = filteredSessions.map(s => {
+                return currentView === 'dollars' ? s.earnings : s.bb_earnings;
+            });
+            label = currentView === 'dollars' ? 'Session Winnings ($)' : 'Session Winnings (BB)';
+            color = currentView === 'dollars' ? 'rgba(255, 99, 132, 1)' : 'rgba(153, 102, 255, 1)';
+        }
+        
+        if (chart) {
+            chart.destroy();
+        }
+        
+        const ctx = document.getElementById('bankrollChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color.replace('1)', '0.1)'),
+                    borderWidth: 2,
+                    fill: chartType === 'cumulative',
+                    tension: 0.4,
+                    pointRadius: chartType === 'session' ? 3 : 2,
+                    pointHoverRadius: chartType === 'session' ? 5 : 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                return currentView === 'dollars' 
+                                    ? '$' + value.toFixed(2) 
+                                    : value.toFixed(1) + ' BB';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: chartType === 'session',
+                        ticks: {
+                            callback: function(value) {
+                                return currentView === 'dollars' ? '$' + value.toFixed(2) : value.toFixed(1) + ' BB';
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize chart on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateChart();
+    });
+</script>
+
+{% else %}
+<div class="container-fluid py-4">
+    <div class="alert alert-info">
+        <h4>No Bankroll Data Available</h4>
+        <p>You don't have any cash game sessions recorded yet. Upload hand history files to start tracking your bankroll.</p>
+    </div>
+</div>
+{% endif %}
+

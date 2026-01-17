@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Admin{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mt-5" style="text-align:center;">ADMIN</h1>
+    <div class="text-end mb-3">
+        <a href="{{ url_for('views.download_members') }}" class="btn btn-primary">Download All Members</a>
+    </div>
+    <form method="POST" class="mt-4">
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" placeholder="Search users by username or email" name="search_query">
+            <button class="btn btn-outline-secondary" type="submit">Search</button>
+        </div>
+    </form>
+
+    {% if users %}
+        <h2>Search Results:</h2>
+        <ul class="list-group">
+            {% for user in users %}
+                <li class="list-group-item">
+                    {{ user.username }} ({{ user.email }})
+                    <form method="POST" style="display: inline;">
+                        <input type="hidden" name="selected_user_id" value="{{ user.id }}">
+                        <button type="submit" class="btn btn-link">Select</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if selected_user %}
+        <h2 class="mt-5">User Profile:</h2>
+        <p>Username: {{ selected_user.username }}</p>
+        <p>Email: {{ selected_user.email }}</p>
+        <p>Admin: {{ selected_user.admin }}</p>
+        {% if not selected_user.admin %}
+            <form id="makeAdminForm" method="POST" action="{{ url_for('views.make_admin') }}">
+                <input type="hidden" name="make_admin_id" value="{{ selected_user.id }}">
+                <button type="button" class="btn btn-primary" onclick="confirmMakeAdmin('{{ selected_user.username }}')">Make Admin</button>
+            </form>
+            <form id="deleteUserForm" method="POST" action="{{ url_for('views.delete_user') }}">
+                <input type="hidden" name="delete_user_id" value="{{ selected_user.id }}">
+                <button type="submit" class="btn btn-danger">Delete User</button>
+            </form>
+        {% endif %}
+
+        <h2 class="mt-5">User Posts:</h2>
+        <div id="posts">
+            {% for post in posts %}
+            <div class="card border-dark">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <a href="/posts/{{ post.author }}">{{ post.author }}</a>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"></button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="POST" action="{{ url_for('views.admin_delete_post') }}">
+                                    <input type="hidden" name="post_id" value="{{ post.id }}">
+                                    <button type="submit" class="dropdown-item">Delete Post</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="card-text">{{ post.text }}</div>
+                    <br />
+                    {% if post.data_frame %}
+                    <a href="/view-dataframe/{{ post.id }}"><small>View DataFrame</small></a>
+                    {% endif %}
+                    <br />
+                    {% if post.data_frame_results %}
+                    <a href="/view-metrics/{{ post.id }}"><small>View Metrics</small></a>
+                    {% endif %}
+                    <br />
+                    <div class="collapse" id="comments-{{ post.id }}">
+                        <div class="card">
+                            <div class="card-body" id="comments-expanded-{{ post.id }}">
+                                {% for comment in post.comments %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a href="/posts/{{ comment.author }}">{{ comment.author }}</a>: {{ comment.text }}
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">{{ comment.date_created }}</small>
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"></button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <form method="POST" action="{{ url_for('views.admin_delete_comment') }}">
+                                                        <input type="hidden" name="comment_id" value="{{ comment.id }}">
+                                                        <button type="submit" class="dropdown-item">Delete Comment</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-text">
+                        {% if post.comments|length > 0 %}
+                        <a data-bs-toggle="collapse" href="#comments-{{ post.id }}" role="button">
+                            <small>View {{ post.comments|length }} Comments</small>
+                        </a>
+                        {% else %}
+                        <small class="text-muted">No Comments</small>
+                        {% endif %}
+                    </p>
+                    <form class="input-group mb-3" method="POST" action="/create-comment/{{ post.id }}">
+                        <input type="text" id="text" name="text" class="form-control" placeholder="Comment something!"/>
+                        <button type="submit" class="btn btn-primary">Comment</button>
+                    </form>
+                </div>
+                <div class="card-footer text-muted">{{ post.date_created }}</div>
+            </div>
+            <br />
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function confirmMakeAdmin(username) {
+    if (confirm('Are you certain you want to make ' + username + ' an admin?')) {
+        document.getElementById('makeAdminForm').submit();
+    }
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,1068 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Min-Click.com{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --dashboard-primary: #667eea;
+        --dashboard-secondary: #764ba2;
+        --dashboard-success: #10b981;
+        --dashboard-danger: #ef4444;
+        --dashboard-warning: #f59e0b;
+        --dashboard-info: #3b82f6;
+        --dashboard-dark: #1e293b;
+        --dashboard-light: #f8fafc;
+        --dashboard-card-bg: rgba(255, 255, 255, 0.95);
+        --dashboard-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        --dashboard-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="dark"] {
+        --dashboard-card-bg: rgba(30, 41, 59, 0.95);
+        --dashboard-light: #0f172a;
+        --dashboard-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        --dashboard-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.4);
+    }
+
+    .dashboard-container {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, var(--dashboard-light) 0%, #e2e8f0 100%);
+        min-height: 100vh;
+    }
+
+    [data-theme="dark"] .dashboard-container {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    .dashboard-header {
+        margin-bottom: 2rem;
+        animation: fadeInDown 0.6s ease-out;
+    }
+
+    .dashboard-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--dashboard-primary) 0%, var(--dashboard-secondary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card {
+        background: var(--dashboard-card-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--dashboard-shadow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--dashboard-primary), var(--dashboard-secondary));
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--dashboard-shadow-hover);
+    }
+
+    .stat-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .stat-card .icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, var(--dashboard-primary), var(--dashboard-secondary));
+        color: white;
+        animation: pulse 2s infinite;
+    }
+
+    .stat-card.success .icon {
+        background: linear-gradient(135deg, var(--dashboard-success), #059669);
+    }
+
+    .stat-card.danger .icon {
+        background: linear-gradient(135deg, var(--dashboard-danger), #dc2626);
+    }
+
+    .stat-card.warning .icon {
+        background: linear-gradient(135deg, var(--dashboard-warning), #d97706);
+    }
+
+    .stat-card.info .icon {
+        background: linear-gradient(135deg, var(--dashboard-info), #2563eb);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+        background: linear-gradient(135deg, var(--dashboard-primary), var(--dashboard-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .stat-card.success .stat-value {
+        background: linear-gradient(135deg, var(--dashboard-success), #059669);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .stat-card.danger .stat-value {
+        background: linear-gradient(135deg, var(--dashboard-danger), #dc2626);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .widget-card {
+        background: var(--dashboard-card-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--dashboard-shadow);
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    .widget-card:hover {
+        box-shadow: var(--dashboard-shadow-hover);
+        transform: translateY(-4px);
+    }
+
+    .widget-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .widget-header h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .widget-header .icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--dashboard-primary), var(--dashboard-secondary));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+    }
+
+    .heatmap-container {
+        display: grid;
+        grid-template-columns: repeat(13, 1fr);
+        gap: 0.15rem;
+        margin-top: 1rem;
+        padding: 0.25rem;
+    }
+
+    .heatmap-cell {
+        aspect-ratio: 1;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.5rem;
+        color: white;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        min-height: 12px;
+        padding: 1px;
+    }
+
+    .heatmap-cell.bb-view {
+        font-size: 0.5rem;
+        min-height: 14px;
+    }
+
+    .heatmap-cell.rfi-view,
+    .heatmap-cell.threebet-view {
+        font-size: 0.4rem;
+        min-height: 10px;
+        padding: 0.5px;
+    }
+
+    .heatmap-cell::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: inherit;
+        opacity: 0.8;
+        transition: opacity 0.3s ease;
+    }
+
+    .heatmap-cell:hover {
+        transform: scale(1.1);
+        z-index: 10;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .heatmap-cell:hover::before {
+        opacity: 1;
+    }
+
+    .heatmap-cell span {
+        position: relative;
+        z-index: 1;
+    }
+
+    .position-heatmap {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .position-cell {
+        padding: 1rem;
+        border-radius: 12px;
+        text-align: center;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+
+    .position-cell:hover {
+        transform: translateY(-4px);
+        border-color: var(--dashboard-primary);
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+    }
+
+    .grid-stack-item {
+        background: var(--dashboard-card-bg);
+        border-radius: 16px;
+        box-shadow: var(--dashboard-shadow);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .grid-stack-item-content {
+        padding: 1.5rem;
+        height: 100%;
+        overflow: auto;
+    }
+
+    .grid-stack-item {
+        background: transparent !important;
+    }
+
+    .grid-stack-item.ui-draggable-dragging {
+        opacity: 0.8;
+    }
+
+    .grid-stack-item.ui-resizable-resizing {
+        opacity: 0.9;
+    }
+
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(102, 126, 234, 0.3);
+        border-radius: 50%;
+        border-top-color: var(--dashboard-primary);
+        animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .tooltip-custom {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        pointer-events: none;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .tooltip-custom.show {
+        opacity: 1;
+    }
+</style>
+
+<div class="dashboard-container">
+    <div class="container-fluid">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-chart-line me-2"></i>Analytics Dashboard</h1>
+                    <p class="text-muted">Comprehensive overview of your poker performance</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary btn-sm" onclick="resetLayout()" title="Reset widget layout">
+                        <i class="fas fa-redo me-1"></i>Reset Layout
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm ms-2" onclick="toggleEditMode()" id="editModeBtn" title="Toggle drag mode">
+                        <i class="fas fa-edit me-1"></i>Edit Layout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Statistics Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card success">
+                    <div class="icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-label text-muted">Total Earnings</div>
+                    <div class="stat-value">€{{ "%.2f"|format(stats.total_combined_earnings_eur) }}</div>
+                    <div class="stat-sublabel text-muted small">{{ "%.1f"|format(stats.total_combined_bb) }} BB</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card info">
+                    <div class="icon">
+                        <i class="fas fa-hand-paper"></i>
+                    </div>
+                    <div class="stat-label text-muted">Total Hands</div>
+                    <div class="stat-value">{{ "{:,}".format(stats.online_total_hands) }}</div>
+                    <div class="stat-sublabel text-muted small">{{ stats.online_bb_per_100 }} BB/100</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card warning">
+                    <div class="icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-label text-muted">Sessions</div>
+                    <div class="stat-value">{{ stats.total_combined_sessions }}</div>
+                    <div class="stat-sublabel text-muted small">{{ stats.online_sessions }} online, {{ stats.live_sessions }} live</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card {% if stats.online_bb_per_100 >= 0 %}success{% else %}danger{% endif %}">
+                    <div class="icon">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <div class="stat-label text-muted">Win Rate</div>
+                    <div class="stat-value">{{ stats.online_win_rate }}%</div>
+                    <div class="stat-sublabel text-muted small">Online Sessions</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Dashboard Grid -->
+        <div id="dashboard-grid" class="grid-stack">
+            <!-- Performance Over Time Chart -->
+            <div class="grid-stack-item" gs-w="8" gs-h="4" gs-x="0" gs-y="0">
+                <div class="grid-stack-item-content widget-card">
+                    <div class="widget-header">
+                        <h3>
+                            <span class="icon"><i class="fas fa-chart-line"></i></span>
+                            Performance Over Time
+                        </h3>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary active" onclick="setChartView('cumulative')">Cumulative</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="setChartView('session')">Per Session</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <!-- Position Profitability Heat Map -->
+            <div class="grid-stack-item" gs-w="4" gs-h="4" gs-x="8" gs-y="0">
+                <div class="grid-stack-item-content widget-card">
+                    <div class="widget-header">
+                        <h3>
+                            <span class="icon"><i class="fas fa-map"></i></span>
+                            Position Profitability
+                        </h3>
+                    </div>
+                    <div class="position-heatmap" id="positionHeatmap">
+                        {% set positions = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+                        {% for pos in positions %}
+                        <div class="position-cell" data-position="{{ pos }}" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));">
+                            <div class="fw-bold">{{ pos }}</div>
+                            <div class="small text-muted" id="pos-{{ pos }}-bb">0 BB</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <!-- Hand Matrix Heat Map -->
+            <div class="grid-stack-item" gs-w="12" gs-h="5" gs-x="0" gs-y="4">
+                <div class="grid-stack-item-content widget-card">
+                    <div class="widget-header">
+                        <h3>
+                            <span class="icon"><i class="fas fa-th"></i></span>
+                            Hand Profitability Heat Map
+                        </h3>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary active" onclick="setHeatmapView('bb')">BB Earnings</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="setHeatmapView('rfi')">RFI Count</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="setHeatmapView('3bet')">3-Bet Count</button>
+                        </div>
+                    </div>
+                    <div id="handHeatmap" class="heatmap-container"></div>
+                </div>
+                </div>
+            </div>
+
+            <!-- Stake Breakdown -->
+            <div class="grid-stack-item" gs-w="6" gs-h="4" gs-x="0" gs-y="9">
+                <div class="grid-stack-item-content widget-card">
+                    <div class="widget-header">
+                        <h3>
+                            <span class="icon"><i class="fas fa-coins"></i></span>
+                            Performance by Stake
+                        </h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="stakeChart"></canvas>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <!-- Recent Sessions -->
+            <div class="grid-stack-item" gs-w="6" gs-h="4" gs-x="6" gs-y="9">
+                <div class="grid-stack-item-content widget-card">
+                    <div class="widget-header">
+                        <h3>
+                            <span class="icon"><i class="fas fa-history"></i></span>
+                            Recent Sessions
+                        </h3>
+                    </div>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Stake</th>
+                                    <th>Hands</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if stats.recent_sessions and stats.recent_sessions|length > 0 %}
+                                    {% for session in stats.recent_sessions[:10] %}
+                                    <tr>
+                                        <td>{{ session.date.strftime('%Y-%m-%d') if session.date else 'N/A' }}</td>
+                                        <td><span class="badge bg-secondary">{{ session.stake or 'N/A' }}</span></td>
+                                        <td>{{ session.hands or 0 }}</td>
+                                        <td class="{% if session.earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            ${{ "%.2f"|format(session.earnings or 0) }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No recent sessions available</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip" class="tooltip-custom"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gridstack@9.0.0/dist/gridstack-all.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/gridstack@9.0.0/dist/gridstack.min.css" rel="stylesheet"/>
+<script>
+    // Chart.js configuration with animations
+    Chart.defaults.animation.duration = 2000;
+    Chart.defaults.animation.easing = 'easeOutQuart';
+    Chart.defaults.plugins.legend.display = true;
+    Chart.defaults.plugins.legend.position = 'top';
+    Chart.defaults.plugins.tooltip.enabled = true;
+    Chart.defaults.plugins.tooltip.animation.duration = 200;
+
+    // Performance Chart
+    const performanceData = {{ stats.session_earnings|tojson }};
+    const performanceDates = {{ stats.formatted_session_dates|tojson }};
+    let performanceChart = null;
+    let chartViewType = 'cumulative';
+
+    function initPerformanceChart() {
+        const ctx = document.getElementById('performanceChart');
+        if (!ctx) return;
+        
+        // Check if we have data
+        if (!performanceData || performanceData.length === 0) {
+            ctx.parentElement.innerHTML = '<p class="text-muted text-center">No performance data available yet. Upload sessions to see your performance over time.</p>';
+            return;
+        }
+        
+        let labels = performanceDates || [];
+        let data = performanceData || [];
+        
+        if (chartViewType === 'cumulative') {
+            let cumulative = 0;
+            data = performanceData.map(val => {
+                cumulative += (val || 0);
+                return cumulative;
+            });
+        }
+
+        if (performanceChart) {
+            performanceChart.destroy();
+        }
+
+        performanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: chartViewType === 'cumulative' ? 'Cumulative Earnings ($)' : 'Session Earnings ($)',
+                    data: data,
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 3,
+                    fill: chartViewType === 'cumulative',
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutQuart'
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return '$' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: chartViewType === 'session',
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(0);
+                            },
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+    }
+
+    function setChartView(type) {
+        chartViewType = type;
+        document.querySelectorAll('.btn-group button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+        initPerformanceChart();
+    }
+
+    // Position Heatmap
+    const positionData = {{ stats.aggregated_positional_matchups|tojson }};
+    function initPositionHeatmap() {
+        const positionMap = {};
+        const positions = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
+        
+        // Initialize all positions
+        positions.forEach(pos => {
+            positionMap[pos] = { total_bb: 0, hands: 0 };
+        });
+        
+        // Handle nested structure (new format with pot types)
+        if (positionData && typeof positionData === 'object' && Object.keys(positionData).length > 0) {
+            // Check if it's the new nested format
+            if (positionData['RFI Pots'] || positionData['3-Bet Pots'] || positionData['4-Bet Pots']) {
+                // Aggregate across all pot types
+                ['RFI Pots', '3-Bet Pots', '4-Bet Pots', 'RFI Multiway Pots', '3-Bet Multiway Pots', '4-Bet Multiway Pots'].forEach(potType => {
+                    const potMatchups = positionData[potType] || {};
+                    Object.keys(potMatchups).forEach(matchupKey => {
+                        const matchup = potMatchups[matchupKey];
+                        if (matchup && typeof matchup === 'object') {
+                            // Extract hero position from matchup key (e.g., "UTG vs MP")
+                            const heroPos = matchupKey.split(' vs ')[0];
+                            if (positions.includes(heroPos)) {
+                                positionMap[heroPos].total_bb += (matchup.total_bb_earnings || 0);
+                                positionMap[heroPos].hands += (matchup.total_hands || 0);
+                            }
+                        }
+                    });
+                });
+            } else if (Array.isArray(positionData)) {
+                // Old format - flat array
+                positionData.forEach(matchup => {
+                    if (matchup && typeof matchup === 'object') {
+                        const heroPos = matchup.hero_position;
+                        if (heroPos && positions.includes(heroPos)) {
+                            positionMap[heroPos].total_bb += (matchup.total_bb_earnings || 0);
+                            positionMap[heroPos].hands += (matchup.total_hands || 0);
+                        }
+                    }
+                });
+            } else {
+                // Try to extract from flat object
+                Object.values(positionData).forEach(matchup => {
+                    if (matchup && typeof matchup === 'object') {
+                        const heroPos = matchup.hero_position;
+                        if (heroPos && positions.includes(heroPos)) {
+                            positionMap[heroPos].total_bb += (matchup.total_bb_earnings || 0);
+                            positionMap[heroPos].hands += (matchup.total_hands || 0);
+                        }
+                    }
+                });
+            }
+        }
+
+        // Update UI
+        positions.forEach(pos => {
+            const cell = document.querySelector(`[data-position="${pos}"]`);
+            if (cell) {
+                const bb = positionMap[pos].total_bb;
+                const intensity = Math.min(Math.abs(bb) / 100, 1);
+                const isPositive = bb >= 0;
+                
+                const r = isPositive ? Math.floor(16 + (239 - 16) * intensity) : Math.floor(239 - (239 - 16) * intensity);
+                const g = isPositive ? Math.floor(185 + (255 - 185) * intensity) : Math.floor(16);
+                const b = isPositive ? Math.floor(52 + (255 - 52) * intensity) : Math.floor(16);
+                
+                cell.style.background = `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.3), rgba(${r}, ${g}, ${b}, 0.5))`;
+                cell.style.color = isPositive ? '#10b981' : '#ef4444';
+                
+                const bbElement = cell.querySelector(`#pos-${pos}-bb`);
+                if (bbElement) {
+                    bbElement.textContent = `${bb >= 0 ? '+' : ''}${bb.toFixed(1)} BB`;
+                    bbElement.className = `small ${isPositive ? 'text-success' : 'text-danger'}`;
+                }
+            }
+        });
+    }
+
+    // Hand Matrix Heatmap
+    const handMatrixData = {{ stats.aggregated_hand_matrix|tojson }};
+    const rfiMatrixData = {{ stats.aggregated_rfi_matrix|tojson }};
+    const threeBetMatrixData = {{ stats.aggregated_three_bet_matrix|tojson }};
+    let heatmapView = 'bb';
+
+    const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+
+    function generateHandMatrix() {
+        const container = document.getElementById('handHeatmap');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        const data = heatmapView === 'bb' ? (handMatrixData || {}) : 
+                     heatmapView === 'rfi' ? (rfiMatrixData || {}) : 
+                     (threeBetMatrixData || {});
+        
+        // Check if we have any data
+        if (!data || Object.keys(data).length === 0) {
+            container.innerHTML = '<div class="text-center text-muted p-4">No hand data available for this view. Upload sessions to see hand analytics.</div>';
+            return;
+        }
+
+        // Find max value for normalization
+        let maxValue = 0;
+        Object.values(data).forEach(handData => {
+            if (!handData || typeof handData !== 'object') return;
+            let val = 0;
+            if (heatmapView === 'bb') {
+                val = Math.abs(handData.total_bb_earnings || 0);
+            } else if (heatmapView === 'rfi') {
+                val = handData.total_rfi || 0;
+            } else {
+                val = handData.total_three_bet || 0;
+            }
+            maxValue = Math.max(maxValue, val);
+        });
+        maxValue = maxValue || 1; // Prevent division by zero
+
+        // Create matrix cells
+        for (let i = 0; i < ranks.length; i++) {
+            for (let j = 0; j < ranks.length; j++) {
+                const cell = document.createElement('div');
+                
+                let handKey = '';
+                if (i === j) {
+                    handKey = ranks[i] + ranks[j];
+                } else if (i < j) {
+                    handKey = ranks[j] + ranks[i] + 'o';
+                } else {
+                    handKey = ranks[i] + ranks[j] + 's';
+                }
+
+                const handData = data[handKey] || {};
+                let value = 0;
+                if (heatmapView === 'bb') {
+                    value = handData.total_bb_earnings || 0;
+                    cell.className = 'heatmap-cell bb-view';
+                } else if (heatmapView === 'rfi') {
+                    value = handData.total_rfi || 0;
+                    cell.className = 'heatmap-cell rfi-view';
+                } else {
+                    value = handData.total_three_bet || 0;
+                    cell.className = 'heatmap-cell threebet-view';
+                }
+
+                // Color intensity based on value
+                const intensity = Math.min(Math.abs(value) / maxValue, 1);
+                const isPositive = value >= 0;
+
+                let r, g, b;
+                if (heatmapView === 'bb') {
+                    r = isPositive ? Math.floor(16 + (239 - 16) * intensity) : Math.floor(239 - (239 - 16) * intensity);
+                    g = isPositive ? Math.floor(185 + (255 - 185) * intensity) : Math.floor(16);
+                    b = isPositive ? Math.floor(52 + (255 - 52) * intensity) : Math.floor(16);
+                } else {
+                    // RFI and 3-bet use purple/blue gradient
+                    r = Math.floor(102 + (234 - 102) * intensity);
+                    g = Math.floor(126 + (234 - 126) * intensity);
+                    b = Math.floor(234);
+                }
+
+                cell.style.background = `rgb(${r}, ${g}, ${b})`;
+                cell.innerHTML = `<span>${handKey}</span>`;
+
+                // Tooltip
+                cell.addEventListener('mouseenter', function(e) {
+                    showTooltip(e, handKey, value, heatmapView);
+                });
+                cell.addEventListener('mouseleave', hideTooltip);
+
+                container.appendChild(cell);
+            }
+        }
+    }
+
+    function setHeatmapView(type) {
+        heatmapView = type;
+        document.querySelectorAll('.btn-group button').forEach((btn, idx) => {
+            btn.classList.toggle('active', idx === (type === 'bb' ? 0 : type === 'rfi' ? 1 : 2));
+        });
+        generateHandMatrix();
+    }
+
+    // Stake Chart
+    function initStakeChart() {
+        const stakeData = {{ stats.stake_breakdown|tojson }};
+        const ctx = document.getElementById('stakeChart');
+        if (!ctx) return;
+        
+        // Check if we have data
+        if (!stakeData || Object.keys(stakeData).length === 0) {
+            ctx.parentElement.innerHTML = '<p class="text-muted text-center">No stake breakdown data available yet.</p>';
+            return;
+        }
+        
+        const labels = Object.keys(stakeData);
+        const earnings = labels.map(stake => stakeData[stake].earnings || 0);
+        const colors = earnings.map(earn => earn >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Earnings ($)',
+                    data: earnings,
+                    backgroundColor: colors,
+                    borderColor: earnings.map(earn => earn >= 0 ? 'rgba(16, 185, 129, 1)' : 'rgba(239, 68, 68, 1)'),
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return '$' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(0);
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                animation: {
+                    duration: 2000,
+                    easing: 'easeOutQuart'
+                }
+            }
+        });
+    }
+
+    // Tooltip functions
+    function showTooltip(event, hand, value, type) {
+        const tooltip = document.getElementById('tooltip');
+        if (!tooltip) return;
+        
+        let unit = '';
+        let displayValue = value;
+        if (type === 'bb') {
+            unit = ' BB';
+            displayValue = value.toFixed(2);
+        } else if (type === 'rfi') {
+            unit = ' RFI';
+            displayValue = Math.round(value);
+        } else {
+            unit = ' 3-Bets';
+            displayValue = Math.round(value);
+        }
+        
+        tooltip.textContent = `${hand}: ${value >= 0 ? '+' : ''}${displayValue}${unit}`;
+        tooltip.style.left = (event.pageX + 10) + 'px';
+        tooltip.style.top = (event.pageY - 10) + 'px';
+        tooltip.classList.add('show');
+    }
+
+    function hideTooltip() {
+        const tooltip = document.getElementById('tooltip');
+        tooltip.classList.remove('show');
+    }
+
+    // Initialize GridStack for draggable widgets
+    let grid = null;
+    let editMode = false;
+    
+    function initGridStack() {
+        grid = GridStack.init({
+            column: 12,
+            cellHeight: 70,
+            margin: 10,
+            disableResize: true,
+            disableDrag: true,
+            animate: true
+        });
+        
+        // Save layout to localStorage
+        grid.on('change', function() {
+            const layout = grid.save();
+            localStorage.setItem('dashboard-layout', JSON.stringify(layout));
+        });
+        
+        // Load saved layout
+        const savedLayout = localStorage.getItem('dashboard-layout');
+        if (savedLayout) {
+            try {
+                const layout = JSON.parse(savedLayout);
+                grid.load(layout);
+            } catch (e) {
+                console.error('Error loading saved layout:', e);
+            }
+        }
+    }
+
+    function toggleEditMode() {
+        editMode = !editMode;
+        const btn = document.getElementById('editModeBtn');
+        
+        if (editMode) {
+            grid.enableMove(true);
+            grid.enableResize(true);
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Done Editing';
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-primary');
+            document.querySelectorAll('.grid-stack-item').forEach(item => {
+                item.style.cursor = 'move';
+            });
+        } else {
+            grid.enableMove(false);
+            grid.enableResize(false);
+            btn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit Layout';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-secondary');
+            document.querySelectorAll('.grid-stack-item').forEach(item => {
+                item.style.cursor = 'default';
+            });
+        }
+    }
+
+    function resetLayout() {
+        if (confirm('Are you sure you want to reset the dashboard layout to default?')) {
+            localStorage.removeItem('dashboard-layout');
+            location.reload();
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initGridStack();
+        initPerformanceChart();
+        initPositionHeatmap();
+        generateHandMatrix();
+        initStakeChart();
+    });
+</script>
+{% endblock %}
+

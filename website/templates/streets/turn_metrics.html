@@ -1,0 +1,794 @@
+{% block metrics %}
+<h2>Turn Metrics</h2>
+
+<!-- Key Metric: Total Turns Played -->
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h3 class="mb-0"><i class="fas fa-chart-line me-2"></i>Key Metrics</h3>
+    </div>
+    <div class="card-body">
+        {% if metrics.get('Turn Action Frequency') %}
+            {% set action_freq = metrics.get('Turn Action Frequency', {}) %}
+            {% set total_turns = action_freq.get('total_hands', 0) %}
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h4 class="text-warning mb-1">{{ total_turns }}</h4>
+                            <p class="text-muted mb-0">Total Turns Played</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">No turn data available. Please reprocess this post.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% set turn_scenarios = [
+    {
+        'id': 'oop',
+        'title': 'OOP Action',
+        'hero': metrics.get('turn_Hero_op_action', {}),
+        'villain': metrics.get('turn_Villain_op_action', {}),
+        'actions': [
+            {'label': 'Checks', 'hero_key': 'Check', 'villain_key': 'Villain_checks'},
+            {'label': 'Bets', 'hero_key': 'Bets', 'villain_key': 'Villain_bets'}
+        ]
+    },
+    {
+        'id': 'ip',
+        'title': 'IP Action',
+        'hero': metrics.get('turn_Hero_ip_action', {}),
+        'villain': metrics.get('turn_Villain_ip_action', {}),
+        'actions': [
+            {'label': 'Checks', 'hero_key': 'checks', 'villain_key': 'Villain_checks'},
+            {'label': 'Bets', 'hero_key': 'ip_cbets', 'villain_key': 'Villain_cbets'}
+        ]
+    },
+    {
+        'id': 'oop_vs_cbet',
+        'title': 'OOP Facing C-Bet',
+        'hero': metrics.get('turn_Hero_op_vs_cbet', {}),
+        'villain': metrics.get('turn_Villain_op_vs_cbet', {}),
+        'actions': [
+            {'label': 'Calls', 'hero_key': 'Call_cbet', 'villain_key': 'Call_cbet'},
+            {'label': 'Raises', 'hero_key': 'Raise_cbet', 'villain_key': 'Raise_cbet'},
+            {'label': 'Folds', 'hero_key': 'Fold_to_cbet', 'villain_key': 'Fold_to_cbet'}
+        ]
+    },
+    {
+        'id': 'ip_vs_donk',
+        'title': 'IP Facing Donk',
+        'hero': metrics.get('turn_Hero_ip_vs_donk', {}),
+        'villain': metrics.get('turn_Villain_ip_vs_donk', {}),
+        'actions': [
+            {'label': 'Calls', 'hero_key': 'Hero_Calls', 'villain_key': 'Villain_Calls'},
+            {'label': 'Raises', 'hero_key': 'Hero_Raises', 'villain_key': 'Villain_Raises'},
+            {'label': 'Folds', 'hero_key': 'Hero_Folds', 'villain_key': 'Villain_Folds'}
+        ]
+    },
+    {
+        'id': 'ip_vs_checkraise',
+        'title': 'IP Facing Check-Raise',
+        'hero': metrics.get('turn_Hero_ip_vs_checkraise', {}),
+        'villain': metrics.get('turn_Villain_ip_vs_checkraise', {}),
+        'actions': [
+            {'label': 'Calls', 'hero_key': 'Hero_Calls', 'villain_key': 'Villain_Calls'},
+            {'label': 'Raises', 'hero_key': 'Hero_Raises', 'villain_key': 'Villain_Raises'},
+            {'label': 'Folds', 'hero_key': 'Hero_Folds', 'villain_key': 'Villain_Folds'}
+        ]
+    }
+] %}
+
+<!-- Turn Action Comparison -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="mb-0">Turn Action Comparison</h3>
+        <p class="text-muted mb-0">Hero vs Villain action frequencies by scenario</p>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for scenario in turn_scenarios %}
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header bg-light">
+                        <strong>{{ scenario.title }}</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Totals</span>
+                            <span>
+                                Hero {{ scenario.hero.get('total', 0) }}
+                                <span class="text-muted">/</span>
+                                Villain {{ scenario.villain.get('total', 0) }}
+                            </span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Action</th>
+                                        <th>Hero %</th>
+                                        <th>Villain %</th>
+                                        <th>Diff</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for action in scenario.actions %}
+                                    {% set hero_val = scenario.hero.get(action.hero_key, 0) %}
+                                    {% set villain_val = scenario.villain.get(action.villain_key, 0) %}
+                                    {% set diff = hero_val - villain_val %}
+                                    <tr>
+                                        <td>{{ action.label }}</td>
+                                        <td>{{ "%.2f"|format(hero_val) }}%</td>
+                                        <td>{{ "%.2f"|format(villain_val) }}%</td>
+                                        <td>
+                                            {% if diff >= 0 %}+{% endif %}{{ "%.2f"|format(diff) }}%
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Turn Action Breakdown -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="mb-0">Detailed Turn Action Breakdown</h3>
+        <p class="text-muted mb-0">Percentages with totals and Hero vs Villain differences</p>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Action</th>
+                        <th>Hero %</th>
+                        <th>Villain %</th>
+                        <th>Diff</th>
+                        <th>Hero Total</th>
+                        <th>Villain Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scenario in turn_scenarios %}
+                        {% for action in scenario.actions %}
+                        {% set hero_val = scenario.hero.get(action.hero_key, 0) %}
+                        {% set villain_val = scenario.villain.get(action.villain_key, 0) %}
+                        {% set diff = hero_val - villain_val %}
+                        <tr>
+                            <td><strong>{{ scenario.title }}</strong></td>
+                            <td>{{ action.label }}</td>
+                            <td>{{ "%.2f"|format(hero_val) }}%</td>
+                            <td>{{ "%.2f"|format(villain_val) }}%</td>
+                            <td>
+                                {% if diff >= 0 %}+{% endif %}{{ "%.2f"|format(diff) }}%
+                            </td>
+                            <td>{{ scenario.hero.get('total', 0) }}</td>
+                            <td>{{ scenario.villain.get('total', 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Turn Card Analysis -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+            <h3>Turn Card Analysis</h3>
+            <p class="text-muted mb-0">BB earnings by turn card</p>
+        </div>
+        <div class="mt-2 mt-md-0">
+            <label for="turn-card-sort" class="form-label me-2 mb-0">Sort by:</label>
+            <select id="turn-card-sort" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                <option value="rank">Card Rank (A to 2)</option>
+                <option value="hands-desc">Total Hands (High to Low)</option>
+                <option value="hands-asc">Total Hands (Low to High)</option>
+                <option value="bb-desc">Total BB Earnings (High to Low)</option>
+                <option value="bb-asc">Total BB Earnings (Low to High)</option>
+                <option value="avg-desc">Avg BB/Hand (High to Low)</option>
+                <option value="avg-asc">Avg BB/Hand (Low to High)</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if metrics.get('Turn High Card Analysis') %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="turn-card-table">
+                    <thead>
+                        <tr>
+                            <th>Turn Card</th>
+                            <th>Total Hands</th>
+                            <th>Total BB Earnings</th>
+                            <th>Avg BB/Hand</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for turn_type, data in metrics.get('Turn High Card Analysis', {}).items() %}
+                        <tr class="{% if data.get('total_bb_earnings', 0) < 0 %}table-danger{% elif data.get('total_bb_earnings', 0) > 0 %}table-success{% endif %}"
+                            data-card="{{ turn_type }}"
+                            data-total-hands="{{ data.get('total_hands', 0) }}"
+                            data-total-bb="{{ data.get('total_bb_earnings', 0) }}"
+                            data-avg-bb="{{ data.get('avg_bb_per_hand', 0) }}">
+                            <td><strong>{{ turn_type }}</strong></td>
+                            <td>{{ data.get('total_hands', 0) }}</td>
+                            <td class="{% if data.get('total_bb_earnings', 0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ "%.2f"|format(data.get('total_bb_earnings', 0)) }} BB
+                            </td>
+                            <td class="{% if data.get('avg_bb_per_hand', 0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ "%.2f"|format(data.get('avg_bb_per_hand', 0)) }} BB
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <script>
+            (function() {
+                const sortSelect = document.getElementById('turn-card-sort');
+                const table = document.getElementById('turn-card-table');
+                if (!sortSelect || !table) return;
+                
+                const rankOrder = ['A High','K High','Q High','J High','T High','9 High','8 High','7 High','6 High','5 High','4 High','3 High','2 High'];
+                function getRankIndex(label) {
+                    const idx = rankOrder.indexOf(label);
+                    return idx === -1 ? rankOrder.length : idx;
+                }
+                
+                function sortTable() {
+                    const tbody = table.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    const sortValue = sortSelect.value;
+                    
+                    rows.sort((a, b) => {
+                        if (sortValue === 'rank') {
+                            return getRankIndex(a.dataset.card) - getRankIndex(b.dataset.card);
+                        } else if (sortValue === 'hands-desc') {
+                            return parseFloat(b.dataset.totalHands) - parseFloat(a.dataset.totalHands);
+                        } else if (sortValue === 'hands-asc') {
+                            return parseFloat(a.dataset.totalHands) - parseFloat(b.dataset.totalHands);
+                        } else if (sortValue === 'bb-desc') {
+                            return parseFloat(b.dataset.totalBb) - parseFloat(a.dataset.totalBb);
+                        } else if (sortValue === 'bb-asc') {
+                            return parseFloat(a.dataset.totalBb) - parseFloat(b.dataset.totalBb);
+                        } else if (sortValue === 'avg-desc') {
+                            return parseFloat(b.dataset.avgBb) - parseFloat(a.dataset.avgBb);
+                        } else if (sortValue === 'avg-asc') {
+                            return parseFloat(a.dataset.avgBb) - parseFloat(b.dataset.avgBb);
+                        }
+                        return 0;
+                    });
+                    
+                    rows.forEach(row => tbody.appendChild(row));
+                }
+                
+                sortSelect.addEventListener('change', sortTable);
+            })();
+            </script>
+        {% else %}
+            <p class="text-muted">No turn high card data available. Please reprocess this post.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if false %}
+<div class="card">
+    <div class="card-header">
+        <h2>Hero OOP Action vs Villain OOP Action</h2>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Hero OOP Action</th>
+                    <th>Villain OOP Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Totals</td>
+                    <td>{{ metrics['turn_Hero_op_action']['total'] }}</td>
+                    <td>{{ metrics['turn_Villain_op_action']['total'] }}</td>
+                </tr>
+                <tr>
+                    <td>Checks</td>
+                    <td>{{ metrics['turn_Hero_op_action']['Check'] }}%</td>
+                    <td>{{ metrics['turn_Villain_op_action']['Villain_checks'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Bets</td>
+                    <td>{{ metrics['turn_Hero_op_action']['Bets'] }}%</td>
+                    <td>{{ metrics['turn_Villain_op_action']['Villain_bets'] }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#opturnChartContainer" aria-expanded="false" aria-controls="opturnChartContainer">
+    View OP Turn Action Chart
+</button>
+<div class="collapse" id="opturnChartContainer">
+    <canvas id="opturnChart"></canvas>
+</div>
+
+</br>
+</br>
+</br>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Hero IP Action vs Villain IP Action</h2>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Hero IP Action</th>
+                    <th>Villain IP Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Totals</td>
+                    <td>{{ metrics['turn_Hero_ip_action']['total'] }}</td>
+                    <td>{{ metrics['turn_Villain_ip_action']['total'] }}</td>
+                </tr>
+                <tr>
+                    <td>Checks</td>
+                    <td>{{ metrics['turn_Hero_ip_action']['checks'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_action']['Villain_checks'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Bets</td>
+                    <td>{{ metrics['turn_Hero_ip_action']['ip_cbets'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_action']['Villain_cbets'] }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#ipturnChartContainer" aria-expanded="false" aria-controls="ipturnChartContainer">
+    View IP Turn Action Chart
+</button>
+<div class="collapse" id="ipturnChartContainer">
+    <canvas id="ipturnChart"></canvas>
+</div>
+
+</br>
+</br>
+</br>
+
+
+<div class="card">
+    <div class="card-header">
+        <h2>Hero OOP Facing cbet vs Villain OOP Facing cbet</h2>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Hero OOP Action</th>
+                    <th>Villain OOP Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Totals</td>
+                    <td>{{ metrics['turn_Hero_op_vs_cbet']['total'] }}</td>
+                    <td>{{ metrics['turn_Villain_op_vs_cbet']['total'] }}</td>
+                </tr>
+                <tr>
+                    <td>Calls</td>
+                    <td>{{ metrics['turn_Hero_op_vs_cbet']['Call_cbet'] }}%</td>
+                    <td>{{ metrics['turn_Villain_op_vs_cbet']['Call_cbet'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Raises</td>
+                    <td>{{ metrics['turn_Hero_op_vs_cbet']['Raise_cbet'] }}%</td>
+                    <td>{{ metrics['turn_Villain_op_vs_cbet']['Raise_cbet'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Folds</td>
+                    <td>{{ metrics['turn_Hero_op_vs_cbet']['Fold_to_cbet'] }}%</td>
+                    <td>{{ metrics['turn_Villain_op_vs_cbet']['Fold_to_cbet'] }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#cbetturnChartContainer" aria-expanded="false" aria-controls="cbetturnChartContainer">
+    View OP Turn Facing cbet Chart
+</button>
+<div class="collapse" id="cbetturnChartContainer">
+    <canvas id="cbetturnChart"></canvas>
+</div>
+
+</br>
+</br>
+</br>
+
+
+<div class="card">
+    <div class="card-header">
+        <h2>Hero IP Facing Donk vs Villain IP Facing Donk</h2>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Hero IP Action</th>
+                    <th>Villain IP Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Totals</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_donk']['total'] }}</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_donk']['total'] }}</td>
+                </tr>
+                <tr>
+                    <td>Calls</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_donk']['Hero_Calls'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_donk']['Villain_Calls'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Raises</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_donk']['Hero_Raises'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_donk']['Villain_Raises'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Folds</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_donk']['Hero_Folds'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_donk']['Villain_Folds'] }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#donkturnChartContainer" aria-expanded="false" aria-controls="donkturnChartContainer">
+    View IP VS Donk
+</button>
+<div class="collapse" id="donkturnChartContainer">
+    <canvas id="donkturnChart"></canvas>
+</div>
+
+</br>
+</br>
+</br>
+
+
+<div class="card">
+    <div class="card-header">
+        <h2>Hero IP Facing Check Raise vs Villain IP Facing Check Raise</h2>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Hero IP Action</th>
+                    <th>Villain IP Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Totals</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_checkraise']['total'] }}</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_checkraise']['total'] }}</td>
+                </tr>
+                <tr>
+                    <td>Calls</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_checkraise']['Hero_Calls'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_checkraise']['Villain_Calls'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Raises</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_checkraise']['Hero_Raises'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_checkraise']['Villain_Raises'] }}%</td>
+                </tr>
+                <tr>
+                    <td>Folds</td>
+                    <td>{{ metrics['turn_Hero_ip_vs_checkraise']['Hero_Folds'] }}%</td>
+                    <td>{{ metrics['turn_Villain_ip_vs_checkraise']['Villain_Folds'] }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#CRturnChartContainer" aria-expanded="false" aria-controls="CRturnChartContainer">
+    View IP VS Check Raise
+</button>
+<div class="collapse" id="CRturnChartContainer">
+    <canvas id="CRturnChart"></canvas>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var ctx = document.getElementById('opturnChart').getContext('2d');
+    var turnChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Checks', 'Bets'],
+            datasets: [
+                {
+                    label: 'Hero OOP Action',
+                    data: [{{ metrics['turn_Hero_op_action']['Check'] }}, {{ metrics['turn_Hero_op_action']['Bets'] }}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                },
+                {
+                    label: 'Villain OOP Action',
+                    data: [{{ metrics['turn_Villain_op_action']['Villain_checks'] }}, {{ metrics['turn_Villain_op_action']['Villain_bets'] }}],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 1,  // Set minimum value to 1
+                    max: 100,  // Set maximum value to 100
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+        var ctx = document.getElementById('cbetturnChart').getContext('2d');
+    var turnChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Calls', 'Raises', 'Folds'],
+            datasets: [
+                {
+                    label: 'Hero VS CBET',
+                    data: [{{ metrics['turn_Hero_op_vs_cbet']['Call_cbet'] }}, {{ metrics['turn_Hero_op_vs_cbet']['Raise_cbet'] }}, {{ metrics['turn_Hero_op_vs_cbet']['Fold_to_cbet'] }} ],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                },
+                {
+                    label: 'Villain VS CBET',
+                    data: [{{ metrics['turn_Villain_op_vs_cbet']['Call_cbet'] }}, {{ metrics['turn_Villain_op_vs_cbet']['Raise_cbet'] }}, {{ metrics['turn_Villain_op_vs_cbet']['Fold_to_cbet'] }}],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 1,  // Set minimum value to 1
+                    max: 100,  // Set maximum value to 100
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+
+
+    });
+
+        var ctx = document.getElementById('ipturnChart').getContext('2d');
+    var turnChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Checks', 'Bets'],
+            datasets: [
+                {
+                    label: 'Hero OOP Action',
+                    data: [{{ metrics['turn_Hero_ip_action']['checks'] }}, {{ metrics['turn_Hero_ip_action']['ip_cbets'] }}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                },
+                {
+                    label: 'Villain OOP Action',
+                    data: [{{ metrics['turn_Villain_ip_action']['Villain_checks'] }}, {{ metrics['turn_Villain_ip_action']['Villain_cbets'] }}],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 1,  // Set minimum value to 1
+                    max: 100,  // Set maximum value to 100
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+
+
+    });
+<!--Need to add the bar for folds-->
+            var ctx = document.getElementById('donkturnChart').getContext('2d');
+    var turnChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Calls', 'Raises', 'Folds'],
+            datasets: [
+                {
+                    label: 'Hero IP VS Donk',
+                    data: [{{ metrics['turn_Hero_ip_vs_donk']['Hero_Calls'] }}, {{ metrics['turn_Hero_ip_vs_donk']['Hero_Raises'] }}, {{ metrics['turn_Hero_ip_vs_donk']['Hero_Folds'] }}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                },
+                {
+                    label: 'Villain IP VS Donk',
+                    data: [{{ metrics['turn_Villain_ip_vs_donk']['Villain_Calls'] }}, {{ metrics['turn_Villain_ip_vs_donk']['Villain_Raises'] }}, {{ metrics['turn_Villain_ip_vs_donk']['Villain_Folds'] }}],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 1,  // Set minimum value to 1
+                    max: 100,  // Set maximum value to 100
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+
+
+                var ctx = document.getElementById('CRturnChart').getContext('2d');
+    var turnChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Calls', 'Raises', 'Folds'],
+            datasets: [
+                {
+                    label: 'Hero IP VS CheckRaise',
+                    data: [{{ metrics['turn_Hero_ip_vs_checkraise']['Hero_Calls'] }}, {{ metrics['turn_Hero_ip_vs_checkraise']['Hero_Raises'] }}, {{ metrics['turn_Hero_ip_vs_checkraise']['Hero_Folds'] }}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                },
+                {
+                    label: 'Villain IP VS CheckRaise',
+                    data: [{{ metrics['turn_Villain_ip_vs_checkraise']['Villain_Calls'] }}, {{ metrics['turn_Villain_ip_vs_checkraise']['Villain_Raises'] }}, {{ metrics['turn_Villain_ip_vs_checkraise']['Villain_Folds'] }}],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    barThickness: 35  // Make the bars skinnier
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    min: 1,  // Set minimum value to 1
+                    max: 100,  // Set maximum value to 100
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+
+<!-- Turn Bet Sizing Analysis -->
+<div class="card mb-4 mt-4">
+    <div class="card-header">
+        <h3>Turn Bet Sizing Analysis</h3>
+        <p class="text-muted mb-0">Opponent responses to your bets by bet size (% of pot)</p>
+    </div>
+    <div class="card-body">
+        {% if metrics.get('Turn Bet Sizing Analysis') %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Bet Size</th>
+                            <th>Total Bets</th>
+                            <th>Folds</th>
+                            <th>Fold %</th>
+                            <th>Calls</th>
+                            <th>Call %</th>
+                            <th>Raises</th>
+                            <th>Raise %</th>
+                            <th>Total BB Earnings</th>
+                            <th>Avg BB/Bet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category, data in metrics.get('Turn Bet Sizing Analysis', {}).items() %}
+                        <tr>
+                            <td><strong>{{ category }}</strong></td>
+                            <td>{{ data.get('total_bets', 0) }}</td>
+                            <td>{{ data.get('folds', 0) }}</td>
+                            <td>{{ data.get('fold_pct', 0) }}%</td>
+                            <td>{{ data.get('calls', 0) }}</td>
+                            <td>{{ data.get('call_pct', 0) }}%</td>
+                            <td>{{ data.get('raises', 0) }}</td>
+                            <td>{{ data.get('raise_pct', 0) }}%</td>
+                            <td class="{% if data.get('total_bb_earnings', 0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ "%.2f"|format(data.get('total_bb_earnings', 0)) }} BB
+                            </td>
+                            <td class="{% if data.get('avg_bb_per_bet', 0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ "%.2f"|format(data.get('avg_bb_per_bet', 0)) }} BB
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">No turn bet sizing data available. Please reprocess this post.</p>
+        {% endif %}
+    </div>
+</div>
+</br>
+</br>
+</br>
+{% endblock %}

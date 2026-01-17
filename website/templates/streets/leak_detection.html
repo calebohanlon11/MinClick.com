@@ -1,0 +1,74 @@
+<div class="container my-4">
+  {% set leaks = metrics.get('Leak Detection', []) %}
+  
+  {% if leaks and leaks|length > 0 %}
+  <div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+      <h3 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Leak Detection</h3>
+      <p class="mb-0 mt-2"><small>Automated analysis of your play to identify areas for improvement</small></p>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>How to use:</strong> Leaks are sorted by impact (BB/100 lost). Focus on fixing high-severity leaks first, as they have the biggest impact on your win rate.
+      </div>
+      
+      {% for leak in leaks %}
+      <div class="card mb-3 border-{% if leak.severity == 'high' %}danger{% else %}warning{% endif %}">
+        <div class="card-header d-flex justify-content-between align-items-center bg-{% if leak.severity == 'high' %}danger{% else %}warning{% endif %} text-white">
+          <div>
+            <h5 class="mb-0">
+              <i class="fas fa-{% if leak.severity == 'high' %}exclamation-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+              {{ leak.title }}
+            </h5>
+            <small class="opacity-75">Impact: {{ leak.impact|round(1) }} BB/100</small>
+          </div>
+          <span class="badge bg-{% if leak.severity == 'high' %}dark{% else %}secondary{% endif %}">
+            {{ leak.severity|upper }}
+          </span>
+        </div>
+        <div class="card-body">
+          <p class="mb-2"><strong>Issue:</strong> {{ leak.description }}</p>
+          <div class="alert alert-light mb-0">
+            <i class="fas fa-lightbulb me-2 text-warning"></i>
+            <strong>Suggestion:</strong> {{ leak.suggestion }}
+          </div>
+          {% if leak.get('bb_per_100') %}
+          <div class="mt-2">
+            <small class="text-muted">
+              <strong>BB/100:</strong> {{ leak.bb_per_100 }} BB | 
+              <strong>Hands:</strong> {{ leak.get('hands', 'N/A') }}
+              {% if leak.get('actual_freq') %}
+              | <strong>Your Frequency:</strong> {{ leak.actual_freq }}% 
+              <strong>Optimal:</strong> {{ leak.optimal_freq }}%
+              {% endif %}
+              {% if leak.get('call_rate') %}
+              | <strong>Call Rate:</strong> {{ leak.call_rate }}%
+              {% endif %}
+            </small>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="card-body text-center">
+      <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+      <h4>No Major Leaks Detected</h4>
+      <p class="text-muted">
+        {% if not leaks %}
+        This post needs to be reprocessed to include leak detection analysis.
+        {% else %}
+        Great job! No significant leaks were detected in this session. Keep up the good play!
+        {% endif %}
+      </p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+
+

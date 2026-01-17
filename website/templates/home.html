@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Welcome to Min-Click.com{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+<div class="row">
+        <div class="col-lg-8 mx-auto text-center mb-5">
+            <h1 class="display-4 fw-bold mb-4">Welcome back, {{ user.username }}!</h1>
+            <p class="lead text-muted">
+                Your professional poker analytics platform
+            </p>
+        </div>
+            </div>
+
+    <div class="row g-4 mb-5">
+        <!-- Quick Actions -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Create a Post</h5>
+                    <p class="card-text text-muted">Upload a new hand history file and analyze your session</p>
+                <a href="{{ url_for('views.create_post') }}" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>Upload Session
+                </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-list fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">View Posts</h5>
+                    <p class="card-text text-muted">Browse all your sessions and community posts</p>
+                    <a href="{{ url_for('views.all_posts') }}" class="btn btn-success">
+                        <i class="fas fa-th-list me-1"></i>View Posts
+                    </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-bar fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">View Analytics</h5>
+                    <p class="card-text text-muted">Track your bankroll and performance metrics</p>
+                    <a href="{{ url_for('views.view_analytics') }}" class="btn btn-info">
+                        <i class="fas fa-chart-line me-1"></i>View Analytics
+                        </a>
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Additional Features -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-user-circle me-2 text-primary"></i>My Profile
+                    </h5>
+                    <p class="card-text text-muted">View your aggregated statistics, performance trends, and comprehensive analytics</p>
+                    <a href="{{ url_for('views.my_profile') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-user me-1"></i>Go to Profile
+                    </a>
+</div>
+            </div>
+                                </div>
+
+                            <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-graduation-cap me-2 text-warning"></i>Learning
+                    </h5>
+                    <p class="card-text text-muted">Improve your skills with arithmetic, quant math, and poker range training</p>
+                    <a href="{{ url_for('views.learning') }}" class="btn btn-outline-warning">
+                        <i class="fas fa-book me-1"></i>Start Learning
+                    </a>
+                </div>
+                </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

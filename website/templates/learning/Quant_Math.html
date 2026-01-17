@@ -1,0 +1,203 @@
+<div class="container my-4">
+    <h2 align="center">Quant Math Quiz</h2>
+    <div id="quiz-container" class="text-center">
+        <div class="d-flex justify-content-between">
+            <div>
+                <span>Total Time: <span id="total-time">00:00</span></span><br>
+                <span>Question Time: <span id="question-time">00:00</span></span>
+            </div>
+            <div>
+                <button id="restart-quiz" class="btn btn-danger btn-lg" style="display: none;">Restart Quiz</button>
+                <button id="start-quiz" class="btn btn-primary btn-lg">Start Quiz</button>
+            </div>
+        </div>
+
+        <br>
+
+        <div id="question-box" style="display: none;">
+            <p id="question-text"></p>
+            <input type="text" id="answer-input" class="form-control" placeholder="Type your answer here...">
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', (event) => {
+    let questions = {};
+    let currentCategoryIndex = 0;
+    let currentQuestionIndex = 0;
+    let categories = [];
+    let currentAnswer = null;
+
+    let totalTime = 0;
+    let questionTime = 0;
+    let bayesTime = 0;
+    let evTime = 0;
+    let optionTime = 0;
+    let couponTime = 0;
+    let totalTimer, questionTimer;
+
+    const startButton = document.getElementById('start-quiz');
+    const restartButton = document.getElementById('restart-quiz');
+    const questionBox = document.getElementById('question-box');
+    const questionText = document.getElementById('question-text');
+    const answerInput = document.getElementById('answer-input');
+    const totalTimeDisplay = document.getElementById('total-time');
+    const questionTimeDisplay = document.getElementById('question-time');
+
+    startButton.addEventListener('click', function() {
+        startQuiz();
+    });
+
+    restartButton.addEventListener('click', function() {
+        location.reload();
+    });
+
+    answerInput.addEventListener('input', function() {
+        const userAnswer = parseFloat(answerInput.value);
+        if (userAnswer === currentAnswer) {
+            saveCurrentQuestionTime();
+            currentQuestionIndex++;
+            loadNextQuestion();
+        }
+    });
+
+    function startQuiz() {
+        startButton.style.display = 'none';
+        restartButton.style.display = 'inline-block';
+        questionBox.style.display = 'block';
+
+        fetchQuestions();
+        startTimers();
+    }
+
+    function fetchQuestions() {
+        fetch('/get_quant_questions')
+            .then(response => response.json())
+            .then(data => {
+                questions = data;
+                categories = Object.keys(questions);
+                loadNextQuestion();
+            })
+            .catch(error => {
+                console.error("Error fetching questions:", error);
+            });
+    }
+
+    function loadNextQuestion() {
+        if (currentCategoryIndex < categories.length) {
+            const category = categories[currentCategoryIndex];
+            const answers = Object.keys(questions[category]);
+
+            if (currentQuestionIndex < answers.length) {
+                currentAnswer = parseFloat(answers[currentQuestionIndex]);
+                questionText.textContent = questions[category][answers[currentQuestionIndex]] || 'Error: No question found';
+                resetQuestionTimer();
+                answerInput.value = '';
+                answerInput.focus();
+            } else {
+                currentCategoryIndex++;
+                currentQuestionIndex = 0;
+                loadNextQuestion();
+            }
+        } else {
+            stopTimers();
+            questionBox.style.display = 'none';
+            restartButton.style.display = 'none';
+
+            // Save the results at the end of the quiz
+            saveResults().then(() => {
+                startButton.style.display = 'inline-block';
+                startButton.textContent = 'Start Quiz';
+            });
+        }
+    }
+
+    answerInput.addEventListener('input', function() {
+        const userAnswer = parseFloat(answerInput.value);
+
+        // Normalize the currentAnswer
+        const normalizedCurrentAnswer = currentAnswer % 1 === 0 ? currentAnswer.toFixed(0) : currentAnswer;
+
+        if (userAnswer === parseFloat(normalizedCurrentAnswer)) {
+            saveCurrentQuestionTime();
+            currentQuestionIndex++;
+            loadNextQuestion();
+        }
+    });
+
+
+
+
+    function saveCurrentQuestionTime() {
+        const category = categories[currentCategoryIndex];
+        switch (category) {
+            case 'Bayes':
+                bayesTime += questionTime;
+                break;
+            case 'EV':
+                evTime += questionTime;
+                break;
+            case 'Options':
+                optionTime += questionTime;
+                break;
+            case 'CouponCollector':
+                couponTime += questionTime;
+                break;
+        }
+    }
+
+    function saveResults() {
+        fetch('/save_quant_test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                total_time: totalTime,
+                bayes_time: bayesTime,
+                coupon_time: couponTime,
+                option_time: optionTime,
+                ev_time: evTime
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error("Failed to save results:", data.error);
+            }
+        })
+        .catch(error => {
+            console.error("Error saving results:", error);
+        });
+    }
+
+    function startTimers() {
+        totalTimer = setInterval(() => {
+            totalTime++;
+            updateTimerDisplay(totalTimeDisplay, totalTime);
+        }, 1000);
+
+        questionTimer = setInterval(() => {
+            questionTime++;
+            updateTimerDisplay(questionTimeDisplay, questionTime);
+        }, 1000);
+    }
+
+    function resetQuestionTimer() {
+        questionTime = 0;
+        updateTimerDisplay(questionTimeDisplay, questionTime);
+    }
+
+    function stopTimers() {
+        clearInterval(totalTimer);
+        clearInterval(questionTimer);
+    }
+
+    function updateTimerDisplay(element, time) {
+        const minutes = String(Math.floor(time / 60)).padStart(2, '0');
+        const seconds = String(time % 60).padStart(2, '0');
+        element.textContent = `${minutes}:${seconds}`;
+    }
+});
+</script>

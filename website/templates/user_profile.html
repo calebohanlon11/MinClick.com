@@ -1,0 +1,1391 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.username }}'s Profile - Min-Click.com{% endblock %}
+
+{% block content %}
+<style>
+    #analyticsTabs .nav-link {
+        color: black !important;
+    }
+    #analyticsTabs .nav-link.active {
+        color: black !important;
+        background-color: #f8f9fa !important;
+    }
+    #analyticsTabs .nav-link:hover {
+        color: black !important;
+    }
+</style>
+{% if stats %}
+<div class="row">
+    <div class="col-12">
+        <!-- Profile Header -->
+        <div class="card post-card mb-4">
+            <div class="card-body text-center">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="display-6 mb-2">
+                            <i class="fas fa-user-circle me-2 text-primary"></i>
+                            {{ profile_user.username.title() }}'s Profile
+                        </h1>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-calendar me-1"></i>
+                            Member since {{ profile_user.date_created.strftime('%B %Y') }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        {% if current_user.id == profile_user.id %}
+                        <a href="{{ url_for('views.my_profile') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-1"></i>Edit Profile
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Combined Total Earnings (EUR) -->
+        <div class="row mb-4">
+            <div class="col-12 mb-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <i class="fas fa-globe fa-3x text-primary mb-2"></i>
+                        <h4 class="card-title">Total Combined Earnings</h4>
+                        <h2 class="{% if stats.total_combined_earnings_eur >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            €{{ "%.2f"|format(stats.total_combined_earnings_eur) }}
+                        </h2>
+                        <p class="mb-0">
+                            <small class="text-muted">
+                                Online: ${{ "%.2f"|format(stats.online_total_earnings) }} (€{{ "%.2f"|format(stats.online_total_earnings_eur) }}) 
+                                + Live: €{{ "%.2f"|format(stats.live_total_earnings) }}
+                            </small>
+                        </p>
+                        <p class="mb-0">
+                            <small class="text-muted">{{ stats.total_combined_bb }} BB total</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Online vs Live Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-desktop me-2"></i>Online (USD)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Total Earnings</h6>
+                                <h4 class="{% if stats.online_total_earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ "%.2f"|format(stats.online_total_earnings) }}
+                                </h4>
+                                <small class="text-muted">€{{ "%.2f"|format(stats.online_total_earnings_eur) }}</small>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">BB Earnings</h6>
+                                <h4 class="text-info">{{ stats.online_total_bb_earnings }} BB</h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Sessions</h6>
+                                <h4>{{ stats.online_sessions }}</h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Win Rate</h6>
+                                <h4 class="{% if stats.online_win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ stats.online_win_rate }}%
+                                </h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">BB/100</h6>
+                                <h4 class="text-info">{{ stats.online_bb_per_100 }}</h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Total Hands</h6>
+                                <h4>{{ stats.online_total_hands }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-users me-2"></i>Live (EUR)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Total Earnings</h6>
+                                <h4 class="{% if stats.live_total_earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    €{{ "%.2f"|format(stats.live_total_earnings) }}
+                                </h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">BB Earnings</h6>
+                                <h4 class="text-info">{{ stats.live_total_bb_earnings }} BB</h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Sessions</h6>
+                                <h4>{{ stats.live_sessions }}</h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Win Rate</h6>
+                                <h4 class="{% if stats.live_win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ stats.live_win_rate }}%
+                                </h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">BB/Hour</h6>
+                                <h4 class="text-info">
+                                    {% if stats.live_avg_bb_per_hour is not none %}
+                                    {{ "%.2f"|format(stats.live_avg_bb_per_hour) }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </h4>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h6 class="text-muted">Total Hours</h6>
+                                <h4>{{ "%.1f"|format(stats.live_total_hours) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Statistics Cards (Legacy - Online only) -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                        <h5 class="card-title">Online Earnings</h5>
+                        <h3 class="text-success">${{ stats.online_total_earnings }}</h3>
+                        <small class="text-muted">{{ stats.online_total_bb_earnings }} BB</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-trophy fa-2x text-warning mb-2"></i>
+                        <h5 class="card-title">Online Win Rate</h5>
+                        <h3 class="text-warning">{{ stats.online_win_rate }}%</h3>
+                        <small class="text-muted">{{ stats.online_sessions }} sessions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-dice fa-2x text-info mb-2"></i>
+                        <h5 class="card-title">BB/100</h5>
+                        <h3 class="text-info">{{ stats.online_bb_per_100 }}</h3>
+                        <small class="text-muted">{{ stats.online_total_hands }} hands</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-dollar-sign fa-2x text-primary mb-2"></i>
+                        <h5 class="card-title">Avg Session</h5>
+                        <h3 class="text-primary">${{ stats.avg_session_earnings }}</h3>
+                        <small class="text-muted">per session</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Overview -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Performance Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h6 class="text-success">Best Session</h6>
+                                <h4 class="text-success">${{ stats.best_session }}</h4>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="text-danger">Worst Session</h6>
+                                <h4 class="text-danger">${{ stats.worst_session }}</h4>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h6 class="text-info">Total Sessions</h6>
+                                <h4 class="text-info">{{ stats.total_sessions }}</h4>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="text-secondary">Total Hands</h6>
+                                <h4 class="text-secondary">{{ stats.total_hands }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Stake Breakdown</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for stake, data in stats.stake_breakdown.items() %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-info">{{ stake }}</span>
+                            <div class="text-end">
+                                <small class="text-muted">{{ data.sessions }} sessions</small><br>
+                                <strong class="{% if data.earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ "%.2f"|format(data.earnings) }}
+                                </strong>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Site Performance -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-globe me-2"></i>Site Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for site, data in stats.site_breakdown.items() %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-secondary">{{ site.title() }}</span>
+                            <div class="text-end">
+                                <small class="text-muted">{{ data.sessions }} sessions</small><br>
+                                <strong class="{% if data.earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ "%.2f"|format(data.earnings) }}
+                                </strong>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Earnings Trend</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="earningsChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aggregated Leak Detection -->
+        {% if stats.aggregated_leaks and stats.aggregated_leaks|length > 0 %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Leak Detection</h5>
+                        <p class="mb-0 mt-2"><small>Automated analysis across all your sessions - sorted by impact</small></p>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>How to use:</strong> These leaks are aggregated across all your sessions. Focus on fixing high-severity leaks first, as they have the biggest impact on your win rate.
+                        </div>
+                        
+                        {% for leak in stats.aggregated_leaks[:10] %}
+                        <div class="card mb-3 border-{% if leak.severity == 'high' %}danger{% else %}warning{% endif %}">
+                            <div class="card-header d-flex justify-content-between align-items-center bg-{% if leak.severity == 'high' %}danger{% else %}warning{% endif %} text-white">
+                                <div>
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-{% if leak.severity == 'high' %}exclamation-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                                        {{ leak.title }}
+                                    </h5>
+                                    <small class="opacity-75">Impact: {{ leak.impact }} BB/100 | Occurred in {{ leak.occurrences }} session(s)</small>
+                                </div>
+                                <span class="badge bg-{% if leak.severity == 'high' %}dark{% else %}secondary{% endif %}">
+                                    {{ leak.severity|upper }}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2"><strong>Issue:</strong> {{ leak.description }}</p>
+                                <div class="alert alert-light mb-0">
+                                    <i class="fas fa-lightbulb me-2 text-warning"></i>
+                                    <strong>Suggestion:</strong> {{ leak.suggestion }}
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>Total Hands:</strong> {{ leak.hands }} | 
+                                        <strong>BB/100:</strong> {{ leak.bb_per_100 }} BB
+                                        {% if leak.actual_freq %}
+                                        | <strong>Your Frequency:</strong> {{ leak.actual_freq }}% 
+                                        <strong>Optimal:</strong> {{ leak.optimal_freq }}%
+                                        {% endif %}
+                                        {% if leak.call_rate %}
+                                        | <strong>Call Rate:</strong> {{ leak.call_rate }}%
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if stats.aggregated_leaks|length > 10 %}
+                        <div class="alert alert-secondary text-center">
+                            <small>Showing top 10 leaks by impact. Total leaks detected: {{ stats.aggregated_leaks|length }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Aggregated Board and Hand Analytics -->
+        {% if stats.aggregated_board_analysis or stats.aggregated_hand_matrix %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Aggregated Board & Hand Analytics</h5>
+                        <p class="mb-0 mt-2"><small>Combined analysis across all your sessions</small></p>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="analyticsTabs" role="tablist">
+                            {% if stats.aggregated_positional_matchups %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="matchups-tab" data-bs-toggle="tab" data-bs-target="#matchups-panel" type="button" role="tab" style="color: black !important;">
+                                    Positional Matchups
+                                </button>
+                            </li>
+                            {% endif %}
+                            {% if stats.aggregated_board_analysis %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if not stats.aggregated_positional_matchups %}active{% endif %}" id="board-tab" data-bs-toggle="tab" data-bs-target="#board-panel" type="button" role="tab" style="color: black !important;">
+                                    Board High Card Analysis
+                                </button>
+                            </li>
+                            {% endif %}
+                            {% if stats.aggregated_hand_matrix %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if not stats.aggregated_board_analysis and not stats.aggregated_positional_matchups %}active{% endif %}" id="hands-tab" data-bs-toggle="tab" data-bs-target="#hands-panel" type="button" role="tab" style="color: black !important;">
+                                    Hand Matrix
+                                </button>
+                            </li>
+                            {% endif %}
+                            {% if stats.aggregated_rfi_matrix %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="rfi-tab" data-bs-toggle="tab" data-bs-target="#rfi-panel" type="button" role="tab" style="color: black !important;">
+                                    RFI Matrix
+                                </button>
+                            </li>
+                            {% endif %}
+                            {% if stats.aggregated_three_bet_matrix %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="threebet-tab" data-bs-toggle="tab" data-bs-target="#threebet-panel" type="button" role="tab" style="color: black !important;">
+                                    3-Bet Matrix
+                                </button>
+                            </li>
+                            {% endif %}
+                            {% if stats.aggregated_four_bet_matrix %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="fourbet-tab" data-bs-toggle="tab" data-bs-target="#fourbet-panel" type="button" role="tab" style="color: black !important;">
+                                    4-Bet Matrix
+                                </button>
+                            </li>
+                            {% endif %}
+                        </ul>
+                        <div class="tab-content mt-3" id="analyticsTabContent">
+                            {% if stats.aggregated_positional_matchups %}
+                            <div class="tab-pane fade show active" id="matchups-panel" role="tabpanel">
+                                {% macro render_matchup_table(pot_type, matchups_data) %}
+                                {% if matchups_data and matchups_data|length > 0 %}
+                                {% set table_id = pot_type|lower|replace(' ', '-')|replace('(', '')|replace(')', '')|replace('[', '')|replace(']', '')|replace(',', '')|replace('+', '') %}
+                                <div class="card mb-3">
+                                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                                        <div>
+                                            <h4 class="mb-0">{{ pot_type }}</h4>
+                                            <p class="mb-0"><small>BB earnings for each Hero Position vs Villain Position matchup</small></p>
+                                        </div>
+                                        <div class="mt-2 mt-md-0">
+                                            <label for="{{ table_id }}-sort-select" class="form-label me-2 mb-0">Sort by:</label>
+                                            <select id="{{ table_id }}-sort-select" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                                                <option value="hero">Hero Position</option>
+                                                <option value="villain">Villain Position</option>
+                                                <option value="hands-desc">Total Hands (High to Low)</option>
+                                                <option value="hands-asc">Total Hands (Low to High)</option>
+                                                <option value="bb-desc">Total BB Earnings (High to Low)</option>
+                                                <option value="bb-asc">Total BB Earnings (Low to High)</option>
+                                                <option value="dollar-desc">Total Earnings $ (High to Low)</option>
+                                                <option value="dollar-asc">Total Earnings $ (Low to High)</option>
+                                                <option value="avg-bb-desc">Avg BB/Hand (High to Low)</option>
+                                                <option value="avg-bb-asc">Avg BB/Hand (Low to High)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-hover table-sm" id="{{ table_id }}-table">
+                                                <thead class="table-dark">
+                                                    <tr>
+                                                        <th>Matchup</th>
+                                                        <th>Total Hands</th>
+                                                        <th>Total BB Earnings</th>
+                                                        <th>Total $ Earnings</th>
+                                                        <th>Avg BB per Hand</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                    {% for matchup, data in matchups_data.items() %}
+                                    {% set parts = matchup.split(' vs ') %}
+                                    {% set is_multiway = '[' in parts[1] %}
+                                    {% set hero_pos = parts[0]|trim %}
+                                    {% set villain_pos = parts[1]|trim %}
+                                    <tr class="{% if data.total_bb_earnings < 0 %}table-danger{% elif data.total_bb_earnings > 0 %}table-success{% endif %}"
+                                        data-hero-pos="{{ hero_pos }}" 
+                                        data-villain-pos="{% if is_multiway %}Multiway{% else %}{{ villain_pos }}{% endif %}"
+                                        data-total-hands="{{ data.total_hands }}"
+                                        data-total-bb="{{ data.total_bb_earnings }}"
+                                        data-total-dollar="{{ data.total_earnings }}"
+                                        data-avg-bb="{{ data.avg_bb_per_hand }}"
+                                        data-is-multiway="{% if is_multiway %}true{% else %}false{% endif %}">
+                                        <td>
+                                            {% if is_multiway %}
+                                                <strong>Hero {{ parts[0] }} vs {{ parts[1] }}</strong>
+                                            {% else %}
+                                                <strong>Hero {{ parts[0] }} vs Villain {{ parts[1] }}</strong>
+                                            {% endif %}
+                                                            <br/>
+                                                            <span class="{% if data.total_earnings < 0 %}text-danger{% elif data.total_earnings > 0 %}text-success{% endif %}" style="font-size: 1.1em;">
+                                                                {% if data.total_earnings >= 0 %}+{% endif %}${{ data.total_earnings }}
+                                                            </span>
+                                                        </td>
+                                                        <td>{{ data.total_hands }}</td>
+                                                        <td>
+                                                            <span class="{% if data.total_bb_earnings < 0 %}text-danger{% elif data.total_bb_earnings > 0 %}text-success{% endif %}">
+                                                                {{ data.total_bb_earnings }} BB
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="{% if data.total_earnings < 0 %}text-danger{% elif data.total_earnings > 0 %}text-success{% endif %}">
+                                                                {% if data.total_earnings >= 0 %}+{% endif %}${{ data.total_earnings }}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="{% if data.avg_bb_per_hand < 0 %}text-danger{% elif data.avg_bb_per_hand > 0 %}text-success{% endif %}">
+                                                                {{ data.avg_bb_per_hand }} BB
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <script>
+                                        (function() {
+                                            const sortSelect = document.getElementById('{{ table_id }}-sort-select');
+                                            const table = document.getElementById('{{ table_id }}-table');
+                                            if (!sortSelect || !table) return;
+                                            
+                                            const positionOrder = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
+                                            
+                                            function getPositionIndex(pos) {
+                                                if (pos === 'Multiway') return 999; // Put multiway at the end
+                                                return positionOrder.indexOf(pos);
+                                            }
+                                            
+                                            function sortTable() {
+                                                const tbody = table.querySelector('tbody');
+                                                const rows = Array.from(tbody.querySelectorAll('tr'));
+                                                const sortValue = sortSelect.value;
+                                                
+                                                rows.sort((a, b) => {
+                                                    // Always put multiway pots at the end when sorting by position
+                                                    if (sortValue === 'hero' || sortValue === 'villain') {
+                                                        const aMultiway = a.dataset.isMultiway === 'true';
+                                                        const bMultiway = b.dataset.isMultiway === 'true';
+                                                        if (aMultiway && !bMultiway) return 1;
+                                                        if (!aMultiway && bMultiway) return -1;
+                                                    }
+                                                    
+                                                    if (sortValue === 'hero') {
+                                                        return getPositionIndex(a.dataset.heroPos) - getPositionIndex(b.dataset.heroPos) ||
+                                                               getPositionIndex(a.dataset.villainPos) - getPositionIndex(b.dataset.villainPos);
+                                                    } else if (sortValue === 'villain') {
+                                                        return getPositionIndex(a.dataset.villainPos) - getPositionIndex(b.dataset.villainPos) ||
+                                                               getPositionIndex(a.dataset.heroPos) - getPositionIndex(b.dataset.heroPos);
+                                                    } else if (sortValue === 'hands-desc') {
+                                                        return parseFloat(b.dataset.totalHands) - parseFloat(a.dataset.totalHands);
+                                                    } else if (sortValue === 'hands-asc') {
+                                                        return parseFloat(a.dataset.totalHands) - parseFloat(b.dataset.totalHands);
+                                                    } else if (sortValue === 'bb-desc') {
+                                                        return parseFloat(b.dataset.totalBb) - parseFloat(a.dataset.totalBb);
+                                                    } else if (sortValue === 'bb-asc') {
+                                                        return parseFloat(a.dataset.totalBb) - parseFloat(b.dataset.totalBb);
+                                                    } else if (sortValue === 'dollar-desc') {
+                                                        return parseFloat(b.dataset.totalDollar) - parseFloat(a.dataset.totalDollar);
+                                                    } else if (sortValue === 'dollar-asc') {
+                                                        return parseFloat(a.dataset.totalDollar) - parseFloat(b.dataset.totalDollar);
+                                                    } else if (sortValue === 'avg-bb-desc') {
+                                                        return parseFloat(b.dataset.avgBb) - parseFloat(a.dataset.avgBb);
+                                                    } else if (sortValue === 'avg-bb-asc') {
+                                                        return parseFloat(a.dataset.avgBb) - parseFloat(b.dataset.avgBb);
+                                                    }
+                                                    return 0;
+                                                });
+                                                
+                                                rows.forEach(row => tbody.appendChild(row));
+                                            }
+                                            
+                                            sortSelect.addEventListener('change', sortTable);
+                                        })();
+                                        </script>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% endmacro %}
+                                
+                                <h5 class="mt-3 mb-2">Heads-Up Pots</h5>
+                                {{ render_matchup_table('RFI Pots (Single Raised Pots)', stats.aggregated_positional_matchups.get('RFI Pots', {})) }}
+                                {{ render_matchup_table('3-Bet Pots', stats.aggregated_positional_matchups.get('3-Bet Pots', {})) }}
+                                {{ render_matchup_table('4-Bet Pots', stats.aggregated_positional_matchups.get('4-Bet Pots', {})) }}
+                                
+                                {% if stats.aggregated_positional_matchups.get('RFI Multiway Pots') or stats.aggregated_positional_matchups.get('3-Bet Multiway Pots') or stats.aggregated_positional_matchups.get('4-Bet Multiway Pots') %}
+                                <h5 class="mt-4 mb-2">Multiway Pots (3+ Players)</h5>
+                                {{ render_matchup_table('RFI Multiway Pots', stats.aggregated_positional_matchups.get('RFI Multiway Pots', {})) }}
+                                {{ render_matchup_table('3-Bet Multiway Pots', stats.aggregated_positional_matchups.get('3-Bet Multiway Pots', {})) }}
+                                {{ render_matchup_table('4-Bet Multiway Pots', stats.aggregated_positional_matchups.get('4-Bet Multiway Pots', {})) }}
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% if stats.aggregated_board_analysis %}
+                            <div class="tab-pane fade {% if not stats.aggregated_positional_matchups %}show active{% endif %}" id="board-panel" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover table-sm">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Board High Card</th>
+                                                <th>Total Hands</th>
+                                                <th>Total BB Earnings</th>
+                                                <th>Avg BB per Hand</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for board_type, data in stats.aggregated_board_analysis.items() %}
+                                            <tr class="{% if data.total_bb_earnings < 0 %}table-danger{% elif data.total_bb_earnings > 0 %}table-success{% endif %}">
+                                                <td><strong>{{ board_type }}</strong></td>
+                                                <td>{{ data.total_hands }}</td>
+                                                <td>
+                                                    <span class="{% if data.total_bb_earnings < 0 %}text-danger{% elif data.total_bb_earnings > 0 %}text-success{% endif %}">
+                                                        {{ data.total_bb_earnings }} BB
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="{% if data.avg_bb_per_hand < 0 %}text-danger{% elif data.avg_bb_per_hand > 0 %}text-success{% endif %}">
+                                                        {{ data.avg_bb_per_hand }} BB
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if stats.aggregated_hand_matrix %}
+                            <div class="tab-pane fade {% if not stats.aggregated_board_analysis and not stats.aggregated_positional_matchups %}show active{% endif %}" id="hands-panel" role="tabpanel">
+                                <p class="text-muted mb-3"><small>Hover over any hand in the matrix to see combo details</small></p>
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0" style="max-width: 60%;">
+                                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                                            <table class="table table-bordered table-sm" id="profileHandMatrix" style="font-size: 0.6rem; margin-bottom: 0;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="padding: 4px !important; font-size: 0.6rem;"></th>
+                                                        {% for rank in ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                        <th class="text-center" style="padding: 4px !important; font-size: 0.6rem;">{{ rank }}</th>
+                                                        {% endfor %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% set ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                    {% for rank1 in ranks %}
+                                                    {% set i = loop.index0 %}
+                                                    <tr>
+                                                        <th style="padding: 4px !important; font-size: 0.6rem;">{{ rank1 }}</th>
+                                                        {% for rank2 in ranks %}
+                                                        {% set j = loop.index0 %}
+                                                            {% if i == j %}
+                                                                {% set hand_type = rank1 + rank2 %}
+                                                            {% elif i < j %}
+                                                                {% set hand_type = rank1 + rank2 + 's' %}
+                                                            {% else %}
+                                                                {% set hand_type = rank2 + rank1 + 'o' %}
+                                                            {% endif %}
+                                                            {% set hand_data = stats.aggregated_hand_matrix.get(hand_type, {}) %}
+                                                            {% set total_bb = hand_data.get('total_bb_earnings', 0) %}
+                                                            {% set hands = hand_data.get('total_hands', 0) %}
+                                                            <td class="profile-hand-cell text-center" 
+                                                                data-hand-type="{{ hand_type }}"
+                                                                data-bb-earnings="{{ total_bb }}"
+                                                                style="cursor: pointer; padding: 4px !important;"
+                                                                title="{{ hand_type }}: {{ total_bb }} BB ({{ hands }} hands)">
+                                                                <strong style="font-size: 0.65rem;">{{ hand_type }}</strong>
+                                                                <br/>
+                                                                <small style="font-size: 0.55rem;">{{ total_bb }} BB</small>
+                                                                <br/>
+                                                                <small style="font-size: 0.5rem;">({{ hands }})</small>
+                                                            </td>
+                                                        {% endfor %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Side Panel for Combo Details -->
+                                    <div class="flex-grow-1 ms-3" id="profileComboSidePanel" style="display: none; position: sticky; top: 20px; height: fit-content; max-height: 600px; overflow-y: auto;">
+                                        <div class="card shadow-lg">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="card-title mb-0" id="profileSidePanelHandType">Hand Details</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="profileSidePanelSummary" class="mb-3"></div>
+                                                <h6>Combo Breakdown:</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered table-sm" id="profileComboTable" style="font-size: 0.85rem;">
+                                                        <thead class="table-dark">
+                                                            <tr>
+                                                                <th>Combo</th>
+                                                                <th>Hands</th>
+                                                                <th>Total BB</th>
+                                                                <th>Avg BB/Hand</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="profileComboTableBody">
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if stats.aggregated_rfi_matrix %}
+                            <div class="tab-pane fade" id="rfi-panel" role="tabpanel">
+                                <p class="text-muted mb-3"><small>Hover over any hand in the matrix to see combo details</small></p>
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0" style="max-width: 75%;">
+                                        <div class="table-responsive" style="max-height: 700px; overflow-y: auto;">
+                                            <table class="table table-bordered table-sm" id="profileRFIMatrix" style="font-size: 0.75rem; margin-bottom: 0;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="padding: 6px !important; font-size: 0.75rem;"></th>
+                                                        {% for rank in ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                        <th class="text-center" style="padding: 6px !important; font-size: 0.75rem;">{{ rank }}</th>
+                                                        {% endfor %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% set ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                    {% for rank1 in ranks %}
+                                                    {% set i = loop.index0 %}
+                                                    <tr>
+                                                        <th style="padding: 6px !important; font-size: 0.75rem;">{{ rank1 }}</th>
+                                                        {% for rank2 in ranks %}
+                                                        {% set j = loop.index0 %}
+                                                            {% if i == j %}
+                                                                {% set hand_type = rank1 + rank2 %}
+                                                            {% elif i < j %}
+                                                                {% set hand_type = rank1 + rank2 + 's' %}
+                                                            {% else %}
+                                                                {% set hand_type = rank2 + rank1 + 'o' %}
+                                                            {% endif %}
+                                                            {% set hand_data = stats.aggregated_rfi_matrix.get(hand_type, {}) %}
+                                                            {% set total_rfi = hand_data.get('total_rfi', 0) %}
+                                                            <td class="profile-rfi-cell text-center" 
+                                                                data-hand-type="{{ hand_type }}"
+                                                                data-rfi-count="{{ total_rfi }}"
+                                                                style="cursor: pointer; padding: 6px !important;"
+                                                                title="{{ hand_type }}: {{ total_rfi }} times">
+                                                                <strong style="font-size: 0.8rem;">{{ hand_type }}</strong>
+                                                                <br/>
+                                                                <small style="font-size: 0.7rem;">{{ total_rfi }}x</small>
+                                                            </td>
+                                                        {% endfor %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Side Panel for Combo Details -->
+                                    <div class="flex-grow-1 ms-3" id="profileRFIComboSidePanel" style="display: none; position: sticky; top: 20px; height: fit-content; max-height: 600px; overflow-y: auto;">
+                                        <div class="card shadow-lg">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="card-title mb-0" id="profileRFISidePanelHandType">Hand Details</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="profileRFISidePanelSummary" class="mb-3"></div>
+                                                <h6>Combo Breakdown:</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered table-sm" id="profileRFIComboTable" style="font-size: 0.85rem;">
+                                                        <thead class="table-dark">
+                                                            <tr>
+                                                                <th>Combo</th>
+                                                                <th>RFI Count</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="profileRFIComboTableBody">
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if stats.aggregated_three_bet_matrix %}
+                            <div class="tab-pane fade" id="threebet-panel" role="tabpanel">
+                                <p class="text-muted mb-3"><small>Hover over any hand in the matrix to see combo details</small></p>
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0" style="max-width: 75%;">
+                                        <div class="table-responsive" style="max-height: 700px; overflow-y: auto;">
+                                            <table class="table table-bordered table-sm" id="profileThreeBetMatrix" style="font-size: 0.75rem; margin-bottom: 0;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="padding: 6px !important; font-size: 0.75rem;"></th>
+                                                        {% for rank in ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                        <th class="text-center" style="padding: 6px !important; font-size: 0.75rem;">{{ rank }}</th>
+                                                        {% endfor %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% set ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                    {% for rank1 in ranks %}
+                                                    {% set i = loop.index0 %}
+                                                    <tr>
+                                                        <th style="padding: 6px !important; font-size: 0.75rem;">{{ rank1 }}</th>
+                                                        {% for rank2 in ranks %}
+                                                        {% set j = loop.index0 %}
+                                                            {% if i == j %}
+                                                                {% set hand_type = rank1 + rank2 %}
+                                                            {% elif i < j %}
+                                                                {% set hand_type = rank1 + rank2 + 's' %}
+                                                            {% else %}
+                                                                {% set hand_type = rank2 + rank1 + 'o' %}
+                                                            {% endif %}
+                                                            {% set hand_data = stats.aggregated_three_bet_matrix.get(hand_type, {}) %}
+                                                            {% set total_three_bet = hand_data.get('total_three_bet', 0) %}
+                                                            <td class="profile-threebet-cell text-center" 
+                                                                data-hand-type="{{ hand_type }}"
+                                                                data-threebet-count="{{ total_three_bet }}"
+                                                                style="cursor: pointer; padding: 6px !important;"
+                                                                title="{{ hand_type }}: {{ total_three_bet }} times">
+                                                                <strong style="font-size: 0.8rem;">{{ hand_type }}</strong>
+                                                                <br/>
+                                                                <small style="font-size: 0.7rem;">{{ total_three_bet }}x</small>
+                                                            </td>
+                                                        {% endfor %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Side Panel for Combo Details -->
+                                    <div class="flex-grow-1 ms-3" id="profileThreeBetComboSidePanel" style="display: none; position: sticky; top: 20px; height: fit-content; max-height: 600px; overflow-y: auto;">
+                                        <div class="card shadow-lg">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="card-title mb-0" id="profileThreeBetSidePanelHandType">Hand Details</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="profileThreeBetSidePanelSummary" class="mb-3"></div>
+                                                <h6>Combo Breakdown:</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered table-sm" id="profileThreeBetComboTable" style="font-size: 0.85rem;">
+                                                        <thead class="table-dark">
+                                                            <tr>
+                                                                <th>Combo</th>
+                                                                <th>3-Bet Count</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="profileThreeBetComboTableBody">
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if stats.aggregated_four_bet_matrix %}
+                            <div class="tab-pane fade" id="fourbet-panel" role="tabpanel">
+                                <p class="text-muted mb-3"><small>Hover over any hand in the matrix to see combo details</small></p>
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0" style="max-width: 75%;">
+                                        <div class="table-responsive" style="max-height: 700px; overflow-y: auto;">
+                                            <table class="table table-bordered table-sm" id="profileFourBetMatrix" style="font-size: 0.75rem; margin-bottom: 0;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="padding: 6px !important; font-size: 0.75rem;"></th>
+                                                        {% for rank in ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                        <th class="text-center" style="padding: 6px !important; font-size: 0.75rem;">{{ rank }}</th>
+                                                        {% endfor %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% set ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                                                    {% for rank1 in ranks %}
+                                                    {% set i = loop.index0 %}
+                                                    <tr>
+                                                        <th style="padding: 6px !important; font-size: 0.75rem;">{{ rank1 }}</th>
+                                                        {% for rank2 in ranks %}
+                                                        {% set j = loop.index0 %}
+                                                            {% if i == j %}
+                                                                {% set hand_type = rank1 + rank2 %}
+                                                            {% elif i < j %}
+                                                                {% set hand_type = rank1 + rank2 + 's' %}
+                                                            {% else %}
+                                                                {% set hand_type = rank2 + rank1 + 'o' %}
+                                                            {% endif %}
+                                                            {% set hand_data = stats.aggregated_four_bet_matrix.get(hand_type, {}) %}
+                                                            {% set total_four_bet = hand_data.get('total_four_bet', 0) %}
+                                                            <td class="profile-fourbet-cell text-center" 
+                                                                data-hand-type="{{ hand_type }}"
+                                                                data-fourbet-count="{{ total_four_bet }}"
+                                                                style="cursor: pointer; padding: 6px !important;"
+                                                                title="{{ hand_type }}: {{ total_four_bet }} times">
+                                                                <strong style="font-size: 0.8rem;">{{ hand_type }}</strong>
+                                                                <br/>
+                                                                <small style="font-size: 0.7rem;">{{ total_four_bet }}x</small>
+                                                            </td>
+                                                        {% endfor %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Side Panel for Combo Details -->
+                                    <div class="flex-grow-1 ms-3" id="profileFourBetComboSidePanel" style="display: none; position: sticky; top: 20px; height: fit-content; max-height: 600px; overflow-y: auto;">
+                                        <div class="card shadow-lg">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="card-title mb-0" id="profileFourBetSidePanelHandType">Hand Details</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="profileFourBetSidePanelSummary" class="mb-3"></div>
+                                                <h6>Combo Breakdown:</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered table-sm" id="profileFourBetComboTable" style="font-size: 0.85rem;">
+                                                        <thead class="table-dark">
+                                                            <tr>
+                                                                <th>Combo</th>
+                                                                <th>4-Bet Count</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="profileFourBetComboTableBody">
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Sessions -->
+        <div class="card post-card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Sessions</h5>
+            </div>
+            <div class="card-body">
+                {% if stats.recent_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Stake</th>
+                                <th>Site</th>
+                                <th>Earnings</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session_data in stats.recent_sessions %}
+                            <tr>
+                                <td>{{ session_data.post.date_created.strftime('%Y-%m-%d') }}</td>
+                                <td><span class="badge bg-info">{{ session_data.post.stake }}</span></td>
+                                <td><span class="badge bg-secondary">{{ session_data.post.category.title() }}</span></td>
+                                <td>
+                                    <span class="{% if session_data.earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ "%.2f"|format(session_data.earnings) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('views.view_metrics', post_id=session_data.post.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-chart-line me-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No sessions found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js for earnings trend -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Prepare data for earnings chart
+    const earningsData = {{ stats.session_earnings|tojson }};
+    const dates = {{ stats.formatted_session_dates|tojson }};
+    
+    // Create earnings trend chart
+    const ctx = document.getElementById('earningsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Session Earnings ($)',
+                data: earningsData,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Helper function for formatting combos
+    function formatCombo(combo) {
+        var suitMap = {
+            's': { symbol: '♠', color: 'black' },
+            'h': { symbol: '♥', color: 'red' },
+            'd': { symbol: '♦', color: 'blue' },
+            'c': { symbol: '♣', color: 'green' }
+        };
+        
+        if (combo.length >= 4) {
+            var card1 = combo.substring(0, 2);
+            var card2 = combo.substring(2, 4);
+            var suit1 = suitMap[card1[1]];
+            var suit2 = suitMap[card2[1]];
+            
+            return card1[0] + 
+                   '<span style="color: ' + suit1.color + ';">' + suit1.symbol + '</span>' + 
+                   ' ' + 
+                   card2[0] + 
+                   '<span style="color: ' + suit2.color + ';">' + suit2.symbol + '</span>';
+        }
+        return combo;
+    }
+    
+    // Profile RFI Matrix functionality
+    {% if stats.aggregated_rfi_matrix %}
+    var profileRFIMatrixData = {{ stats.aggregated_rfi_matrix | tojson }};
+    var profileRFISidePanel = document.getElementById('profileRFIComboSidePanel');
+    var profileRFIHoverTimeout;
+    
+    // Color code RFI cells based on count
+    document.querySelectorAll('.profile-rfi-cell').forEach(function(cell) {
+        var rfiCount = parseFloat(cell.getAttribute('data-rfi-count')) || 0;
+        var opacity = 0.3;
+        
+        if (rfiCount > 0) {
+            opacity = Math.min(0.95, Math.max(0.4, rfiCount / 30));
+            cell.style.backgroundColor = 'rgba(40, 167, 69, ' + opacity + ')';
+        }
+    });
+    
+    // Hover functionality for RFI matrix
+    document.querySelectorAll('.profile-rfi-cell').forEach(function(cell) {
+        cell.addEventListener('mouseenter', function() {
+            clearTimeout(profileRFIHoverTimeout);
+            var handType = this.getAttribute('data-hand-type');
+            var handData = profileRFIMatrixData[handType] || {};
+            var combos = handData.combos || {};
+            
+            document.getElementById('profileRFISidePanelHandType').textContent = handType;
+            document.getElementById('profileRFISidePanelSummary').innerHTML = 
+                '<p><strong>Total RFI:</strong> ' + (handData.total_rfi || 0) + ' times</p>';
+            
+            var tbody = document.getElementById('profileRFIComboTableBody');
+            tbody.innerHTML = '';
+            
+            var comboEntries = Object.entries(combos).sort((a, b) => b[1].total_rfi - a[1].total_rfi);
+            comboEntries.forEach(function([combo, comboData]) {
+                if (comboData.total_rfi > 0) {
+                    var row = tbody.insertRow();
+                    row.insertCell(0).innerHTML = formatCombo(combo);
+                    row.insertCell(1).textContent = comboData.total_rfi + 'x';
+                }
+            });
+            
+            profileRFISidePanel.style.display = 'block';
+        });
+        
+        cell.addEventListener('mouseleave', function() {
+            profileRFIHoverTimeout = setTimeout(function() {
+                profileRFISidePanel.style.display = 'none';
+            }, 200);
+        });
+    });
+    
+    if (profileRFISidePanel) {
+        profileRFISidePanel.addEventListener('mouseenter', function() {
+            clearTimeout(profileRFIHoverTimeout);
+        });
+        
+        profileRFISidePanel.addEventListener('mouseleave', function() {
+            profileRFISidePanel.style.display = 'none';
+        });
+    }
+    {% endif %}
+    
+    // Profile 3-Bet Matrix functionality
+    {% if stats.aggregated_three_bet_matrix %}
+    var profileThreeBetMatrixData = {{ stats.aggregated_three_bet_matrix | tojson }};
+    var profileThreeBetSidePanel = document.getElementById('profileThreeBetComboSidePanel');
+    var profileThreeBetHoverTimeout;
+    
+    // Color code 3-bet cells based on count
+    document.querySelectorAll('.profile-threebet-cell').forEach(function(cell) {
+        var threeBetCount = parseFloat(cell.getAttribute('data-threebet-count')) || 0;
+        var opacity = 0.3;
+        
+        if (threeBetCount > 0) {
+            opacity = Math.min(0.95, Math.max(0.4, threeBetCount / 15));
+            cell.style.backgroundColor = 'rgba(255, 193, 7, ' + opacity + ')';
+        }
+    });
+    
+    // Hover functionality for 3-bet matrix
+    document.querySelectorAll('.profile-threebet-cell').forEach(function(cell) {
+        cell.addEventListener('mouseenter', function() {
+            clearTimeout(profileThreeBetHoverTimeout);
+            var handType = this.getAttribute('data-hand-type');
+            var handData = profileThreeBetMatrixData[handType] || {};
+            var combos = handData.combos || {};
+            
+            document.getElementById('profileThreeBetSidePanelHandType').textContent = handType;
+            document.getElementById('profileThreeBetSidePanelSummary').innerHTML = 
+                '<p><strong>Total 3-Bets:</strong> ' + (handData.total_three_bet || 0) + ' times</p>';
+            
+            var tbody = document.getElementById('profileThreeBetComboTableBody');
+            tbody.innerHTML = '';
+            
+            var comboEntries = Object.entries(combos).sort((a, b) => b[1].total_three_bet - a[1].total_three_bet);
+            comboEntries.forEach(function([combo, comboData]) {
+                if (comboData.total_three_bet > 0) {
+                    var row = tbody.insertRow();
+                    row.insertCell(0).innerHTML = formatCombo(combo);
+                    row.insertCell(1).textContent = comboData.total_three_bet + 'x';
+                }
+            });
+            
+            profileThreeBetSidePanel.style.display = 'block';
+        });
+        
+        cell.addEventListener('mouseleave', function() {
+            profileThreeBetHoverTimeout = setTimeout(function() {
+                profileThreeBetSidePanel.style.display = 'none';
+            }, 200);
+        });
+    });
+    
+    if (profileThreeBetSidePanel) {
+        profileThreeBetSidePanel.addEventListener('mouseenter', function() {
+            clearTimeout(profileThreeBetHoverTimeout);
+        });
+        
+        profileThreeBetSidePanel.addEventListener('mouseleave', function() {
+            profileThreeBetSidePanel.style.display = 'none';
+        });
+    }
+    {% endif %}
+    
+    // Profile 4-Bet Matrix functionality
+    {% if stats.aggregated_four_bet_matrix %}
+    var profileFourBetMatrixData = {{ stats.aggregated_four_bet_matrix | tojson }};
+    var profileFourBetSidePanel = document.getElementById('profileFourBetComboSidePanel');
+    var profileFourBetHoverTimeout;
+    
+    // Color code 4-bet cells based on count
+    document.querySelectorAll('.profile-fourbet-cell').forEach(function(cell) {
+        var fourBetCount = parseFloat(cell.getAttribute('data-fourbet-count')) || 0;
+        var opacity = 0.3;
+        
+        if (fourBetCount > 0) {
+            opacity = Math.min(0.95, Math.max(0.4, fourBetCount / 10));
+            cell.style.backgroundColor = 'rgba(220, 53, 69, ' + opacity + ')';
+        }
+    });
+    
+    // Hover functionality for 4-bet matrix
+    document.querySelectorAll('.profile-fourbet-cell').forEach(function(cell) {
+        cell.addEventListener('mouseenter', function() {
+            clearTimeout(profileFourBetHoverTimeout);
+            var handType = this.getAttribute('data-hand-type');
+            var handData = profileFourBetMatrixData[handType] || {};
+            var combos = handData.combos || {};
+            
+            document.getElementById('profileFourBetSidePanelHandType').textContent = handType;
+            document.getElementById('profileFourBetSidePanelSummary').innerHTML = 
+                '<p><strong>Total 4-Bets:</strong> ' + (handData.total_four_bet || 0) + ' times</p>';
+            
+            var tbody = document.getElementById('profileFourBetComboTableBody');
+            tbody.innerHTML = '';
+            
+            var comboEntries = Object.entries(combos).sort((a, b) => b[1].total_four_bet - a[1].total_four_bet);
+            comboEntries.forEach(function([combo, comboData]) {
+                if (comboData.total_four_bet > 0) {
+                    var row = tbody.insertRow();
+                    row.insertCell(0).innerHTML = formatCombo(combo);
+                    row.insertCell(1).textContent = comboData.total_four_bet + 'x';
+                }
+            });
+            
+            profileFourBetSidePanel.style.display = 'block';
+        });
+        
+        cell.addEventListener('mouseleave', function() {
+            profileFourBetHoverTimeout = setTimeout(function() {
+                profileFourBetSidePanel.style.display = 'none';
+            }, 200);
+        });
+    });
+    
+    if (profileFourBetSidePanel) {
+        profileFourBetSidePanel.addEventListener('mouseenter', function() {
+            clearTimeout(profileFourBetHoverTimeout);
+        });
+        
+        profileFourBetSidePanel.addEventListener('mouseleave', function() {
+            profileFourBetSidePanel.style.display = 'none';
+        });
+    }
+    {% endif %}
+    
+    // Profile Hand Matrix functionality
+    {% if stats.aggregated_hand_matrix %}
+    var profileHandMatrixData = {{ stats.aggregated_hand_matrix | tojson }};
+    var profileSidePanel = document.getElementById('profileComboSidePanel');
+    var profileHoverTimeout;
+    
+    // Color code hand cells based on BB earnings
+    document.querySelectorAll('.profile-hand-cell').forEach(function(cell) {
+        var bbEarnings = parseFloat(cell.getAttribute('data-bb-earnings')) || 0;
+        var opacity = 0.2;
+        
+        if (bbEarnings < 0) {
+            opacity = Math.min(0.8, Math.max(0.1, Math.abs(bbEarnings) / 50));
+            cell.style.backgroundColor = 'rgba(220, 53, 69, ' + opacity + ')';
+        } else if (bbEarnings > 0) {
+            opacity = Math.min(0.8, Math.max(0.1, Math.abs(bbEarnings) / 50));
+            cell.style.backgroundColor = 'rgba(40, 167, 69, ' + opacity + ')';
+        } else {
+            cell.style.backgroundColor = 'rgba(200, 200, 200, 0.2)';
+        }
+        
+        // Add hover effect
+        cell.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.1)';
+            this.style.transition = 'transform 0.15s';
+            this.style.zIndex = '10';
+            this.style.position = 'relative';
+            this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+            
+            if (profileHoverTimeout) {
+                clearTimeout(profileHoverTimeout);
+            }
+            
+            var handType = this.getAttribute('data-hand-type');
+            showProfileComboDetails(handType);
+        });
+        
+        cell.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = 'none';
+            
+            profileHoverTimeout = setTimeout(function() {
+                if (profileSidePanel) {
+                    profileSidePanel.style.display = 'none';
+                }
+            }, 200);
+        });
+    });
+    
+    // Keep side panel visible when hovering over it
+    if (profileSidePanel) {
+        profileSidePanel.addEventListener('mouseenter', function() {
+            if (profileHoverTimeout) {
+                clearTimeout(profileHoverTimeout);
+            }
+        });
+        
+        profileSidePanel.addEventListener('mouseleave', function() {
+            profileSidePanel.style.display = 'none';
+        });
+    }
+    
+    function showProfileComboDetails(handType) {
+        var handData = profileHandMatrixData[handType];
+        if (!handData || !profileSidePanel) {
+            return;
+        }
+        
+        document.getElementById('profileSidePanelHandType').textContent = handType;
+        
+        var summaryHtml = 
+            '<p><strong>Total Hands:</strong> ' + (handData.total_hands || 0) + '</p>' +
+            '<p><strong>Total BB Earnings:</strong> <span class="' + 
+                (handData.total_bb_earnings < 0 ? 'text-danger' : (handData.total_bb_earnings > 0 ? 'text-success' : '')) + 
+                '">' + (handData.total_bb_earnings || 0) + ' BB</span></p>' +
+            '<p><strong>Average BB per Hand:</strong> <span class="' + 
+                (handData.avg_bb_per_hand < 0 ? 'text-danger' : (handData.avg_bb_per_hand > 0 ? 'text-success' : '')) + 
+                '">' + (handData.avg_bb_per_hand || 0) + ' BB</span></p>';
+        document.getElementById('profileSidePanelSummary').innerHTML = summaryHtml;
+        
+        var tbody = document.getElementById('profileComboTableBody');
+        tbody.innerHTML = '';
+        
+        if (handData.combos) {
+            var combos = Object.keys(handData.combos).sort();
+            combos.forEach(function(combo) {
+                var comboData = handData.combos[combo];
+                if (comboData.total_hands > 0) {
+                    var row = document.createElement('tr');
+                    row.className = comboData.total_bb_earnings < 0 ? 'table-danger' : 
+                                   (comboData.total_bb_earnings > 0 ? 'table-success' : '');
+                    
+                    var formattedCombo = formatProfileCombo(combo);
+                    
+                    var comboCell = document.createElement('td');
+                    comboCell.innerHTML = '<strong>' + formattedCombo + '</strong>';
+                    
+                    var handsCell = document.createElement('td');
+                    handsCell.textContent = comboData.total_hands;
+                    
+                    var totalBBCell = document.createElement('td');
+                    var totalBBSpan = document.createElement('span');
+                    totalBBSpan.className = comboData.total_bb_earnings < 0 ? 'text-danger' : (comboData.total_bb_earnings > 0 ? 'text-success' : '');
+                    totalBBSpan.textContent = comboData.total_bb_earnings + ' BB';
+                    totalBBCell.appendChild(totalBBSpan);
+                    
+                    var avgBBCell = document.createElement('td');
+                    var avgBBSpan = document.createElement('span');
+                    avgBBSpan.className = comboData.avg_bb_per_hand < 0 ? 'text-danger' : (comboData.avg_bb_per_hand > 0 ? 'text-success' : '');
+                    avgBBSpan.textContent = comboData.avg_bb_per_hand + ' BB';
+                    avgBBCell.appendChild(avgBBSpan);
+                    
+                    row.appendChild(comboCell);
+                    row.appendChild(handsCell);
+                    row.appendChild(totalBBCell);
+                    row.appendChild(avgBBCell);
+                    tbody.appendChild(row);
+                }
+            });
+        }
+        
+        profileSidePanel.style.display = 'block';
+    }
+    
+    function formatProfileCombo(combo) {
+        var suitMap = {
+            's': { symbol: '♠', color: 'black' },
+            'h': { symbol: '♥', color: 'red' },
+            'd': { symbol: '♦', color: 'blue' },
+            'c': { symbol: '♣', color: 'green' }
+        };
+        
+        if (combo.length >= 4) {
+            var card1 = combo.substring(0, 2);
+            var card2 = combo.substring(2, 4);
+            var suit1 = suitMap[card1[1]];
+            var suit2 = suitMap[card2[1]];
+            
+            return card1[0] + 
+                   '<span style="color: ' + suit1.color + ';">' + suit1.symbol + '</span>' + 
+                   ' ' + 
+                   card2[0] + 
+                   '<span style="color: ' + suit2.color + ';">' + suit2.symbol + '</span>';
+        }
+        return combo;
+    }
+    
+    function formatCombo(combo) {
+        return formatProfileCombo(combo);
+    }
+    {% endif %}
+});
+</script>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="card post-card mb-4">
+            <div class="card-body text-center">
+                <h3>No Statistics Available</h3>
+                <p class="text-muted">This user hasn't created any posts or live sessions yet.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

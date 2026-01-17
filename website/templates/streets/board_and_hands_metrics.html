@@ -1,0 +1,1133 @@
+{% block metrics %}
+<!-- Data Availability Check -->
+{% set positional_matchups = metrics.get('Positional Matchups', {}) %}
+{% if positional_matchups is string %}
+    {% set positional_matchups = positional_matchups | fromjson %}
+{% endif %}
+{% set board_analysis = metrics.get('Board High Card Analysis', {}) %}
+{% set hand_matrix = metrics.get('Hand Matrix Analysis', {}) %}
+{% set biggest_hands = metrics.get('Biggest Hands', {}) %}
+
+{% set has_positional = false %}
+{% if positional_matchups %}
+    {% for pot_type, matchups in positional_matchups.items() %}
+        {% if matchups and matchups|length > 0 %}
+            {% set has_positional = true %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+{% set has_board_analysis = board_analysis and (board_analysis|length > 0) %}
+{% set has_hand_matrix = false %}
+{% if hand_matrix %}
+    {% if (hand_matrix.get('Pairs') and hand_matrix.get('Pairs')|length > 0) or (hand_matrix.get('Suited') and hand_matrix.get('Suited')|length > 0) or (hand_matrix.get('Offsuit') and hand_matrix.get('Offsuit')|length > 0) %}
+        {% set has_hand_matrix = true %}
+    {% endif %}
+{% endif %}
+{% set has_biggest_hands = biggest_hands and (biggest_hands.get('biggest_wins', [])|length > 0 or biggest_hands.get('biggest_losses', [])|length > 0) %}
+
+{% if not has_positional and not has_board_analysis and not has_hand_matrix and not has_biggest_hands %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>No boards and hands data available.</strong> Please reprocess this post to see positional matchups, hand matrix analysis, board high card analysis, and biggest hands.
+    <a href="{{ url_for('views.reprocess_post', post_id=post_id) if post_id is defined else '#' }}" class="btn btn-sm btn-primary ms-2">
+        <i class="fas fa-sync-alt me-1"></i>Reprocess Post
+    </a>
+</div>
+{% endif %}
+
+<style>
+    #boardAndHandsTabs .nav-link {
+        color: #212529;
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+    }
+    #boardAndHandsTabs .nav-link.active {
+        color: #212529;
+        background-color: #ffffff;
+        border-color: #dee2e6 #dee2e6 #ffffff;
+    }
+</style>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mb-3" id="boardAndHandsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="positional-tab" data-bs-toggle="tab" data-bs-target="#positional" type="button" role="tab" aria-controls="positional" aria-selected="true">Positional Matchups</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="bhca-tab" data-bs-toggle="tab" data-bs-target="#bhca" type="button" role="tab" aria-controls="bhca" aria-selected="false">BHCA</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="hand-matrix-tab" data-bs-toggle="tab" data-bs-target="#hand-matrix" type="button" role="tab" aria-controls="hand-matrix" aria-selected="false">Hand Matrix</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="biggest-hands-tab" data-bs-toggle="tab" data-bs-target="#biggest-hands" type="button" role="tab" aria-controls="biggest-hands" aria-selected="false">Biggest Hands</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="boardAndHandsTabContent">
+    <!-- Positional Matchups Tab -->
+    <div class="tab-pane fade show active" id="positional" role="tabpanel" aria-labelledby="positional-tab">
+<!-- Positional Matchups Analysis -->
+{% macro render_matchup_table(pot_type, matchups_data) %}
+{% if matchups_data is string %}
+    {% set matchups_data = matchups_data | fromjson %}
+{% endif %}
+{% set position_order = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+{% set table_id = pot_type|lower|replace(' ', '-')|replace('(', '')|replace(')', '')|replace('[', '')|replace(']', '')|replace(',', '') %}
+{% if not matchups_data %}
+    {% set matchups_data = {} %}
+{% endif %}
+{# Count how many matchups have data #}
+{% set totals = namespace(hands=0) %}
+{% for matchup, data in matchups_data.items() %}
+    {% set totals.hands = totals.hands + (data.get('total_hands', 0) | int) %}
+{% endfor %}
+{% if totals.hands > 0 %}
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+            <h3 class="mb-0">{{ pot_type }}</h3>
+            <p class="mb-0"><small>BB earnings for each Hero Position vs Villain Position matchup</small></p>
+        </div>
+        <div class="mt-2 mt-md-0">
+            <label for="{{ table_id }}-sort-select" class="form-label me-2 mb-0">Sort by:</label>
+            <select id="{{ table_id }}-sort-select" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                <option value="hero">Hero Position</option>
+                <option value="villain">Villain Position</option>
+                <option value="hands-desc">Total Hands (High to Low)</option>
+                <option value="hands-asc">Total Hands (Low to High)</option>
+                <option value="bb-desc">Total BB Earnings (High to Low)</option>
+                <option value="bb-asc">Total BB Earnings (Low to High)</option>
+                <option value="dollar-desc">Total Earnings $ (High to Low)</option>
+                <option value="dollar-asc">Total Earnings $ (Low to High)</option>
+                <option value="avg-bb-desc">Avg BB/Hand (High to Low)</option>
+                <option value="avg-bb-asc">Avg BB/Hand (Low to High)</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm" id="{{ table_id }}-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Matchup</th>
+                        <th>Total Hands</th>
+                        <th>Total BB Earnings</th>
+                        <th>Total $ Earnings</th>
+                        <th>Avg BB per Hand</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for matchup, data in matchups_data.items() %}
+                        {% if data.get('total_hands', 0) > 0 %}
+                            {% set parts = matchup.split(' vs ') %}
+                            {% set hero_pos = parts[0] if parts|length > 0 else '' %}
+                            {% set opponent_part = parts[1] if parts|length > 1 else '' %}
+                            {% set is_multiway = ' and ' in opponent_part %}
+                            {% set villain_pos = 'Multiway' if is_multiway else opponent_part %}
+                            <tr class="{% if data.get('total_bb_earnings', 0) < 0 %}table-danger{% elif data.get('total_bb_earnings', 0) > 0 %}table-success{% endif %}"
+                                data-hero-pos="{{ hero_pos }}" 
+                                data-villain-pos="{{ villain_pos }}"
+                                data-total-hands="{{ data.get('total_hands', 0) }}"
+                                data-total-bb="{{ data.get('total_bb_earnings', 0) }}"
+                                data-total-dollar="{{ data.get('total_earnings', 0) }}"
+                                data-avg-bb="{{ data.get('avg_bb_per_hand', 0) }}"
+                                {% if is_multiway %}data-is-multiway="true"{% endif %}>
+                                <td>
+                                    <strong>Hero {{ hero_pos }} vs {{ opponent_part }}</strong>
+                                    <br/>
+                                    <span class="{% if data.get('total_earnings', 0) < 0 %}text-danger{% elif data.get('total_earnings', 0) > 0 %}text-success{% endif %}" style="font-size: 1.1em;">
+                                        {% if data.get('total_earnings', 0) >= 0 %}+{% endif %}${{ data.get('total_earnings', 0) }}
+                                    </span>
+                                </td>
+                                <td>{{ data.get('total_hands', 0) }}</td>
+                                <td>
+                                    <span class="{% if data.get('total_bb_earnings', 0) < 0 %}text-danger{% elif data.get('total_bb_earnings', 0) > 0 %}text-success{% endif %}">
+                                        {{ data.get('total_bb_earnings', 0) }} BB
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="{% if data.get('total_earnings', 0) < 0 %}text-danger{% elif data.get('total_earnings', 0) > 0 %}text-success{% endif %}">
+                                        {% if data.get('total_earnings', 0) >= 0 %}+{% endif %}${{ data.get('total_earnings', 0) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="{% if data.get('avg_bb_per_hand', 0) < 0 %}text-danger{% elif data.get('avg_bb_per_hand', 0) > 0 %}text-success{% endif %}">
+                                        {{ data.get('avg_bb_per_hand', 0) }} BB
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <script>
+        (function() {
+            const sortSelect = document.getElementById('{{ table_id }}-sort-select');
+            const table = document.getElementById('{{ table_id }}-table');
+            if (!sortSelect || !table) return;
+            
+            const positionOrder = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
+            
+            function getPositionIndex(pos) {
+                if (pos === 'Multiway') return 999; // Put multiway at the end
+                return positionOrder.indexOf(pos);
+            }
+            
+            function sortTable() {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const sortValue = sortSelect.value;
+                
+                rows.sort((a, b) => {
+                    // Always put multiway pots at the end when sorting by position
+                    if (sortValue === 'hero' || sortValue === 'villain') {
+                        const aMultiway = a.dataset.isMultiway === 'true';
+                        const bMultiway = b.dataset.isMultiway === 'true';
+                        if (aMultiway && !bMultiway) return 1;
+                        if (!aMultiway && bMultiway) return -1;
+                    }
+                    
+                    if (sortValue === 'hero') {
+                        return getPositionIndex(a.dataset.heroPos) - getPositionIndex(b.dataset.heroPos) ||
+                               getPositionIndex(a.dataset.villainPos) - getPositionIndex(b.dataset.villainPos);
+                    } else if (sortValue === 'villain') {
+                        return getPositionIndex(a.dataset.villainPos) - getPositionIndex(b.dataset.villainPos) ||
+                               getPositionIndex(a.dataset.heroPos) - getPositionIndex(b.dataset.heroPos);
+                    } else if (sortValue === 'hands-desc') {
+                        return parseFloat(b.dataset.totalHands) - parseFloat(a.dataset.totalHands);
+                    } else if (sortValue === 'hands-asc') {
+                        return parseFloat(a.dataset.totalHands) - parseFloat(b.dataset.totalHands);
+                    } else if (sortValue === 'bb-desc') {
+                        return parseFloat(b.dataset.totalBb) - parseFloat(a.dataset.totalBb);
+                    } else if (sortValue === 'bb-asc') {
+                        return parseFloat(a.dataset.totalBb) - parseFloat(b.dataset.totalBb);
+                    } else if (sortValue === 'dollar-desc') {
+                        return parseFloat(b.dataset.totalDollar) - parseFloat(a.dataset.totalDollar);
+                    } else if (sortValue === 'dollar-asc') {
+                        return parseFloat(a.dataset.totalDollar) - parseFloat(b.dataset.totalDollar);
+                    } else if (sortValue === 'avg-bb-desc') {
+                        return parseFloat(b.dataset.avgBb) - parseFloat(a.dataset.avgBb);
+                    } else if (sortValue === 'avg-bb-asc') {
+                        return parseFloat(a.dataset.avgBb) - parseFloat(b.dataset.avgBb);
+                    }
+                    return 0;
+                });
+                
+                rows.forEach(row => tbody.appendChild(row));
+            }
+            
+            sortSelect.addEventListener('change', sortTable);
+        })();
+        </script>
+    </div>
+</div>
+{% else %}
+{# Show message if no data #}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="mb-0">{{ pot_type }}</h3>
+        <p class="mb-0"><small>BB earnings for each Hero Position vs Villain Position matchup</small></p>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            No hands found for this pot type. You haven't played any {{ pot_type.lower() }} in your dataset.
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>Positional Matchups</h2>
+        <p class="mb-0"><small>Split by pot type: RFI Pots, 3-Bet Pots, and 4-Bet Pots</small></p>
+    </div>
+    <div class="card-body">
+        {% set positional_matchups = metrics.get('Positional Matchups', {}) %}
+        {% if positional_matchups is string %}
+            {% set positional_matchups = positional_matchups | fromjson %}
+        {% endif %}
+        {# Step 1: Heads-Up Single Raised Pots only #}
+        <h4 class="mt-3 mb-2">Heads-Up Pots</h4>
+        {{ render_matchup_table('RFI Pots (Single Raised Pots)', positional_matchups.get('RFI Pots', {})) }}
+        {{ render_matchup_table('3-Bet Pots', positional_matchups.get('3-Bet Pots', {})) }}
+        {{ render_matchup_table('4-Bet Pots', positional_matchups.get('4-Bet Pots', {})) }}
+        {{ render_matchup_table('5-Bet Pots', positional_matchups.get('5-Bet Pots', {})) }}
+        {{ render_matchup_table('Limp Pots', positional_matchups.get('Limp Pots', {})) }}
+    </div>
+</div>
+<br/>
+    </div>
+
+    <!-- Board High Card Analysis Tab -->
+    <div class="tab-pane fade" id="bhca" role="tabpanel" aria-labelledby="bhca-tab">
+<!-- Board High Card Analysis -->
+{% if metrics.get('Board High Card Analysis') %}
+<div class="card">
+    <div class="card-header">
+        <h2>Board High Card Analysis</h2>
+        <p class="mb-0"><small>Analysis of BB earnings by the highest card on the flop board</small></p>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Board High Card</th>
+                        <th>Total Hands</th>
+                        <th>Total BB Earnings</th>
+                        <th>Avg BB per Hand</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for board_type, data in metrics.get('Board High Card Analysis', {}).items() %}
+                    <tr class="{% if data['total_bb_earnings'] < 0 %}table-danger{% elif data['total_bb_earnings'] > 0 %}table-success{% endif %}">
+                        <td><strong>{{ board_type }}</strong></td>
+                        <td>{{ data['total_hands'] }}</td>
+                        <td>
+                            <span class="{% if data['total_bb_earnings'] < 0 %}text-danger{% elif data['total_bb_earnings'] > 0 %}text-success{% endif %}">
+                                {{ data['total_bb_earnings'] }} BB
+                            </span>
+                        </td>
+                        <td>
+                            <span class="{% if data['avg_bb_per_hand'] < 0 %}text-danger{% elif data['avg_bb_per_hand'] > 0 %}text-success{% endif %}">
+                                {{ data['avg_bb_per_hand'] }} BB
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#boardChartContainer" aria-expanded="false" aria-controls="boardChartContainer">
+                View Board High Card Chart
+            </button>
+            <div class="collapse mt-3" id="boardChartContainer">
+                <canvas id="boardChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<br/>
+{% else %}
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div>
+        <i class="fas fa-info-circle me-2"></i>
+        No board high card analysis data available. Please reprocess this post.
+    </div>
+    <a href="{{ url_for('views.reprocess_post', post_id=post_id if post_id is defined else request.path.split('/')[-1]) }}" class="btn btn-sm btn-primary">
+        <i class="fas fa-sync-alt me-1"></i>Reprocess Post
+    </a>
+</div>
+{% endif %}
+    </div>
+
+    <!-- Hand Matrix Tab -->
+    <div class="tab-pane fade" id="hand-matrix" role="tabpanel" aria-labelledby="hand-matrix-tab">
+<!-- Hand Matrix Section -->
+{% if metrics.get('Hand Matrix Analysis') and (metrics.get('Hand Matrix Analysis').get('Pairs') or metrics.get('Hand Matrix Analysis').get('Suited') or metrics.get('Hand Matrix Analysis').get('Offsuit')) %}
+<div class="card">
+    <div class="card-header">
+        <h2>Preflop Hand Matrix</h2>
+        <p class="mb-0"><small>Hover over any hand to see detailed combo breakdown and BB earnings</small></p>
+    </div>
+    <div class="card-body">
+        <div class="d-flex">
+            <div class="flex-shrink-0" style="max-width: 60%;">
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-bordered table-sm" id="handMatrix" style="font-size: 0.6rem; margin-bottom: 0;">
+                <thead>
+                    <tr>
+                        <th style="padding: 4px !important; font-size: 0.6rem;"></th>
+                        {% for rank in ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                        <th class="text-center" style="padding: 4px !important; font-size: 0.6rem;">{{ rank }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] %}
+                    {% for rank1 in ranks %}
+                    {% set i = loop.index0 %}
+                    <tr>
+                        <th style="padding: 4px !important; font-size: 0.6rem;">{{ rank1 }}</th>
+                        {% for rank2 in ranks %}
+                        {% set j = loop.index0 %}
+                            {% if i == j %}
+                                {% set hand_type = rank1 + rank2 %}
+                                {% set group = 'Pairs' %}
+                            {% elif i < j %}
+                                {% set hand_type = rank1 + rank2 + 's' %}
+                                {% set group = 'Suited' %}
+                            {% else %}
+                                {% set hand_type = rank2 + rank1 + 'o' %}
+                                {% set group = 'Offsuit' %}
+                            {% endif %}
+                            {% set hand_matrix = metrics.get('Hand Matrix Analysis', {}) %}
+                            {% set group_data = hand_matrix.get(group, {}) %}
+                            {% set hand_data = group_data.get(hand_type, {}) %}
+                            {% set total_bb = hand_data.get('total_bb_earnings', 0) %}
+                            {% set hands = hand_data.get('total_hands', 0) %}
+                            <td class="hand-cell text-center" 
+                                data-hand-type="{{ hand_type }}"
+                                data-bb-earnings="{{ total_bb }}"
+                                style="cursor: pointer; padding: 4px !important;"
+                                title="{{ hand_type }}: {{ total_bb }} BB ({{ hands }} hands)">
+                                <strong style="font-size: 0.65rem;">{{ hand_type }}</strong>
+                                <br/>
+                                <small style="font-size: 0.55rem;">{{ total_bb }} BB</small>
+                                <br/>
+                                <small style="font-size: 0.5rem;">({{ hands }})</small>
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Side Panel for Combo Details -->
+            <div class="flex-grow-1 ms-3" id="comboSidePanel" style="display: none; position: sticky; top: 20px; height: fit-content; max-height: 600px; overflow-y: auto;">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0" id="sidePanelHandType">Hand Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="sidePanelSummary" class="mb-3"></div>
+                        <h6>Combo Breakdown:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" id="comboTable" style="font-size: 0.85rem;">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Combo</th>
+                                        <th>Hands</th>
+                                        <th>Total BB</th>
+                                        <th>Avg BB/Hand</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="comboTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div>
+        <i class="fas fa-info-circle me-2"></i>
+        No hand matrix data available. Please reprocess this post to see preflop hand analysis.
+    </div>
+    <a href="{{ url_for('views.reprocess_post', post_id=post_id if post_id is defined else request.path.split('/')[-1]) }}" class="btn btn-sm btn-primary">
+        <i class="fas fa-sync-alt me-1"></i>Reprocess Post
+    </a>
+</div>
+{% endif %}
+    </div>
+
+    <!-- Biggest Hands Tab -->
+    <div class="tab-pane fade" id="biggest-hands" role="tabpanel" aria-labelledby="biggest-hands-tab">
+{% if metrics.get('Biggest Hands') and (metrics.get('Biggest Hands', {}).get('biggest_wins', [])|length > 0 or metrics.get('Biggest Hands', {}).get('biggest_losses', [])|length > 0) %}
+<!-- Biggest Winning Hands -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h3><i class="fas fa-trophy me-2"></i>3 Biggest Winning Hands</h3>
+        <p class="mb-0"><small>Hands with the largest pot sizes where you won</small></p>
+    </div>
+    <div class="card-body">
+        {% if metrics.get('Biggest Hands', {}).get('biggest_wins') and metrics.get('Biggest Hands', {}).get('biggest_wins')|length > 0 %}
+            {% for hand in metrics.get('Biggest Hands', {}).get('biggest_wins') %}
+            <div class="card mb-3 border-success">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <span class="badge bg-success me-2">#{{ loop.index }}</span>
+                        Pot: ${{ hand.get('pot_size', 0) }} | Result: <span class="text-success">+${{ hand.get('hand_result', 0) }}</span> ({{ hand.get('bb_earnings', 0) }} BB)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if hand.get('formatted_hand') %}
+                    {# Display formatted hand history #}
+                    {% set fh = hand.get('formatted_hand') %}
+                    <div class="hand-history-formatted">
+                        {# Table Info #}
+                        {% if fh.get('table_info') %}
+                        <div class="mb-3 p-2 bg-light rounded">
+                            <h6 class="mb-2"><i class="fas fa-table me-2"></i>Table Information</h6>
+                            <div class="row">
+                                <div class="col-md-4"><strong>Stakes:</strong> {{ fh.get('table_info', {}).get('stakes', 'Unknown') }}</div>
+                                <div class="col-md-4"><strong>Table:</strong> {{ fh.get('table_info', {}).get('table_name', 'Unknown') }}</div>
+                                <div class="col-md-4"><strong>Date:</strong> {{ fh.get('table_info', {}).get('date', 'Unknown') }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Seats #}
+                        {% if fh.get('seats') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-users me-2"></i>Seats</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-secondary">
+                                        <tr>
+                                            <th>Seat</th>
+                                            <th>Player</th>
+                                            <th>Stack</th>
+                                            <th>Position</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% set position_order = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+                                        {% for pos in position_order %}
+                                            {% for seat in fh.get('seats', []) %}
+                                                {% if seat.get('position') == pos %}
+                                        <tr class="{% if seat.get('is_hero') %}table-primary{% elif seat.get('is_button') %}table-warning{% endif %}">
+                                            <td>{{ seat.get('seat') }}{% if seat.get('is_button') %} <span class="badge bg-warning text-dark">BTN</span>{% endif %}</td>
+                                            <td><strong>{% if seat.get('is_hero') %}Hero{% else %}{{ seat.get('player') }}{% endif %}</strong></td>
+                                            <td>${{ seat.get('stack') }}</td>
+                                            <td><span class="badge bg-info">{{ seat.get('position', 'Unknown') }}</span></td>
+                                        </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Hero Cards #}
+                        {% if fh.get('hero_cards') %}
+                        <div class="mb-3 p-2 bg-primary text-white rounded">
+                            <h6 class="mb-2"><i class="fas fa-hand-paper me-2"></i>Hero's Cards</h6>
+                            <div class="d-flex gap-2" style="font-size: 1.5rem;">
+                                {% for card in fh.get('hero_cards', []) %}
+                                <span>{{ card|safe }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Preflop Action #}
+                        {% if fh.get('preflop_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>Preflop Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('preflop_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Flop #}
+                        {% if fh.get('flop_cards') %}
+                        <div class="mb-3 p-2 bg-info text-white rounded">
+                            <h6 class="mb-2"><i class="fas fa-cards me-2"></i>Flop</h6>
+                            <div class="d-flex gap-2" style="font-size: 1.5rem;">
+                                {% for card in fh.get('flop_cards', []) %}
+                                <span>{{ card|safe }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% if fh.get('flop_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>Flop Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('flop_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
+                        {# Turn #}
+                        {% if fh.get('turn_card') %}
+                        <div class="mb-3 p-2 bg-warning text-dark rounded">
+                            <h6 class="mb-2"><i class="fas fa-cards me-2"></i>Turn</h6>
+                            <div style="font-size: 1.5rem;">{{ fh.get('turn_card')|safe }}</div>
+                        </div>
+                        {% if fh.get('turn_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>Turn Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('turn_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
+                        {# River #}
+                        {% if fh.get('river_card') %}
+                        <div class="mb-3 p-2 bg-danger text-white rounded">
+                            <h6 class="mb-2"><i class="fas fa-cards me-2"></i>River</h6>
+                            <div style="font-size: 1.5rem;">{{ fh.get('river_card')|safe }}</div>
+                        </div>
+                        {% if fh.get('river_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>River Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('river_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
+                        {# Player Hands #}
+                        {% if fh.get('player_hands') and fh.get('player_hands')|length > 0 %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-cards-blank me-2"></i>Player Hands</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-secondary">
+                                        <tr>
+                                            <th>Player</th>
+                                            <th>Cards</th>
+                                            <th>Hand</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for player_hand in fh.get('player_hands', []) %}
+                                        <tr class="{% if player_hand.get('player') == 'Hero' %}table-primary{% endif %}">
+                                            <td><strong>{% if player_hand.get('player') == 'Hero' %}Hero{% else %}{{ player_hand.get('player') }}{% endif %}</strong></td>
+                                            <td>
+                                                <div class="d-flex gap-2" style="font-size: 1.2rem;">
+                                                    {% for card in player_hand.get('cards', []) %}
+                                                    <span>{{ card|safe }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </td>
+                                            <td><small>{{ player_hand.get('hand_description', '') }}</small></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Summary #}
+                        {% if fh.get('summary') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-list me-2"></i>Summary</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for line in fh.get('summary', []) %}
+                                <div class="mb-1">{{ line }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                        {% if hand.get('raw_hand') %}
+                        {# Fallback to raw hand if formatting failed #}
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#rawHandWin{{ loop.index }}" aria-expanded="false">
+                                <i class="fas fa-eye me-1"></i>View Full Hand History
+                            </button>
+                            <div class="collapse mt-2" id="rawHandWin{{ loop.index }}">
+                                <pre class="bg-light p-3 rounded" style="font-size: 0.75rem; max-height: 400px; overflow-y: auto;">{{ hand.get('raw_hand', '') }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">No winning hands found with pot size data.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Biggest Losing Hands -->
+<div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+        <h3><i class="fas fa-exclamation-triangle me-2"></i>3 Biggest Losing Hands</h3>
+        <p class="mb-0"><small>Hands with the largest losses</small></p>
+    </div>
+    <div class="card-body">
+        {% if metrics.get('Biggest Hands', {}).get('biggest_losses') and metrics.get('Biggest Hands', {}).get('biggest_losses')|length > 0 %}
+            {% for hand in metrics.get('Biggest Hands', {}).get('biggest_losses') %}
+            <div class="card mb-3 border-danger">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <span class="badge bg-danger me-2">#{{ loop.index }}</span>
+                        Pot: ${{ hand.get('pot_size', 0) }} | Result: <span class="text-danger">-${{ hand.get('hand_result', 0)|abs }}</span> ({{ hand.get('bb_earnings', 0) }} BB)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if hand.get('formatted_hand') %}
+                    {# Display formatted hand history #}
+                    {% set fh = hand.get('formatted_hand') %}
+                    <div class="hand-history-formatted">
+                        {# Table Info #}
+                        {% if fh.get('table_info') %}
+                        <div class="mb-3 p-2 bg-light rounded">
+                            <h6 class="mb-2"><i class="fas fa-table me-2"></i>Table Information</h6>
+                            <div class="row">
+                                <div class="col-md-4"><strong>Stakes:</strong> {{ fh.get('table_info', {}).get('stakes', 'Unknown') }}</div>
+                                <div class="col-md-4"><strong>Table:</strong> {{ fh.get('table_info', {}).get('table_name', 'Unknown') }}</div>
+                                <div class="col-md-4"><strong>Date:</strong> {{ fh.get('table_info', {}).get('date', 'Unknown') }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Seats #}
+                        {% if fh.get('seats') %}
+                        {% set position_order = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-users me-2"></i>Seats</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-secondary">
+                                        <tr>
+                                            <th>Seat</th>
+                                            <th>Player</th>
+                                            <th>Stack</th>
+                                            <th>Position</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for pos in position_order %}
+                                            {% for seat in fh.get('seats', []) %}
+                                                {% if seat.get('position') == pos %}
+                                        <tr class="{% if seat.get('is_hero') %}table-primary{% elif seat.get('is_button') %}table-warning{% endif %}">
+                                            <td>{{ seat.get('seat') }}{% if seat.get('is_button') %} <span class="badge bg-warning text-dark">BTN</span>{% endif %}</td>
+                                            <td><strong>{% if seat.get('is_hero') %}Hero{% else %}{{ seat.get('player') }}{% endif %}</strong></td>
+                                            <td>${{ seat.get('stack') }}</td>
+                                            <td><span class="badge bg-info">{{ seat.get('position', 'Unknown') }}</span></td>
+                                        </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Hero Cards #}
+                        {% if fh.get('hero_cards') %}
+                        <div class="mb-3 p-2 bg-primary text-white rounded">
+                            <h6 class="mb-2"><i class="fas fa-hand-paper me-2"></i>Hero's Cards</h6>
+                            <div class="d-flex gap-2" style="font-size: 1.5rem;">
+                                {% for card in fh.get('hero_cards', []) %}
+                                <span>{{ card|safe }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Preflop Action #}
+                        {% if fh.get('preflop_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>Preflop Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('preflop_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Flop #}
+                        {% if fh.get('flop_cards') %}
+                        <div class="mb-3 p-2 bg-info text-white rounded">
+                            <h6 class="mb-2"><i class="fas fa-cards me-2"></i>Flop</h6>
+                            <div class="d-flex gap-2" style="font-size: 1.5rem;">
+                                {% for card in fh.get('flop_cards', []) %}
+                                <span>{{ card|safe }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% if fh.get('flop_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>Flop Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('flop_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
+                        {# Turn #}
+                        {% if fh.get('turn_card') %}
+                        <div class="mb-3 p-2 bg-warning text-dark rounded">
+                            <h6 class="mb-2"><i class="fas fa-cards me-2"></i>Turn</h6>
+                            <div style="font-size: 1.5rem;">{{ fh.get('turn_card')|safe }}</div>
+                        </div>
+                        {% if fh.get('turn_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>Turn Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('turn_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
+                        {# River #}
+                        {% if fh.get('river_card') %}
+                        <div class="mb-3 p-2 bg-danger text-white rounded">
+                            <h6 class="mb-2"><i class="fas fa-cards me-2"></i>River</h6>
+                            <div style="font-size: 1.5rem;">{{ fh.get('river_card')|safe }}</div>
+                        </div>
+                        {% if fh.get('river_action') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-arrow-right me-2"></i>River Action</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for action in fh.get('river_action', []) %}
+                                <div class="mb-1">{{ action }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
+                        {# Player Hands #}
+                        {% if fh.get('player_hands') and fh.get('player_hands')|length > 0 %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-cards-blank me-2"></i>Player Hands</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-secondary">
+                                        <tr>
+                                            <th>Player</th>
+                                            <th>Cards</th>
+                                            <th>Hand</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for player_hand in fh.get('player_hands', []) %}
+                                        <tr class="{% if player_hand.get('player') == 'Hero' %}table-primary{% endif %}">
+                                            <td><strong>{% if player_hand.get('player') == 'Hero' %}Hero{% else %}{{ player_hand.get('player') }}{% endif %}</strong></td>
+                                            <td>
+                                                <div class="d-flex gap-2" style="font-size: 1.2rem;">
+                                                    {% for card in player_hand.get('cards', []) %}
+                                                    <span>{{ card|safe }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </td>
+                                            <td><small>{{ player_hand.get('hand_description', '') }}</small></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {# Summary #}
+                        {% if fh.get('summary') %}
+                        <div class="mb-3">
+                            <h6 class="mb-2"><i class="fas fa-list me-2"></i>Summary</h6>
+                            <div class="bg-light p-2 rounded">
+                                {% for line in fh.get('summary', []) %}
+                                <div class="mb-1">{{ line }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                        {% if hand.get('raw_hand') %}
+                        {# Fallback to raw hand if formatting failed #}
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#rawHandLoss{{ loop.index }}" aria-expanded="false">
+                                <i class="fas fa-eye me-1"></i>View Full Hand History
+                            </button>
+                            <div class="collapse mt-2" id="rawHandLoss{{ loop.index }}">
+                                <pre class="bg-light p-3 rounded" style="font-size: 0.75rem; max-height: 400px; overflow-y: auto;">{{ hand.get('raw_hand', '') }}</pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">No losing hands found with pot size data.</p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div>
+        <i class="fas fa-info-circle me-2"></i>
+        No biggest hands data available. Please reprocess this post to see the biggest winning and losing hands.
+    </div>
+    <a href="{{ url_for('views.reprocess_post', post_id=post_id if post_id is defined else request.path.split('/')[-1]) }}" class="btn btn-sm btn-primary">
+        <i class="fas fa-sync-alt me-1"></i>Reprocess Post
+    </a>
+</div>
+{% endif %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Board High Card Chart
+    {% if metrics.get('Board High Card Analysis') %}
+    var boardData = {{ metrics.get('Board High Card Analysis', {}) | tojson }};
+    var labels = Object.keys(boardData);
+    var bbEarnings = Object.values(boardData).map(function(d) { return d['total_bb_earnings']; });
+    
+    var ctx = document.getElementById('boardChart');
+    if (ctx) {
+        var boardChart = new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total BB Earnings',
+                    data: bbEarnings,
+                    backgroundColor: bbEarnings.map(function(value) {
+                        return value < 0 ? 'rgba(220, 53, 69, 0.6)' : 'rgba(40, 167, 69, 0.6)';
+                    }),
+                    borderColor: bbEarnings.map(function(value) {
+                        return value < 0 ? 'rgba(220, 53, 69, 1)' : 'rgba(40, 167, 69, 1)';
+                    }),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'BB Earnings'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Board High Card'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                var index = context.dataIndex;
+                                var data = Object.values(boardData)[index];
+                                return 'Hands: ' + data['total_hands'] + 
+                                       ' | Avg: ' + data['avg_bb_per_hand'] + ' BB/hand';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+    
+    // Hand Matrix functionality
+    {% if metrics.get('Hand Matrix Analysis') %}
+    var handMatrixData = {{ metrics.get('Hand Matrix Analysis', {}) | tojson }};
+    var comboDetailsData = {{ metrics.get('Combo Details', {}) | tojson }};
+    var sidePanel = document.getElementById('comboSidePanel');
+    var hoverTimeout;
+    
+    // Color code hand cells based on BB earnings
+    document.querySelectorAll('.hand-cell').forEach(function(cell) {
+        var bbEarnings = parseFloat(cell.getAttribute('data-bb-earnings')) || 0;
+        var opacity = 0.2;
+        
+        if (bbEarnings < 0) {
+            opacity = Math.min(0.8, Math.max(0.1, Math.abs(bbEarnings) / 50));
+            cell.style.backgroundColor = 'rgba(220, 53, 69, ' + opacity + ')';
+        } else if (bbEarnings > 0) {
+            opacity = Math.min(0.8, Math.max(0.1, Math.abs(bbEarnings) / 50));
+            cell.style.backgroundColor = 'rgba(40, 167, 69, ' + opacity + ')';
+        } else {
+            cell.style.backgroundColor = 'rgba(200, 200, 200, 0.2)';
+        }
+        
+        // Add hover effect
+        cell.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.1)';
+            this.style.transition = 'transform 0.15s';
+            this.style.zIndex = '10';
+            this.style.position = 'relative';
+            this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+            
+            // Clear any existing timeout
+            if (hoverTimeout) {
+                clearTimeout(hoverTimeout);
+            }
+            
+            // Show side panel
+            var handType = this.getAttribute('data-hand-type');
+            showComboDetails(handType);
+        });
+        
+        cell.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = 'none';
+            
+            // Hide side panel after a short delay
+            hoverTimeout = setTimeout(function() {
+                if (sidePanel) {
+                    sidePanel.style.display = 'none';
+                }
+            }, 200);
+        });
+    });
+    
+    // Keep side panel visible when hovering over it
+    if (sidePanel) {
+        sidePanel.addEventListener('mouseenter', function() {
+            if (hoverTimeout) {
+                clearTimeout(hoverTimeout);
+            }
+        });
+        
+        sidePanel.addEventListener('mouseleave', function() {
+            sidePanel.style.display = 'none';
+        });
+    }
+    
+    function showComboDetails(handType) {
+        // Determine which group this hand belongs to
+        var group = null;
+        if (handType.length === 2) {
+            group = 'Pairs';
+        } else if (handType.endsWith('s')) {
+            group = 'Suited';
+        } else if (handType.endsWith('o')) {
+            group = 'Offsuit';
+        }
+        
+        if (!group || !handMatrixData[group] || !handMatrixData[group][handType]) {
+            return;
+        }
+        
+        var handData = handMatrixData[group][handType];
+        if (!handData || !sidePanel) {
+            return;
+        }
+        
+        // Update side panel title
+        document.getElementById('sidePanelHandType').textContent = handType;
+        
+        // Update summary
+        var summaryHtml = 
+            '<p><strong>Total Hands:</strong> ' + (handData.total_hands || 0) + '</p>' +
+            '<p><strong>Total BB Earnings:</strong> <span class="' + 
+                (handData.total_bb_earnings < 0 ? 'text-danger' : (handData.total_bb_earnings > 0 ? 'text-success' : '')) + 
+                '">' + (handData.total_bb_earnings || 0) + ' BB</span></p>' +
+            '<p><strong>Average BB per Hand:</strong> <span class="' + 
+                (handData.avg_bb_per_hand < 0 ? 'text-danger' : (handData.avg_bb_per_hand > 0 ? 'text-success' : '')) + 
+                '">' + (handData.avg_bb_per_hand || 0) + ' BB</span></p>';
+        document.getElementById('sidePanelSummary').innerHTML = summaryHtml;
+        
+        // Update combo table - show individual suit combos
+        var tbody = document.getElementById('comboTableBody');
+        tbody.innerHTML = '';
+        
+        if (handData.combos && Object.keys(handData.combos).length > 0) {
+            var combos = Object.keys(handData.combos).sort();
+            combos.forEach(function(combo) {
+                var comboData = handData.combos[combo];
+                if (comboData && comboData.total_hands > 0) {
+                    var row = document.createElement('tr');
+                    row.className = comboData.total_bb_earnings < 0 ? 'table-danger' : 
+                                   (comboData.total_bb_earnings > 0 ? 'table-success' : '');
+                    
+                    // Format combo with suit symbols (e.g., AsKh -> A♠K♥)
+                    var formattedCombo = formatCombo(combo);
+                    
+                    var comboCell = document.createElement('td');
+                    comboCell.innerHTML = '<strong>' + formattedCombo + '</strong>';
+                    
+                    var handsCell = document.createElement('td');
+                    handsCell.textContent = comboData.total_hands;
+                    
+                    var totalBBCell = document.createElement('td');
+                    var totalBBSpan = document.createElement('span');
+                    totalBBSpan.className = comboData.total_bb_earnings < 0 ? 'text-danger' : (comboData.total_bb_earnings > 0 ? 'text-success' : '');
+                    totalBBSpan.textContent = comboData.total_bb_earnings + ' BB';
+                    totalBBCell.appendChild(totalBBSpan);
+                    
+                    var avgBBCell = document.createElement('td');
+                    var avgBBSpan = document.createElement('span');
+                    avgBBSpan.className = comboData.avg_bb_per_hand < 0 ? 'text-danger' : (comboData.avg_bb_per_hand > 0 ? 'text-success' : '');
+                    avgBBSpan.textContent = comboData.avg_bb_per_hand + ' BB';
+                    avgBBCell.appendChild(avgBBSpan);
+                    
+                    row.appendChild(comboCell);
+                    row.appendChild(handsCell);
+                    row.appendChild(totalBBCell);
+                    row.appendChild(avgBBCell);
+                    tbody.appendChild(row);
+                }
+            });
+        } else {
+            // If no combos, show message
+            var row = document.createElement('tr');
+            var cell = document.createElement('td');
+            cell.colSpan = 4;
+            cell.className = 'text-muted text-center';
+            cell.textContent = 'No individual combo data available';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+        }
+        
+        // Show side panel
+        sidePanel.style.display = 'block';
+    }
+    
+    function formatCombo(combo) {
+        // Convert combo like "AsKh" to "A♠K♥" with suit symbols and colors
+        var suitMap = {
+            's': { symbol: '♠', color: 'black' },
+            'h': { symbol: '♥', color: 'red' },
+            'd': { symbol: '♦', color: 'red' },
+            'c': { symbol: '♣', color: 'black' }
+        };
+        
+        if (combo && combo.length >= 4) {
+            var card1 = combo.substring(0, 2).toUpperCase();
+            var card2 = combo.substring(2, 4).toUpperCase();
+            var suit1 = suitMap[card1[1].toLowerCase()];
+            var suit2 = suitMap[card2[1].toLowerCase()];
+            
+            if (suit1 && suit2) {
+                return card1[0] + 
+                       '<span style="color: ' + suit1.color + ';">' + suit1.symbol + '</span>' + 
+                       ' ' + 
+                       card2[0] + 
+                       '<span style="color: ' + suit2.color + ';">' + suit2.symbol + '</span>';
+            }
+        }
+        return combo;
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}
+

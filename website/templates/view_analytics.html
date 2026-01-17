@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+<br>
+{% block content %}
+
+<div class="container my-4">
+  <div class="btn-group btn-group-lg d-flex justify-content-center" role="group">
+    <a href="?stage=bankroll" class="btn btn-secondary">Bankroll Management</a>
+    <a href="?stage=math_learning" class="btn btn-secondary">Math Learning</a>
+    <a href="?stage=poker_learning" class="btn btn-secondary">Poker Learning</a>
+    <a href="?stage=live_sessions" class="btn btn-secondary">Live Sessions</a>
+  </div>
+</div>
+
+<div>
+    {% set stage = request.args.get('stage', 'arithmatic') %}
+    {% if stage == 'bankroll' %}
+    {% include 'analytics/bankroll.html' %}
+    {% elif stage == 'math_learning' %}
+    {% include 'analytics/math_learning.html' %}
+    {% elif stage == 'poker_learning' %}
+    {% include 'analytics/poker_learning.html' %}
+    {% elif stage == 'live_sessions' %}
+    {% include 'analytics/live_sessions.html' %}
+    {% endif %}
+</div>
+{% endblock %}

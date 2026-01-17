@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Welcome To Min Click Learning{% endblock %}
+{% block content %}
+
+
+
+
+<div class="container my-4">
+  <div class="btn-group btn-group-lg d-flex justify-content-center" role="group">
+    <a href="?stage=arithmatic" class="btn btn-secondary">Arithmatic</a>
+    <a href="?stage=quant" class="btn btn-secondary">Quant Math</a>
+    <a href="?stage=ranges" class="btn btn-secondary">Ranges</a>
+  </div>
+</div>
+
+
+
+
+<div>
+    {% set stage = request.args.get('stage', 'arithmatic') %}
+    {% if stage == 'arithmatic' %}
+    {% include 'learning/Arithmatic.html' %}
+    {% elif stage == 'quant' %}
+    {% include 'learning/Quant_Math.html' %}
+    {% elif stage == 'ranges' %}
+    {% include 'learning/Poker_Ranges.html' %}
+    {% endif %}
+</div>
+{% endblock %}

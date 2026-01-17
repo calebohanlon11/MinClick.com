@@ -1,1 +1,38 @@
 Single-database configuration for Flask.
+
+What is the migrations folder?
+The migrations folder is a history of changes to the database. The database is where the website stores its data (you can think of it like a spreadsheet). 
+These files let the app rebuild the database structure on a new computer and keep track of how the structure has changed over time.
+
+The most important folder: versions
+Inside migrations/versions are the actual “change files.” Each file is like a step in the history of the database. 
+When you set up the app again, these files are run in order so the database structure matches the app.
+
+What each file does:
+- f6d6d4fc24d7_initial_migration_with_quantmathresult_.py:
+  Updates the quant_math_result table. It adds four new timing columns 
+(mean_bayes_time, mean_coupon_time, mean_option_time, mean_ev_time) and removes two older ones (mean_time, time_per_question). 
+In simple terms, it replaces old timing fields with more specific ones.
+
+- 7f358d1e78f2_removed_uniqueness_constraints.py:
+  Removes the poker_club_members table and makes important fields in the poker_members table required (email, first_name, last_name, course, year, sex). 
+In simple terms, it deletes an old table and makes sure key fields can’t be left empty.
+
+Other files in migrations:
+- README: this explanation.
+alembic.ini:
+This is the settings file for the migration system. 
+It controls things like logging (what messages you see), and general behavior of the migration tool. 
+You usually don’t touch it unless you need to change how migrations are generated or logged.
+
+env.py:
+This is the “bridge” between your app and the migration system. 
+It grabs your app’s database connection and metadata so Alembic knows what tables/columns exist and can apply changes correctly. 
+It also decides whether migrations run “offline” (just generating SQL text) or “online” (actually connecting to the database).
+
+script.py.mako:
+This is the template used to make new migration files. 
+When you create a new migration, Alembic uses this file as the blueprint so every new migration has the same structure (upgrade section, downgrade section, revision IDs, etc.).
+
+Why this matters:
+If you ever move to a new computer or rebuild the project, these files tell the app exactly how to build the database structure so the website works the same way.

@@ -1,0 +1,7 @@
+This folder contains one-time helper scripts that are not part of the main website.
+
+reprocess_ladbrooks_posts.py
+This script reprocesses Ladbrooks hand history posts that are already stored in the
+database. It reads the raw hand data, runs it through the Ladbrooks processor, and
+updates the saved results. Use it when you change the processor logic and want old
+posts to be recalculated with the new logic.

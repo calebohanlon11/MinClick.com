@@ -13,3 +13,8 @@ venv/
 # Env / secrets
 .env
 .env.*
+
+# Local data files
+instance/database.db
+poker_members.csv
+website/poker_members.csv

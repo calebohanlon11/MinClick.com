@@ -1,3 +1,6 @@
+# This file defines the database tables used by the website.
+# It describes what data is saved for users, posts, members, and results.
+# Think of it as the blueprint for the database.
 from . import db
 from flask_login import UserMixin
 from sqlalchemy.sql import func

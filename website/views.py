@@ -1,3 +1,6 @@
+# This file holds the main website pages and actions.
+# It decides what users see and how posts and metrics are shown.
+# It also includes admin tools like downloads and deletions.
 from flask_login import login_required, current_user
 from .models import User, Comment, QuantMathResult, LiveSession, Post, QuizResult
 from . import db

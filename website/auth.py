@@ -1,3 +1,6 @@
+# This file handles sign up, login, and logout.
+# It checks the form details and saves new members to the database.
+# It also controls who can access certain pages.
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from . import db
 from .models import User, SharedPassword, poker_members

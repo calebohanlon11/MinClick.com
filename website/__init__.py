@@ -1,3 +1,6 @@
+# This file starts the website app.
+# It loads settings, connects the database, and wires the app together.
+# Think of it as the main setup for the website.
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from os import path

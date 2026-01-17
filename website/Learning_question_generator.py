@@ -1,3 +1,6 @@
+# This file creates practice questions and answers for learning pages.
+# It builds the content the site shows when users study or quiz themselves.
+# In short: it generates learning content for the website.
 import random
 import math
 

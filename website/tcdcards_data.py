@@ -1,3 +1,6 @@
+# This file exports the poker members list from the database.
+# It creates a CSV file you can download and open in Excel.
+# Use it when you want a copy of the members list.
 from sqlalchemy import text
 import csv
 from . import db  # Adjust the import according to your project structure

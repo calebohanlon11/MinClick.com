@@ -1,3 +1,6 @@
+# This file reads poker hand histories and turns them into clean data.
+# It calculates stats for flop, turn, and river for each hand.
+# The output is used to show your poker metrics in the website.
 import pandas as pd
 import re
 from datetime import datetime

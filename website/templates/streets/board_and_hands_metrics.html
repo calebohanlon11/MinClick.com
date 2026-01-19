@@ -37,12 +37,13 @@
 
 <style>
     #boardAndHandsTabs .nav-link {
-        color: #212529;
+        color: #000 !important;
+        opacity: 1;
         background-color: #f8f9fa;
         border-color: #dee2e6;
     }
     #boardAndHandsTabs .nav-link.active {
-        color: #212529;
+        color: #000 !important;
         background-color: #ffffff;
         border-color: #dee2e6 #dee2e6 #ffffff;
     }
@@ -246,17 +247,49 @@
         <p class="mb-0"><small>Split by pot type: RFI Pots, 3-Bet Pots, and 4-Bet Pots</small></p>
     </div>
     <div class="card-body">
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+            <button type="button" class="btn btn-sm btn-primary" id="heads-up-toggle">Heads-Up Pots</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="multiway-toggle">Multiway Pots</button>
+        </div>
         {% set positional_matchups = metrics.get('Positional Matchups', {}) %}
         {% if positional_matchups is string %}
             {% set positional_matchups = positional_matchups | fromjson %}
         {% endif %}
-        {# Step 1: Heads-Up Single Raised Pots only #}
-        <h4 class="mt-3 mb-2">Heads-Up Pots</h4>
-        {{ render_matchup_table('RFI Pots (Single Raised Pots)', positional_matchups.get('RFI Pots', {})) }}
-        {{ render_matchup_table('3-Bet Pots', positional_matchups.get('3-Bet Pots', {})) }}
-        {{ render_matchup_table('4-Bet Pots', positional_matchups.get('4-Bet Pots', {})) }}
-        {{ render_matchup_table('5-Bet Pots', positional_matchups.get('5-Bet Pots', {})) }}
-        {{ render_matchup_table('Limp Pots', positional_matchups.get('Limp Pots', {})) }}
+        <div id="heads-up-section">
+            <h4 class="mt-3 mb-2">Heads-Up Pots</h4>
+            {{ render_matchup_table('RFI Pots (Single Raised Pots)', positional_matchups.get('RFI Pots', {})) }}
+            {{ render_matchup_table('3-Bet Pots', positional_matchups.get('3-Bet Pots', {})) }}
+            {{ render_matchup_table('4-Bet Pots', positional_matchups.get('4-Bet Pots', {})) }}
+            {{ render_matchup_table('5-Bet Pots', positional_matchups.get('5-Bet Pots', {})) }}
+            {{ render_matchup_table('Limp Pots', positional_matchups.get('Limp Pots', {})) }}
+            {{ render_matchup_table('Limp-Raise Pots', positional_matchups.get('Limp-Raise Pots', {})) }}
+        </div>
+        <div id="multiway-section" style="display: none;">
+            <h4 class="mt-3 mb-2">Multiway Pots (3+ Players)</h4>
+            {{ render_matchup_table('Multiway SRP Pots', positional_matchups.get('RFI Multiway Pots', {})) }}
+            {{ render_matchup_table('Multiway 3-Bet Pots', positional_matchups.get('3-Bet Multiway Pots', {})) }}
+        </div>
+        <script>
+        (function() {
+            const headsUpBtn = document.getElementById('heads-up-toggle');
+            const multiwayBtn = document.getElementById('multiway-toggle');
+            const headsUpSection = document.getElementById('heads-up-section');
+            const multiwaySection = document.getElementById('multiway-section');
+            if (!headsUpBtn || !multiwayBtn || !headsUpSection || !multiwaySection) return;
+
+            function setActive(isHeadsUp) {
+                headsUpSection.style.display = isHeadsUp ? '' : 'none';
+                multiwaySection.style.display = isHeadsUp ? 'none' : '';
+                headsUpBtn.classList.toggle('btn-primary', isHeadsUp);
+                headsUpBtn.classList.toggle('btn-outline-primary', !isHeadsUp);
+                multiwayBtn.classList.toggle('btn-primary', !isHeadsUp);
+                multiwayBtn.classList.toggle('btn-outline-primary', isHeadsUp);
+            }
+
+            headsUpBtn.addEventListener('click', () => setActive(true));
+            multiwayBtn.addEventListener('click', () => setActive(false));
+        })();
+        </script>
     </div>
 </div>
 <br/>

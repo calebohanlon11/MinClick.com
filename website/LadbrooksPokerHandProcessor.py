@@ -3563,6 +3563,7 @@ class LadbrooksPokerHandProcessor:
             '4-Bet Pots': {},
             '5-Bet Pots': {},
             'Limp Pots': {},
+            'Limp-Raise Pots': {},
             'RFI Multiway Pots': {},
             '3-Bet Multiway Pots': {},
             '4-Bet Multiway Pots': {}
@@ -3626,10 +3627,25 @@ class LadbrooksPokerHandProcessor:
             raise_count, call_after_raise, _, _, _, limp_detected = _preflop_action_counts(raw_hand)
             return (raise_count == 1) and (call_after_raise == 1) and (not limp_detected)
 
+        def is_multiway_srp(raw_hand):
+            """Multiway SRP: one raise, two or more callers (limps allowed)."""
+            raise_count, call_after_raise, _, _, _, _ = _preflop_action_counts(raw_hand)
+            return (raise_count == 1) and (call_after_raise >= 2)
+
+        def is_multiway_3bet(raw_hand):
+            """Multiway 3-bet: at least one raise, at least one 3-bet, two or more callers of 3-bet."""
+            raise_count, _, call_after_3bet, _, _, _ = _preflop_action_counts(raw_hand)
+            return (raise_count >= 2) and (call_after_3bet >= 2)
+
         def is_heads_up_3bet(raw_hand):
             """3-bet pot: no limps, one open raise, one 3-bet, one caller of 3-bet (heads-up)."""
             raise_count, _, call_after_3bet, _, _, limp_detected = _preflop_action_counts(raw_hand)
             return (raise_count == 2) and (call_after_3bet == 1) and (not limp_detected)
+
+        def is_multiway_3bet(raw_hand):
+            """Multiway 3-bet: at least one raise, at least one 3-bet, two or more callers of 3-bet."""
+            raise_count, _, call_after_3bet, _, _, _ = _preflop_action_counts(raw_hand)
+            return (raise_count >= 2) and (call_after_3bet >= 2)
 
         def is_heads_up_4bet(raw_hand):
             """4-bet pot: no limps, one open raise, one 3-bet, one 4-bet, one caller of 4-bet (heads-up)."""
@@ -3667,6 +3683,11 @@ class LadbrooksPokerHandProcessor:
                     return False
 
             return limp_calls == 1
+
+        def is_heads_up_limp_raise_call(raw_hand):
+            """Limp-raise pot: at least one limp, one raise, one caller (heads-up)."""
+            raise_count, call_after_raise, _, _, _, limp_detected = _preflop_action_counts(raw_hand)
+            return (raise_count == 1) and (call_after_raise == 1) and limp_detected
         for _, row in dataframe.iterrows():
             hero_position = row.get('position', 'Unknown')
             # Valid positions: UTG, MP, CO, BTN, SB, BB (and HJ for 5-handed)
@@ -3691,8 +3712,14 @@ class LadbrooksPokerHandProcessor:
                 pot_type = '4-Bet Pots'
             elif is_heads_up_3bet(raw_hand):
                 pot_type = '3-Bet Pots'
+            elif is_multiway_srp(raw_hand):
+                pot_type = 'RFI Pots'
+            elif is_multiway_3bet(raw_hand):
+                pot_type = '3-Bet Pots'
             elif is_heads_up_srp(raw_hand):
                 pot_type = 'RFI Pots'
+            elif is_heads_up_limp_raise_call(raw_hand):
+                pot_type = 'Limp-Raise Pots'
             elif is_heads_up_limp(raw_hand):
                 pot_type = 'Limp Pots'
             else:
@@ -3710,7 +3737,13 @@ class LadbrooksPokerHandProcessor:
                 hero_active_flop = row.get('hero_is_active_on_flop', False)
                 if not (hero_saw_flop or hero_active_flop):
                     continue
-            
+
+            if pot_type == 'Limp-Raise Pots':
+                hero_saw_flop = row.get('hero_saw_flop', False)
+                hero_active_flop = row.get('hero_is_active_on_flop', False)
+                if not (hero_saw_flop or hero_active_flop):
+                    continue
+
             # Check if multiway (more than 2 players saw flop) and get all opponent positions
             opponent_positions = []
             is_multiway = False
@@ -3810,6 +3843,18 @@ class LadbrooksPokerHandProcessor:
                     import traceback
                     traceback.print_exc()
             
+            if is_multiway and pot_type == 'RFI Multiway Pots':
+                hero_saw_flop = row.get('hero_saw_flop', False)
+                hero_active_flop = row.get('hero_is_active_on_flop', False)
+                if not (hero_saw_flop or hero_active_flop):
+                    continue
+
+            if is_multiway and pot_type == '3-Bet Multiway Pots':
+                hero_saw_flop = row.get('hero_saw_flop', False)
+                hero_active_flop = row.get('hero_is_active_on_flop', False)
+                if not (hero_saw_flop or hero_active_flop):
+                    continue
+
             # Create matchup key based on whether it's multiway or heads-up
             matchup_key = None
 
@@ -3875,6 +3920,12 @@ class LadbrooksPokerHandProcessor:
             # Ensure pot_type exists in matchups dict
             if pot_type not in matchups:
                 matchups[pot_type] = {}
+
+            # Map to multiway pot type bucket when applicable
+            if is_multiway and pot_type == 'RFI Pots':
+                pot_type = 'RFI Multiway Pots'
+            if is_multiway and pot_type == '3-Bet Pots':
+                pot_type = '3-Bet Multiway Pots'
             
             if matchup_key not in matchups[pot_type]:
                 matchups[pot_type][matchup_key] = {
@@ -4317,30 +4368,57 @@ class LadbrooksPokerHandProcessor:
     def calculate_leak_detection(self, dataframe):
         """Detect common poker leaks"""
         leaks = []
+        total_hands = len(dataframe)
+        if total_hands == 0:
+            return leaks
+
+        def _bool_series(series):
+            return series.apply(lambda x: 1 if (x is True or x == True or str(x).lower() == 'true' or x == 1) else 0)
+
+        def _series_or_zeros(series_name, as_dict=False):
+            if series_name not in dataframe.columns:
+                return pd.Series([0] * total_hands)
+            if as_dict:
+                return dataframe[series_name].apply(self.is_dict).astype(int)
+            return _bool_series(dataframe[series_name])
+
+        vpip_rate = _series_or_zeros('vpip').sum() / total_hands * 100
+        rfi_series = _series_or_zeros('opened_pot') if 'opened_pot' in dataframe.columns else _series_or_zeros('rfi', as_dict=True)
+        limp_series = _series_or_zeros('limped') if 'limped' in dataframe.columns else _series_or_zeros('limp', as_dict=True)
+        three_bet_series = _series_or_zeros('did_3bet') if 'did_3bet' in dataframe.columns else _series_or_zeros('three_bet', as_dict=True)
+        four_bet_series = _series_or_zeros('did_4bet') if 'did_4bet' in dataframe.columns else _series_or_zeros('four_bet', as_dict=True)
+        five_bet_series = _series_or_zeros('five_bet', as_dict=True)
+        six_bet_series = _series_or_zeros('six_bet', as_dict=True)
+        call_rfi_rate = _series_or_zeros('call_rfi', as_dict=True).sum() / total_hands * 100
+
+        pfr_mask = (rfi_series | three_bet_series | four_bet_series | five_bet_series | six_bet_series)
+        pfr_rate = pfr_mask.sum() / total_hands * 100
         
         # Leak 1: Over-folding to 3-bets
-        three_bet_hands = dataframe[dataframe['three_bet'] == True]
-        if len(three_bet_hands) > 0:
-            fold_to_3bet = dataframe[(dataframe['three_bet'] == True) & (dataframe['fold'] == True)]
-            fold_rate = len(fold_to_3bet) / len(three_bet_hands) * 100
-            if fold_rate > 85:  # Optimal is around 60-70%
-                leaks.append({
-                    'type': 'Preflop',
-                    'title': 'Over-folding to 3-bets',
-                    'severity': 'high' if fold_rate > 90 else 'medium',
-                    'description': f'You are folding {fold_rate:.1f}% of the time when facing a 3-bet. This is too high.',
-                    'suggestion': 'Consider calling or 4-betting more often, especially in position and with suited connectors or pocket pairs.',
-                    'impact': (fold_rate - 70) * 0.5,  # Rough estimate
-                    'hands': len(three_bet_hands),
-                    'bb_per_100': -abs((fold_rate - 70) * 0.3),
-                    'actual_freq': round(fold_rate, 1),
-                    'optimal_freq': 65.0
-                })
+        if 'faced_3bet' in dataframe.columns and 'fold' in dataframe.columns:
+            faced_3bet_hands = dataframe[dataframe['faced_3bet'] == True]
+            if len(faced_3bet_hands) > 0:
+                fold_to_3bet = faced_3bet_hands[faced_3bet_hands['fold'] == True]
+                fold_rate = len(fold_to_3bet) / len(faced_3bet_hands) * 100
+                if fold_rate > 85:  # Optimal is around 60-70%
+                    leaks.append({
+                        'type': 'Preflop',
+                        'title': 'Over-folding to 3-bets',
+                        'severity': 'high' if fold_rate > 90 else 'medium',
+                        'description': f'You are folding {fold_rate:.1f}% of the time when facing a 3-bet. This is too high.',
+                        'suggestion': 'Consider calling or 4-betting more often, especially in position and with suited connectors or pocket pairs.',
+                        'impact': (fold_rate - 70) * 0.5,  # Rough estimate
+                        'hands': len(faced_3bet_hands),
+                        'bb_per_100': -abs((fold_rate - 70) * 0.3),
+                        'actual_freq': round(fold_rate, 1),
+                        'optimal_freq': 65.0
+                    })
         
         # Leak 2: Under-3-betting
-        rfi_hands = dataframe[dataframe['rfi'] == True]
-        if len(rfi_hands) > 10:
-            three_bet_rate = len(three_bet_hands) / len(rfi_hands) * 100
+        three_bet_hands = dataframe[three_bet_series == 1]
+        three_bet_opportunities = dataframe[dataframe['had_3bet_opportunity'] == True] if 'had_3bet_opportunity' in dataframe.columns else pd.DataFrame()
+        if len(three_bet_opportunities) > 10:
+            three_bet_rate = len(three_bet_hands) / len(three_bet_opportunities) * 100
             if three_bet_rate < 5:  # Optimal is around 8-12%
                 leaks.append({
                     'type': 'Preflop',
@@ -4349,29 +4427,26 @@ class LadbrooksPokerHandProcessor:
                     'description': f'Your 3-bet frequency is {three_bet_rate:.1f}% when facing a raise. This is too low.',
                     'suggestion': 'Increase your 3-betting frequency to 8-12% with value hands (pairs, suited aces, broadways) and bluffs (suited connectors, suited aces).',
                     'impact': (8 - three_bet_rate) * 0.4,
-                    'hands': len(rfi_hands),
+                    'hands': len(three_bet_opportunities),
                     'bb_per_100': -abs((8 - three_bet_rate) * 0.2),
                     'actual_freq': round(three_bet_rate, 1),
                     'optimal_freq': 10.0
                 })
         
         # Leak 3: Calling too much preflop
-        total_hands = len(dataframe)
-        if total_hands > 0:
-            call_rfi_rate = len(dataframe[dataframe['call_rfi'] == True]) / total_hands * 100
-            if call_rfi_rate > 15:  # Optimal is around 8-12%
-                leaks.append({
-                    'type': 'Preflop',
-                    'title': 'Over-calling preflop',
-                    'severity': 'medium',
-                    'description': f'You are calling raises {call_rfi_rate:.1f}% of the time. This is too high.',
-                    'suggestion': 'Tighten your calling range. Consider 3-betting or folding more often instead of calling.',
-                    'impact': (call_rfi_rate - 12) * 0.3,
-                    'hands': total_hands,
-                    'bb_per_100': -abs((call_rfi_rate - 12) * 0.15),
-                    'actual_freq': round(call_rfi_rate, 1),
-                    'optimal_freq': 10.0
-                })
+        if call_rfi_rate > 15:  # Optimal is around 8-12%
+            leaks.append({
+                'type': 'Preflop',
+                'title': 'Over-calling preflop',
+                'severity': 'medium',
+                'description': f'You are calling raises {call_rfi_rate:.1f}% of the time. This is too high.',
+                'suggestion': 'Tighten your calling range. Consider 3-betting or folding more often instead of calling.',
+                'impact': (call_rfi_rate - 12) * 0.3,
+                'hands': total_hands,
+                'bb_per_100': -abs((call_rfi_rate - 12) * 0.15),
+                'actual_freq': round(call_rfi_rate, 1),
+                'optimal_freq': 10.0
+            })
         
         # Leak 4: Not continuation betting enough on flop
         # This would require more detailed action tracking, skipping for now
@@ -4395,6 +4470,88 @@ class LadbrooksPokerHandProcessor:
                         'bb_per_100': -abs((vpip_rate - optimal_vpip) * 0.1),
                         'actual_freq': round(vpip_rate, 1),
                         'optimal_freq': float(optimal_vpip)
+                    })
+
+        # Leak 6: VPIP too high overall
+        if vpip_rate > 32:
+            leaks.append({
+                'type': 'Preflop',
+                'title': 'VPIP too high overall',
+                'severity': 'high' if vpip_rate > 38 else 'medium',
+                'description': f'Your overall VPIP is {vpip_rate:.1f}%, which is quite loose.',
+                'suggestion': 'Tighten your preflop range, especially from early positions and blinds.',
+                'impact': (vpip_rate - 28) * 0.3,
+                'hands': total_hands,
+                'bb_per_100': -abs((vpip_rate - 28) * 0.15),
+                'actual_freq': round(vpip_rate, 1),
+                'optimal_freq': 25.0
+            })
+
+        # Leak 7: VPIP/PFR gap too large (passive preflop)
+        vpip_pfr_gap = vpip_rate - pfr_rate
+        if vpip_pfr_gap > 15:
+            leaks.append({
+                'type': 'Preflop',
+                'title': 'Passive preflop (VPIP/PFR gap)',
+                'severity': 'high' if vpip_pfr_gap > 20 else 'medium',
+                'description': f'Your VPIP is {vpip_rate:.1f}% but your PFR is {pfr_rate:.1f}%. The gap is too large.',
+                'suggestion': 'Raise more of your playable hands instead of calling or limping.',
+                'impact': (vpip_pfr_gap - 10) * 0.3,
+                'hands': total_hands,
+                'bb_per_100': -abs((vpip_pfr_gap - 10) * 0.15),
+                'actual_freq': round(vpip_pfr_gap, 1),
+                'optimal_freq': 10.0
+            })
+
+        # Leak 8: Over-limping
+        if limp_rate > 10:
+            leaks.append({
+                'type': 'Preflop',
+                'title': 'Over-limping',
+                'severity': 'medium',
+                'description': f'You are limping {limp_rate:.1f}% of hands. This is too high in most games.',
+                'suggestion': 'Open-raise or fold instead of limping. Limping should be rare.',
+                'impact': (limp_rate - 5) * 0.2,
+                'hands': total_hands,
+                'bb_per_100': -abs((limp_rate - 5) * 0.1),
+                'actual_freq': round(limp_rate, 1),
+                'optimal_freq': 3.0
+            })
+
+        # Leak 9: Under-3-betting overall
+        did_3bet_rate = three_bet_series.sum() / total_hands * 100
+        if did_3bet_rate < 2 and total_hands > 100:
+            leaks.append({
+                'type': 'Preflop',
+                'title': 'Under-3-betting overall',
+                'severity': 'medium',
+                'description': f'Your overall 3-bet rate is {did_3bet_rate:.1f}%, which is low.',
+                'suggestion': 'Look for more 3-bet opportunities in position with strong/value hands and some bluffs.',
+                'impact': (3 - did_3bet_rate) * 0.3,
+                'hands': total_hands,
+                'bb_per_100': -abs((3 - did_3bet_rate) * 0.15),
+                'actual_freq': round(did_3bet_rate, 1),
+                'optimal_freq': 6.0
+            })
+
+        # Leak 10: Blind losses too high
+        for blind in ['SB', 'BB']:
+            blind_hands = dataframe[dataframe['position'] == blind]
+            if len(blind_hands) > 20:
+                blind_bb = (blind_hands['hand_result'] / blind_hands['bb_stake']).sum()
+                blind_bb_per_hand = blind_bb / len(blind_hands)
+                if blind_bb_per_hand < -0.6:
+                    leaks.append({
+                        'type': 'Preflop',
+                        'title': f'High losses in {blind}',
+                        'severity': 'medium',
+                        'description': f'Your {blind} results are {blind_bb_per_hand:.2f} BB/hand, which is too negative.',
+                        'suggestion': f'Tighten your {blind} defense range and avoid marginal calls out of position.',
+                        'impact': abs(blind_bb_per_hand) * 10,
+                        'hands': len(blind_hands),
+                        'bb_per_100': round(blind_bb_per_hand * 100, 2),
+                        'actual_freq': round(blind_bb_per_hand * 100, 1),
+                        'optimal_freq': -35.0
                     })
         
         # Sort leaks by impact

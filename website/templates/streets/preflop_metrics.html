@@ -478,7 +478,176 @@
     </div>
 </div>
 
-<!-- Section 5: Iso-Raise Metrics -->
+<!-- Section 5: Four Bet Metrics -->
+{% set four_bet = metrics.get('Four bet info', {}) %}
+{% set total_4bets = four_bet.get('Num_four_bets', 0) %}
+{% set viable_hands_4b = four_bet.get('Viable_hands', 1) %}
+{% set total_bb_4b = four_bet.get('Sum_results_BB', 0) %}
+{% set avg_bb_4b = four_bet.get('Avg_result_BB', 0) %}
+{% set preflop_wins_4b = four_bet.get('Num_four_bet_wins', 0) %}
+{% set win_rate_4b = (preflop_wins_4b / total_4bets * 100) if total_4bets > 0 else 0 %}
+{% set four_bet_freq = (total_4bets / viable_hands_4b * 100) if viable_hands_4b > 0 else 0 %}
+{% set positions_4b = ['MP', 'CO', 'BTN', 'SB', 'BB'] %}
+
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h2 class="mb-0">5. Four Bet Metrics</h2>
+        <p class="mb-0"><small>Preflop 4-bet aggression and profitability</small></p>
+    </div>
+    <div class="card-body">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total 4-Bets</h5>
+                        <h3 class="text-primary">{{ total_4bets }}</h3>
+                        <small class="text-muted">{{ "%.1f"|format(four_bet_freq) }}% frequency</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Preflop Win Rate</h5>
+                        <h3 class="text-success">{{ "%.1f"|format(win_rate_4b) }}%</h3>
+                        <small class="text-muted">{{ preflop_wins_4b }} wins</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center {% if total_bb_4b >= 0 %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Total Profit/Loss</h5>
+                        <h3 class="{% if total_bb_4b >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(total_bb_4b) }} BB
+                        </h3>
+                        <small class="text-muted">All positions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center {% if avg_bb_4b >= 0 %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">Avg per 4-Bet</h5>
+                        <h3 class="{% if avg_bb_4b >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(avg_bb_4b) }} BB
+                        </h3>
+                        <small class="text-muted">Per hand</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Four Bet Counts by Position -->
+        <h4 class="mb-3">Four Bet Frequency by Position</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Position</th>
+                    <th>4-Bets</th>
+                    <th>Preflop Wins</th>
+                    <th>Win Rate</th>
+                    <th>Total BB</th>
+                    <th>Avg BB/4-Bet</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set positions_with_utg = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+                {% for pos in positions_with_utg %}
+                {% set pos_4bets = four_bet.get('Num_four_bets_position', {}).get(pos, 0) %}
+                {% set pos_wins = four_bet.get('Num_four_bet_wins_position', {}).get(pos, 0) %}
+                {% set pos_win_rate = (pos_wins / pos_4bets * 100) if pos_4bets > 0 else 0 %}
+                {% set pos_bb = four_bet.get('Sum_results_position_BB', {}).get(pos, 0) %}
+                {% set pos_avg_bb = (pos_bb / pos_4bets) if pos_4bets > 0 else 0 %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td>{{ pos_4bets|int }}</td>
+                    <td>{{ pos_wins|int }}</td>
+                    <td>
+                        <span class="badge {% if pos_win_rate >= 50 %}bg-success{% elif pos_win_rate >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ "%.1f"|format(pos_win_rate) }}%
+                        </span>
+                    </td>
+                    <td class="{% if pos_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_bb) }} BB</strong>
+                    </td>
+                    <td class="{% if pos_avg_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_avg_bb) }} BB
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Profitability Breakdown: Preflop vs Postflop -->
+        <h4 class="mb-3">Profitability Breakdown: Preflop vs Postflop</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Position</th>
+                    <th>Preflop BB</th>
+                    <th>Postflop BB</th>
+                    <th>Total BB</th>
+                    <th>% Preflop</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pos in positions_with_utg %}
+                {% set pos_no_flop = four_bet.get('Sum_results_position_no_flop_BB', {}).get(pos, 0) %}
+                {% set pos_flop = four_bet.get('Sum_results_position_flop_BB', {}).get(pos, 0) %}
+                {% set pos_total = pos_no_flop + pos_flop %}
+                {% set preflop_pct = (pos_no_flop / pos_total * 100) if pos_total != 0 else 0 %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td class="{% if pos_no_flop >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_no_flop) }} BB
+                    </td>
+                    <td class="{% if pos_flop >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "%.2f"|format(pos_flop) }} BB
+                    </td>
+                    <td class="{% if pos_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_total) }} BB</strong>
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar {% if preflop_pct >= 50 %}bg-success{% else %}bg-info{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ preflop_pct|abs }}%"
+                                 aria-valuenow="{{ preflop_pct|abs }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ "%.1f"|format(preflop_pct) }}%
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Key Insights -->
+        <div class="alert alert-info">
+            <h5><i class="fas fa-lightbulb"></i> Key Insights:</h5>
+            <ul class="mb-0">
+                <li><strong>4-Bet Frequency:</strong> You're 4-betting {{ "%.1f"|format(four_bet_freq) }}% of viable hands ({{ total_4bets }} out of {{ viable_hands_4b }} hands)</li>
+                <li><strong>Fold Equity:</strong> You win {{ "%.1f"|format(win_rate_4b) }}% of 4-bets preflop ({{ preflop_wins_4b }} out of {{ total_4bets }})</li>
+                <li><strong>Overall Profitability:</strong> Your 4-bets are generating {{ "%.2f"|format(total_bb_4b) }} BB total ({{ "%.2f"|format(avg_bb_4b) }} BB per 4-bet on average)</li>
+                {% if total_bb_4b < 0 %}
+                <li class="text-danger"><strong>Warning:</strong> Your 4-bets are currently unprofitable. Consider tightening your 4-betting range or improving postflop play.</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        {% if total_4bets == 0 %}
+        <div class="alert alert-warning mt-4">
+            <i class="fas fa-info-circle"></i> No 4-bets recorded in this session. 4-bet metrics will appear here once you have 4-bet hands.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Section 6: Iso-Raise Metrics -->
 {% set iso_raise = metrics.get('Iso Raise info', {}) %}
 {% set total_iso_raises = iso_raise.get('Num_iso_raises', 0) %}
 {% set viable_hands_iso = iso_raise.get('Viable_hands', 1) %}
@@ -491,7 +660,7 @@
 
 <div class="card mb-4">
     <div class="card-header bg-secondary text-white">
-        <h2 class="mb-0">5. Iso-Raise Metrics</h2>
+        <h2 class="mb-0">6. Iso-Raise Metrics</h2>
         <p class="mb-0"><small>Isolation raises: Raising after players limped (to isolate limpers)</small></p>
     </div>
     <div class="card-body">

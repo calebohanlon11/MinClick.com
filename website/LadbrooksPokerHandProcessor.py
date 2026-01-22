@@ -154,6 +154,67 @@ class LadbrooksPokerHandProcessor:
         hands = [f'***** Hand History For Game{hand}' for hand in hands if hand.strip() != '']
         return hands
 
+    def _normalize_stake_value(self, value):
+        formatted = f"{value:g}"
+        if formatted.startswith("0."):
+            return formatted[1:]
+        return formatted
+
+    def _extract_stakes_from_hand(self, hand):
+        stake_line = ""
+        for line in hand.split("\n"):
+            if "Texas Holdem Game Table" in line:
+                stake_line = line.strip()
+                break
+
+        search_target = stake_line or hand
+        header_match = re.search(
+            r'\((?P<sb>[€£$]?\d+(?:\.\d+)?)\s*/\s*(?P<bb>[€£$]?\d+(?:\.\d+)?)\)',
+            search_target
+        )
+        match = header_match or re.search(
+            r'(?P<sb>[€£$]?\d+(?:\.\d+)?)\s*/\s*(?P<bb>[€£$]?\d+(?:\.\d+)?)',
+            search_target
+        )
+        if match:
+            def to_float(value):
+                return float(re.sub(r'[^\d\.]', '', value))
+
+            sb = to_float(match.group('sb'))
+            bb = to_float(match.group('bb'))
+            return sb, bb
+
+        # Fallback to blind postings in case header format differs
+        sb_match = re.search(r'posts small blind\s*\((?P<sb>\d+(?:\.\d+)?)\)', hand, re.IGNORECASE)
+        bb_match = re.search(r'posts big blind\s*\((?P<bb>\d+(?:\.\d+)?)\)', hand, re.IGNORECASE)
+        if sb_match and bb_match:
+            return float(sb_match.group('sb')), float(bb_match.group('bb'))
+
+        return None
+
+    def _format_stake_key(self, sb, bb):
+        return f"{self._normalize_stake_value(sb)}/{self._normalize_stake_value(bb)}"
+
+    def detect_stakes_in_file(self):
+        stake_counts = {}
+        for hand in self.split_hands():
+            stakes = self._extract_stakes_from_hand(hand)
+            if not stakes:
+                continue
+            stake_key = self._format_stake_key(*stakes)
+            stake_counts[stake_key] = stake_counts.get(stake_key, 0) + 1
+        return stake_counts
+
+    def split_by_stakes(self):
+        split_data = {}
+        for hand in self.split_hands():
+            stakes = self._extract_stakes_from_hand(hand)
+            if not stakes:
+                continue
+            stake_key = self._format_stake_key(*stakes)
+            split_data.setdefault(stake_key, []).append(hand)
+        return {key: "\n".join(hands) for key, hands in split_data.items()}
+
     def get_button_seat(self, hand):
         for line in hand.split('\n'):
             if "is the button" in line:
@@ -501,10 +562,17 @@ class LadbrooksPokerHandProcessor:
             if "all in" in action:
                 raise_from = current_value
                 raise_to = 100.9 * bb_stake
+                raise_total = raise_to
             else:
-                raise_to = float(action.split('raises ')[1].split(' to ')[0])
-                raise_total = float(action.split(' to ')[1])
-            return round(raise_to, 5), round(raise_total - raise_to, 5)
+                if " to " in action:
+                    raise_to = float(action.split('raises ')[1].split(' to ')[0])
+                    raise_total = float(action.split(' to ')[1])
+                else:
+                    numbers = re.findall(r'\d+\.\d+', action)
+                    raise_to = float(numbers[0]) if numbers else 0.0
+                    raise_total = raise_to + current_value
+            size_from = max(raise_total - raise_to, 0.0)
+            return round(raise_to, 5), round(size_from, 5)
         return 0, 0
 
     def csv_process_poker_hand(self, processed_data):
@@ -727,11 +795,11 @@ class LadbrooksPokerHandProcessor:
         else:
             header_data['timestamp'] = None
         
-        # Extract stakes
-        stakes_match = re.search(r'(\d+\.\d+)/(\d+\.\d+)', hand)
-        if stakes_match:
-            header_data['stakes_sb'] = float(stakes_match.group(1))
-            header_data['stakes_bb'] = float(stakes_match.group(2))
+        # Extract stakes from the game line to avoid matching "6/6"
+        stakes = self._extract_stakes_from_hand(hand)
+        if stakes:
+            header_data['stakes_sb'] = stakes[0]
+            header_data['stakes_bb'] = stakes[1]
         else:
             header_data['stakes_sb'] = 0.0
             header_data['stakes_bb'] = 0.0
@@ -2362,7 +2430,7 @@ class LadbrooksPokerHandProcessor:
                 return False
 
             lines = [ln.strip() for ln in hand.split("\n") if ln.strip()]
-            game_description_pattern = r"^\d+\.\d+/\d+\.\d+ Texas Holdem Game Table \(NL\) - .+$"
+            game_description_pattern = r"^\d*\.?\d+/\d*\.?\d+ Texas Holdem Game Table \(NL\) - .+$"
             total_players_pattern = r"^Total number of players : \d+/6$"
 
             has_game_line = any(re.match(game_description_pattern, ln) for ln in lines)
@@ -2501,6 +2569,47 @@ class LadbrooksPokerHandProcessor:
         three_bet_data['Sum_results_position_flop_BB'] = {pos: round(value, 2) for pos, value in sum_results_position_flop.items()}
 
         return three_bet_data
+
+    def get_four_bet_metrics(self, data_frame):
+        four_bet_data = {}
+        position_values = {'MP': 0, 'CO': 0, 'BTN': 0, 'SB': 0, 'BB': 0}
+        four_bet_data['Viable_hands'] = len(data_frame)
+        filtered_df = data_frame[(data_frame['four_bet'].apply(self.is_dict))]
+
+        four_bet_data['Num_four_bets'] = len(filtered_df)
+
+        num_position_values = position_values.copy()
+        num_four_bet_wins = 0
+        num_four_bet_wins_position = position_values.copy()
+        sum_results = 0
+        sum_results_position = position_values.copy()
+        sum_results_position_no_flop = position_values.copy()
+        sum_results_position_flop = position_values.copy()
+
+        for _, row in filtered_df.iterrows():
+            four_bet_dict = row['four_bet']
+            if row['position'] in num_position_values:
+                num_position_values[row['position']] += 1
+                sum_results_position[row['position']] += row['hand_result'] / row['bb_stake']
+                if not row['flop']:
+                    sum_results_position_no_flop[row['position']] += row['hand_result'] / row['bb_stake']
+                    if row['hand_result'] > 0:
+                        num_four_bet_wins += 1
+                        num_four_bet_wins_position[row['position']] += 1
+                else:
+                    sum_results_position_flop[row['position']] += row['hand_result'] / row['bb_stake']
+            sum_results += row['hand_result'] / row['bb_stake']
+
+        four_bet_data['Num_four_bets_position'] = {pos: round(value, 2) for pos, value in num_position_values.items()}
+        four_bet_data['Num_four_bet_wins'] = round(num_four_bet_wins, 2)
+        four_bet_data['Num_four_bet_wins_position'] = {pos: round(value, 2) for pos, value in num_four_bet_wins_position.items()}
+        four_bet_data['Sum_results_BB'] = round(sum_results, 2)
+        four_bet_data['Avg_result_BB'] = round(sum_results / len(filtered_df), 2) if len(filtered_df) > 0 else 0
+        four_bet_data['Sum_results_position_BB'] = {pos: round(value, 2) for pos, value in sum_results_position.items()}
+        four_bet_data['Sum_results_position_no_flop_BB'] = {pos: round(value, 2) for pos, value in sum_results_position_no_flop.items()}
+        four_bet_data['Sum_results_position_flop_BB'] = {pos: round(value, 2) for pos, value in sum_results_position_flop.items()}
+
+        return four_bet_data
 
     def get_iso_raise_metrics(self, dataframe):
         """
@@ -5812,6 +5921,7 @@ class LadbrooksPokerHandProcessor:
         results['RFI VPIP Info'] = vpip_rfi
         results['Positional Profitability'] = rounded_positional_profitability
         results['Three bet info'] = self.get_three_bet_metrics(df_six_players)
+        results['Four bet info'] = self.get_four_bet_metrics(df_six_players)
         results['IP Profitability'] = ip_profitability
         results['OP Profitability'] = op_profitability
         results['In Position Percentage'] = in_position_percentage
@@ -5835,7 +5945,7 @@ class LadbrooksPokerHandProcessor:
                       'Board High Card Analysis', 'Hand Matrix Analysis', 'Leak Detection',
                       'Positional Matchups', 'Flop Positional Matchups', 'Turn Positional Matchups', 'River Positional Matchups',
                       'Biggest Hands',
-                      'VPIP Info', 'RFI VPIP Info', 'Three bet info', 'Iso Raise info', 'Positional Profitability',
+                      'VPIP Info', 'RFI VPIP Info', 'Three bet info', 'Four bet info', 'Iso Raise info', 'Positional Profitability',
                       'Flop Action Frequency', 'Turn Action Frequency', 'River Action Frequency']
         
         results_for_df = {}

@@ -2,9 +2,81 @@
 # It decides what users see and how posts and metrics are shown.
 # It also includes admin tools like downloads and deletions.
 from flask_login import login_required, current_user
+import re
 from .models import User, Comment, QuantMathResult, LiveSession, Post, QuizResult
 from . import db
 from .LadbrooksPokerHandProcessor import LadbrooksPokerHandProcessor
+
+
+def _normalize_stake_value(value):
+    formatted = f"{value:g}"
+    return formatted[1:] if formatted.startswith("0.") else formatted
+
+
+def _extract_stakes_from_hand(hand):
+    stake_line = ""
+    for line in hand.split("\n"):
+        if "Texas Holdem Game Table" in line:
+            stake_line = line.strip()
+            break
+
+    search_target = stake_line or hand
+    header_match = re.search(
+        r'\((?P<sb>[€£$]?\d+(?:\.\d+)?)\s*/\s*(?P<bb>[€£$]?\d+(?:\.\d+)?)\)',
+        search_target
+    )
+    match = header_match or re.search(
+        r'(?P<sb>[€£$]?\d+(?:\.\d+)?)\s*/\s*(?P<bb>[€£$]?\d+(?:\.\d+)?)',
+        search_target
+    )
+    if match:
+        def to_float(value):
+            return float(re.sub(r'[^\d\.]', '', value))
+
+        sb = to_float(match.group('sb'))
+        bb = to_float(match.group('bb'))
+        return sb, bb
+
+    # Fallback: read blinds from action lines if header format is unexpected
+    sb_match = re.search(r'posts small blind\s*\((?P<sb>\d+(?:\.\d+)?)\)', hand, re.IGNORECASE)
+    bb_match = re.search(r'posts big blind\s*\((?P<bb>\d+(?:\.\d+)?)\)', hand, re.IGNORECASE)
+    if sb_match and bb_match:
+        return float(sb_match.group('sb')), float(bb_match.group('bb'))
+
+    return None
+
+
+def _format_stake_key(sb, bb):
+    return f"{_normalize_stake_value(sb)}/{_normalize_stake_value(bb)}"
+
+
+def _detect_stakes_in_file(self):
+    stake_counts = {}
+    for hand in self.split_hands():
+        stakes = _extract_stakes_from_hand(hand)
+        if not stakes:
+            continue
+        stake_key = _format_stake_key(*stakes)
+        stake_counts[stake_key] = stake_counts.get(stake_key, 0) + 1
+    return stake_counts
+
+
+def _split_by_stakes(self):
+    split_data = {}
+    for hand in self.split_hands():
+        stakes = _extract_stakes_from_hand(hand)
+        if not stakes:
+            continue
+        stake_key = _format_stake_key(*stakes)
+        split_data.setdefault(stake_key, []).append(hand)
+    return {key: "\n".join(hands) for key, hands in split_data.items()}
+
+
+if not hasattr(LadbrooksPokerHandProcessor, "detect_stakes_in_file"):
+    LadbrooksPokerHandProcessor.detect_stakes_in_file = _detect_stakes_in_file
+
+if not hasattr(LadbrooksPokerHandProcessor, "split_by_stakes"):
+    LadbrooksPokerHandProcessor.split_by_stakes = _split_by_stakes
 import json
 import pandas as pd
 from io import StringIO
@@ -90,7 +162,7 @@ def view_metrics(post_id):
                       'Board High Card Analysis', 'Hand Matrix Analysis', 'Leak Detection',
                       'Positional Matchups', 'Flop Positional Matchups', 'Turn Positional Matchups', 'River Positional Matchups',
                       'Biggest Hands',
-                      'VPIP Info', 'RFI VPIP Info', 'Three bet info', 'Iso Raise info', 'Positional Profitability',
+                      'VPIP Info', 'RFI VPIP Info', 'Three bet info', 'Four bet info', 'Iso Raise info', 'Positional Profitability',
                       'Flop Action Frequency', 'Turn Action Frequency', 'River Action Frequency']
         
         # Initialize action frequency keys if they don't exist (for old posts)
@@ -422,7 +494,13 @@ def create_post():
             if category == 'ladbrooks':
                 # First, detect all stake levels in the file
                 temp_processor = LadbrooksPokerHandProcessor(file_data)
-                stake_levels = temp_processor.detect_stakes_in_file()
+                stake_levels = {}
+                for hand in temp_processor.split_hands():
+                    stakes = _extract_stakes_from_hand(hand)
+                    if not stakes:
+                        continue
+                    stake_key = _format_stake_key(*stakes)
+                    stake_levels[stake_key] = stake_levels.get(stake_key, 0) + 1
                 
                 if not stake_levels:
                     flash('No valid stake levels detected in the file', category='error')
@@ -430,7 +508,14 @@ def create_post():
                 
                 # Split file by stakes if multiple stakes found
                 if len(stake_levels) > 1:
-                    split_data = temp_processor.split_by_stakes()
+                    split_data = {}
+                    for hand in temp_processor.split_hands():
+                        stakes = _extract_stakes_from_hand(hand)
+                        if not stakes:
+                            continue
+                        stake_key = _format_stake_key(*stakes)
+                        split_data.setdefault(stake_key, []).append(hand)
+                    split_data = {key: "\n".join(hands) for key, hands in split_data.items()}
                     posts_created = []
                     
                     for stake_key, stake_file_data in split_data.items():

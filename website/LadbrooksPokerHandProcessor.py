@@ -2529,11 +2529,85 @@ class LadbrooksPokerHandProcessor:
     def is_dict(self, val):
         return val != '0' and val != 0
 
+    def _extract_preflop_section(self, raw_hand):
+        if not raw_hand or not isinstance(raw_hand, str):
+            return ""
+        start_marker = None
+        for marker in [
+            "** Dealing down cards **",
+            "** Dealing Hole Cards **",
+            "** Dealing hole cards **",
+            "** Dealing Cards **",
+            "** Dealing cards **"
+        ]:
+            if marker in raw_hand:
+                start_marker = marker
+                break
+        if not start_marker:
+            return ""
+        try:
+            after = raw_hand.split(start_marker, 1)[1]
+            if "** Dealing Flop **" in after:
+                return after.split("** Dealing Flop **", 1)[0]
+            if "** Summary **" in after:
+                return after.split("** Summary **", 1)[0]
+        except Exception:
+            return ""
+        return ""
+
+    def _parse_preflop_actions(self, raw_hand):
+        preflop_section = self._extract_preflop_section(raw_hand)
+        actions = []
+        if not preflop_section:
+            return actions
+        for line in preflop_section.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            lower = line.lower()
+            if "posts" in lower and ("small blind" in lower or "big blind" in lower):
+                continue
+            if "dealing" in lower or "dealt" in lower:
+                continue
+            parts = line.split(" ", 1)
+            if len(parts) < 2:
+                continue
+            player = parts[0].strip().rstrip(":")
+            action_text = parts[1].strip().lower()
+            if "raises" in action_text or "bets" in action_text:
+                action_type = "raise"
+            elif "calls" in action_text:
+                action_type = "call"
+            elif "all-in" in action_text or "all in" in action_text:
+                action_type = "raise"
+            elif "folds" in action_text:
+                action_type = "fold"
+            elif "checks" in action_text:
+                action_type = "check"
+            else:
+                action_type = "other"
+            actions.append((player, action_type, action_text))
+        return actions
+
+    def _position_map_from_hand(self, raw_hand):
+        try:
+            seat_info = self.get_seat_info(raw_hand)
+            button_seat = self.get_button_seat(raw_hand)
+            total_players = len(seat_info)
+            if not seat_info or not button_seat:
+                return {}
+            return self.calculate_positions(seat_info, button_seat, total_players)
+        except Exception:
+            return {}
+
     def get_three_bet_metrics(self, data_frame):
         three_bet_data = {}
         position_values = {'MP': 0, 'CO': 0, 'BTN': 0, 'SB': 0, 'BB': 0}
         three_bet_data['Viable_hands'] = len(data_frame)
-        filtered_df = data_frame[(data_frame['three_bet'].apply(self.is_dict))]
+        three_bet_mask = data_frame['three_bet'].apply(self.is_dict) if 'three_bet' in data_frame.columns else pd.Series(False, index=data_frame.index)
+        if 'did_3bet' in data_frame.columns:
+            three_bet_mask = three_bet_mask | (data_frame['did_3bet'] == True)
+        filtered_df = data_frame[three_bet_mask]
 
         three_bet_data['Num_three_bets'] = len(filtered_df)
 
@@ -2568,13 +2642,177 @@ class LadbrooksPokerHandProcessor:
         three_bet_data['Sum_results_position_no_flop_BB'] = {pos: round(value, 2) for pos, value in sum_results_position_no_flop.items()}
         three_bet_data['Sum_results_position_flop_BB'] = {pos: round(value, 2) for pos, value in sum_results_position_flop.items()}
 
+        # Three-bet opportunities and responses
+        hero_positions = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB']
+        by_hero_position = {pos: {'opportunities': 0, 'three_bets': 0, 'villain_fold': 0, 'villain_call': 0,
+                                  'villain_4bet': 0, 'ev_bb': 0.0, 'squeeze': 0} for pos in hero_positions}
+        by_opener_position = {pos: {'opportunities': 0, 'three_bets': 0, 'villain_fold': 0, 'villain_call': 0,
+                                    'villain_4bet': 0, 'ev_bb': 0.0, 'squeeze': 0} for pos in hero_positions}
+        hero_3bet_opps = 0
+        villain_fold_vs_3bet = 0
+        villain_call_vs_3bet = 0
+        villain_4bet_vs_3bet = 0
+        branch_ev = {
+            'fold': {'count': 0, 'ev_bb': 0.0},
+            'call': {'count': 0, 'ev_bb': 0.0},
+            'four_bet': {'count': 0, 'ev_bb': 0.0},
+            'four_bet_hero_fold': {'count': 0, 'ev_bb': 0.0},
+            'four_bet_hero_call': {'count': 0, 'ev_bb': 0.0},
+            'four_bet_hero_5bet': {'count': 0, 'ev_bb': 0.0}
+        }
+
+        for _, row in data_frame.iterrows():
+            raw_hand = row.get('Raw Hand', '')
+            hero_pos = row.get('position')
+            actions = self._parse_preflop_actions(raw_hand)
+            if not actions:
+                if row.get('had_3bet_opportunity'):
+                    hero_3bet_opps += 1
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['opportunities'] += 1
+                if row.get('did_3bet'):
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['three_bets'] += 1
+                continue
+            hero_action_idx = next((i for i, (p, _, _) in enumerate(actions) if p == 'Hero'), None)
+            if hero_action_idx is None:
+                continue
+
+            raises_before = [(i, p) for i, (p, t, _) in enumerate(actions[:hero_action_idx]) if t == 'raise']
+            if not raises_before:
+                if row.get('had_3bet_opportunity'):
+                    hero_3bet_opps += 1
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['opportunities'] += 1
+                if row.get('did_3bet'):
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['three_bets'] += 1
+                continue
+            opener_idx, opener_name = raises_before[0]
+            if opener_name == 'Hero':
+                continue
+
+            if hero_pos in by_hero_position:
+                by_hero_position[hero_pos]['opportunities'] += 1
+            hero_3bet_opps += 1
+
+            position_map = self._position_map_from_hand(raw_hand)
+            opener_pos = position_map.get(opener_name)
+            if opener_pos in by_opener_position:
+                by_opener_position[opener_pos]['opportunities'] += 1
+
+            hero_action_type = actions[hero_action_idx][1]
+            hero_3bet = hero_action_type == 'raise' and len(raises_before) == 1
+            if not hero_3bet:
+                continue
+
+            if hero_pos in by_hero_position:
+                by_hero_position[hero_pos]['three_bets'] += 1
+            if opener_pos in by_opener_position:
+                by_opener_position[opener_pos]['three_bets'] += 1
+
+            squeeze = any(t == 'call' for _, t, _ in actions[opener_idx + 1:hero_action_idx])
+            if squeeze and hero_pos in by_hero_position:
+                by_hero_position[hero_pos]['squeeze'] += 1
+            if squeeze and opener_pos in by_opener_position:
+                by_opener_position[opener_pos]['squeeze'] += 1
+
+            ev_bb = (row['hand_result'] / row['bb_stake']) if row.get('bb_stake') else 0.0
+
+            # Determine villain response after Hero 3-bet
+            post_hero_actions = [a for a in actions[hero_action_idx + 1:] if a[0] != 'Hero']
+            response = 'fold'
+            if any(t == 'raise' for _, t, _ in post_hero_actions):
+                response = 'four_bet'
+            elif any(t == 'call' for _, t, _ in post_hero_actions):
+                response = 'call'
+
+            if response == 'fold':
+                villain_fold_vs_3bet += 1
+                branch_ev['fold']['count'] += 1
+                branch_ev['fold']['ev_bb'] += ev_bb
+                if hero_pos in by_hero_position:
+                    by_hero_position[hero_pos]['villain_fold'] += 1
+                    by_hero_position[hero_pos]['ev_bb'] += ev_bb
+                if opener_pos in by_opener_position:
+                    by_opener_position[opener_pos]['villain_fold'] += 1
+                    by_opener_position[opener_pos]['ev_bb'] += ev_bb
+            elif response == 'call':
+                villain_call_vs_3bet += 1
+                branch_ev['call']['count'] += 1
+                branch_ev['call']['ev_bb'] += ev_bb
+                if hero_pos in by_hero_position:
+                    by_hero_position[hero_pos]['villain_call'] += 1
+                    by_hero_position[hero_pos]['ev_bb'] += ev_bb
+                if opener_pos in by_opener_position:
+                    by_opener_position[opener_pos]['villain_call'] += 1
+                    by_opener_position[opener_pos]['ev_bb'] += ev_bb
+            else:
+                villain_4bet_vs_3bet += 1
+                branch_ev['four_bet']['count'] += 1
+                branch_ev['four_bet']['ev_bb'] += ev_bb
+                if hero_pos in by_hero_position:
+                    by_hero_position[hero_pos]['villain_4bet'] += 1
+                    by_hero_position[hero_pos]['ev_bb'] += ev_bb
+                if opener_pos in by_opener_position:
+                    by_opener_position[opener_pos]['villain_4bet'] += 1
+                    by_opener_position[opener_pos]['ev_bb'] += ev_bb
+
+                # Hero response to 4-bet
+                hero_response = next((t for p, t, _ in actions[hero_action_idx + 1:] if p == 'Hero'), None)
+                if hero_response == 'fold':
+                    branch_ev['four_bet_hero_fold']['count'] += 1
+                    branch_ev['four_bet_hero_fold']['ev_bb'] += ev_bb
+                elif hero_response == 'call':
+                    branch_ev['four_bet_hero_call']['count'] += 1
+                    branch_ev['four_bet_hero_call']['ev_bb'] += ev_bb
+                elif hero_response == 'raise':
+                    branch_ev['four_bet_hero_5bet']['count'] += 1
+                    branch_ev['four_bet_hero_5bet']['ev_bb'] += ev_bb
+
+        three_bet_data['hero_3bet_opportunities'] = hero_3bet_opps
+        three_bet_data['villain_fold_vs_hero_3bet'] = villain_fold_vs_3bet
+        three_bet_data['villain_call_vs_hero_3bet'] = villain_call_vs_3bet
+        three_bet_data['villain_4bet_vs_hero_3bet'] = villain_4bet_vs_3bet
+        three_bet_data['by_hero_position'] = by_hero_position
+        three_bet_data['by_opener_position'] = by_opener_position
+        three_bet_data['branch_ev'] = branch_ev
+
+        # Standardized helpers (single source of truth)
+        # Denominators:
+        # - facing_open_opportunities: hands where Hero faced an open raise and could 3-bet
+        # - hero_3bet_count: hands where Hero 3-bet
+        # - response counts are vs Hero 3-bet (fold/call/raise)
+        three_bet_data['standardized'] = {
+            'facing_open_opportunities': hero_3bet_opps,
+            'hero_3bet_count': three_bet_data['Num_three_bets'],
+            'villain_response': {
+                'fold': villain_fold_vs_3bet,
+                'call': villain_call_vs_3bet,
+                'raise': villain_4bet_vs_3bet
+            },
+            'branch_ev': {
+                'fold': {'count': branch_ev['fold']['count'], 'ev_bb': branch_ev['fold']['ev_bb']},
+                'call': {'count': branch_ev['call']['count'], 'ev_bb': branch_ev['call']['ev_bb']},
+                'raise': {'count': branch_ev['four_bet']['count'], 'ev_bb': branch_ev['four_bet']['ev_bb']}
+            },
+            'hero_vs_raise': {
+                'fold': {'count': branch_ev['four_bet_hero_fold']['count'], 'ev_bb': branch_ev['four_bet_hero_fold']['ev_bb']},
+                'call': {'count': branch_ev['four_bet_hero_call']['count'], 'ev_bb': branch_ev['four_bet_hero_call']['ev_bb']},
+                'jam': {'count': branch_ev['four_bet_hero_5bet']['count'], 'ev_bb': branch_ev['four_bet_hero_5bet']['ev_bb']}
+            }
+        }
+
         return three_bet_data
 
     def get_four_bet_metrics(self, data_frame):
         four_bet_data = {}
         position_values = {'MP': 0, 'CO': 0, 'BTN': 0, 'SB': 0, 'BB': 0}
         four_bet_data['Viable_hands'] = len(data_frame)
-        filtered_df = data_frame[(data_frame['four_bet'].apply(self.is_dict))]
+        four_bet_mask = data_frame['four_bet'].apply(self.is_dict) if 'four_bet' in data_frame.columns else pd.Series(False, index=data_frame.index)
+        if 'did_4bet' in data_frame.columns:
+            four_bet_mask = four_bet_mask | (data_frame['did_4bet'] == True)
+        filtered_df = data_frame[four_bet_mask]
 
         four_bet_data['Num_four_bets'] = len(filtered_df)
 
@@ -2608,6 +2846,192 @@ class LadbrooksPokerHandProcessor:
         four_bet_data['Sum_results_position_BB'] = {pos: round(value, 2) for pos, value in sum_results_position.items()}
         four_bet_data['Sum_results_position_no_flop_BB'] = {pos: round(value, 2) for pos, value in sum_results_position_no_flop.items()}
         four_bet_data['Sum_results_position_flop_BB'] = {pos: round(value, 2) for pos, value in sum_results_position_flop.items()}
+
+        # Four-bet opportunities and responses
+        hero_positions = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB']
+        by_hero_position = {pos: {'opportunities': 0, 'four_bets': 0, 'villain_fold': 0, 'villain_call': 0,
+                                  'villain_5bet': 0, 'villain_5bet_jam': 0, 'ev_bb': 0.0} for pos in hero_positions}
+        by_three_bettor_position = {pos: {'opportunities': 0, 'four_bets': 0, 'villain_fold': 0, 'villain_call': 0,
+                                          'villain_5bet': 0, 'villain_5bet_jam': 0, 'ev_bb': 0.0} for pos in hero_positions}
+        hero_4bet_opps = 0
+        villain_fold_vs_4bet = 0
+        villain_call_vs_4bet = 0
+        villain_5bet_vs_4bet = 0
+        villain_5bet_jam_vs_4bet = 0
+        branch_ev = {
+            'fold': {'count': 0, 'ev_bb': 0.0},
+            'call': {'count': 0, 'ev_bb': 0.0},
+            'five_bet': {'count': 0, 'ev_bb': 0.0},
+            'five_bet_hero_fold': {'count': 0, 'ev_bb': 0.0},
+            'five_bet_hero_call': {'count': 0, 'ev_bb': 0.0},
+            'five_bet_hero_jam': {'count': 0, 'ev_bb': 0.0}
+        }
+
+        for _, row in data_frame.iterrows():
+            raw_hand = row.get('Raw Hand', '')
+            actions = self._parse_preflop_actions(raw_hand)
+            hero_pos = row.get('position')
+            if not actions:
+                if row.get('had_4bet_opportunity'):
+                    hero_4bet_opps += 1
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['opportunities'] += 1
+                if row.get('did_4bet'):
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['four_bets'] += 1
+                continue
+
+            raise_indices = [(i, p) for i, (p, t, _) in enumerate(actions) if t == 'raise']
+            if len(raise_indices) < 2:
+                if row.get('had_4bet_opportunity'):
+                    hero_4bet_opps += 1
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['opportunities'] += 1
+                if row.get('did_4bet'):
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['four_bets'] += 1
+                continue
+
+            three_bet_idx, three_bettor = raise_indices[1]
+            hero_action_idx = next((i for i, (p, _, _) in enumerate(actions) if p == 'Hero' and i > three_bet_idx), None)
+            if hero_action_idx is None:
+                if row.get('had_4bet_opportunity'):
+                    hero_4bet_opps += 1
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['opportunities'] += 1
+                if row.get('did_4bet'):
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['four_bets'] += 1
+                continue
+
+            raises_before = [(i, p) for i, (p, t, _) in enumerate(actions[:hero_action_idx]) if t == 'raise']
+            if len(raises_before) < 2:
+                if row.get('had_4bet_opportunity'):
+                    hero_4bet_opps += 1
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['opportunities'] += 1
+                if row.get('did_4bet'):
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['four_bets'] += 1
+                continue
+
+            _, three_bettor = raises_before[1]
+            if three_bettor == 'Hero':
+                continue
+
+            if hero_pos in by_hero_position:
+                by_hero_position[hero_pos]['opportunities'] += 1
+            hero_4bet_opps += 1
+
+            position_map = self._position_map_from_hand(raw_hand)
+            three_bettor_pos = position_map.get(three_bettor)
+            if three_bettor_pos in by_three_bettor_position:
+                by_three_bettor_position[three_bettor_pos]['opportunities'] += 1
+
+            hero_action_type = actions[hero_action_idx][1]
+            hero_4bet = hero_action_type == 'raise' and len(raises_before) == 2
+            if not hero_4bet:
+                continue
+
+            if hero_pos in by_hero_position:
+                by_hero_position[hero_pos]['four_bets'] += 1
+            if three_bettor_pos in by_three_bettor_position:
+                by_three_bettor_position[three_bettor_pos]['four_bets'] += 1
+
+            ev_bb = (row['hand_result'] / row['bb_stake']) if row.get('bb_stake') else 0.0
+
+            post_hero_actions = [a for a in actions[hero_action_idx + 1:] if a[0] != 'Hero']
+            response = 'fold'
+            if any(t == 'raise' for _, t, _ in post_hero_actions):
+                response = 'five_bet'
+            elif any(t == 'call' for _, t, _ in post_hero_actions):
+                response = 'call'
+
+            if response == 'fold':
+                villain_fold_vs_4bet += 1
+                branch_ev['fold']['count'] += 1
+                branch_ev['fold']['ev_bb'] += ev_bb
+                if hero_pos in by_hero_position:
+                    by_hero_position[hero_pos]['villain_fold'] += 1
+                    by_hero_position[hero_pos]['ev_bb'] += ev_bb
+                if three_bettor_pos in by_three_bettor_position:
+                    by_three_bettor_position[three_bettor_pos]['villain_fold'] += 1
+                    by_three_bettor_position[three_bettor_pos]['ev_bb'] += ev_bb
+            elif response == 'call':
+                villain_call_vs_4bet += 1
+                branch_ev['call']['count'] += 1
+                branch_ev['call']['ev_bb'] += ev_bb
+                if hero_pos in by_hero_position:
+                    by_hero_position[hero_pos]['villain_call'] += 1
+                    by_hero_position[hero_pos]['ev_bb'] += ev_bb
+                if three_bettor_pos in by_three_bettor_position:
+                    by_three_bettor_position[three_bettor_pos]['villain_call'] += 1
+                    by_three_bettor_position[three_bettor_pos]['ev_bb'] += ev_bb
+            else:
+                villain_5bet_vs_4bet += 1
+                branch_ev['five_bet']['count'] += 1
+                branch_ev['five_bet']['ev_bb'] += ev_bb
+                if hero_pos in by_hero_position:
+                    by_hero_position[hero_pos]['villain_5bet'] += 1
+                    by_hero_position[hero_pos]['ev_bb'] += ev_bb
+                if three_bettor_pos in by_three_bettor_position:
+                    by_three_bettor_position[three_bettor_pos]['villain_5bet'] += 1
+                    by_three_bettor_position[three_bettor_pos]['ev_bb'] += ev_bb
+
+                if any('all in' in txt for _, _, txt in post_hero_actions):
+                    villain_5bet_jam_vs_4bet += 1
+                    if hero_pos in by_hero_position:
+                        by_hero_position[hero_pos]['villain_5bet_jam'] += 1
+                    if three_bettor_pos in by_three_bettor_position:
+                        by_three_bettor_position[three_bettor_pos]['villain_5bet_jam'] += 1
+
+                hero_response = next((t for p, t, _ in actions[hero_action_idx + 1:] if p == 'Hero'), None)
+                if hero_response == 'fold':
+                    branch_ev['five_bet_hero_fold']['count'] += 1
+                    branch_ev['five_bet_hero_fold']['ev_bb'] += ev_bb
+                elif hero_response == 'call':
+                    branch_ev['five_bet_hero_call']['count'] += 1
+                    branch_ev['five_bet_hero_call']['ev_bb'] += ev_bb
+                elif hero_response == 'raise':
+                    branch_ev['five_bet_hero_jam']['count'] += 1
+                    branch_ev['five_bet_hero_jam']['ev_bb'] += ev_bb
+
+        four_bet_data['hero_4bet_opportunities'] = hero_4bet_opps
+        four_bet_data['villain_fold_vs_hero_4bet'] = villain_fold_vs_4bet
+        four_bet_data['villain_call_vs_hero_4bet'] = villain_call_vs_4bet
+        four_bet_data['villain_5bet_vs_hero_4bet'] = villain_5bet_vs_4bet
+        four_bet_data['villain_5bet_jam_vs_hero_4bet'] = villain_5bet_jam_vs_4bet
+        four_bet_data['by_hero_position'] = by_hero_position
+        four_bet_data['by_three_bettor_position'] = by_three_bettor_position
+        four_bet_data['branch_ev'] = branch_ev
+
+        # Standardized helpers (single source of truth)
+        # Denominators:
+        # - facing_3bet_opportunities: hands where Hero faced a 3-bet and could 4-bet
+        # - hero_4bet_count: hands where Hero 4-bet
+        # - response counts are vs Hero 4-bet (fold/call/raise)
+        four_bet_data['standardized'] = {
+            'facing_3bet_opportunities': hero_4bet_opps,
+            'hero_4bet_count': four_bet_data['Num_four_bets'],
+            'villain_response': {
+                'fold': villain_fold_vs_4bet,
+                'call': villain_call_vs_4bet,
+                'raise': villain_5bet_vs_4bet
+            },
+            'villain_raise_subtype': {
+                'jam': villain_5bet_jam_vs_4bet
+            },
+            'branch_ev': {
+                'fold': {'count': branch_ev['fold']['count'], 'ev_bb': branch_ev['fold']['ev_bb']},
+                'call': {'count': branch_ev['call']['count'], 'ev_bb': branch_ev['call']['ev_bb']},
+                'raise': {'count': branch_ev['five_bet']['count'], 'ev_bb': branch_ev['five_bet']['ev_bb']}
+            },
+            'hero_vs_raise': {
+                'fold': {'count': branch_ev['five_bet_hero_fold']['count'], 'ev_bb': branch_ev['five_bet_hero_fold']['ev_bb']},
+                'call': {'count': branch_ev['five_bet_hero_call']['count'], 'ev_bb': branch_ev['five_bet_hero_call']['ev_bb']},
+                'jam': {'count': branch_ev['five_bet_hero_jam']['count'], 'ev_bb': branch_ev['five_bet_hero_jam']['ev_bb']}
+            }
+        }
 
         return four_bet_data
 
@@ -3757,9 +4181,9 @@ class LadbrooksPokerHandProcessor:
             return (raise_count >= 2) and (call_after_3bet >= 2)
 
         def is_heads_up_4bet(raw_hand):
-            """4-bet pot: no limps, one open raise, one 3-bet, one 4-bet, one caller of 4-bet (heads-up)."""
+            """4-bet pot: no limps, one open raise, one 3-bet, one 4-bet, and at least one caller of 4-bet."""
             raise_count, _, _, call_after_4bet, _, limp_detected = _preflop_action_counts(raw_hand)
-            return (raise_count == 3) and (call_after_4bet == 1) and (not limp_detected)
+            return (raise_count == 3) and (call_after_4bet >= 1) and (not limp_detected)
         
         def is_heads_up_5bet(raw_hand):
             """5-bet pot: no limps, one open raise, one 3-bet, one 4-bet, one 5-bet, one caller of 5-bet (heads-up)."""

@@ -78,6 +78,7 @@ if not hasattr(LadbrooksPokerHandProcessor, "detect_stakes_in_file"):
 if not hasattr(LadbrooksPokerHandProcessor, "split_by_stakes"):
     LadbrooksPokerHandProcessor.split_by_stakes = _split_by_stakes
 import json
+import ast
 import pandas as pd
 from io import StringIO
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, session
@@ -251,6 +252,104 @@ def view_metrics(post_id):
             metrics['BB per 100 hands'] = 0.0
         else:
             metrics['BB per 100 hands'] = safe_float(metrics.get('BB per 100 hands'), 0.0)
+
+        # Ensure 3-bet/4-bet metrics are dicts (handle stored JSON strings)
+        for bet_key in ['Three bet info', 'Four bet info']:
+            if bet_key in metrics and isinstance(metrics.get(bet_key), str):
+                try:
+                    metrics[bet_key] = json.loads(metrics[bet_key])
+                except Exception:
+                    try:
+                        metrics[bet_key] = ast.literal_eval(metrics[bet_key])
+                    except Exception:
+                        metrics[bet_key] = {}
+            elif bet_key in metrics and metrics.get(bet_key) is None:
+                metrics[bet_key] = {}
+
+        # Normalize 3-bet/4-bet helpers so UI always has consistent denominators
+        def ensure_standardized_three_bet(data):
+            if not isinstance(data, dict):
+                return {}
+            branch_ev = data.get('branch_ev', {}) if isinstance(data.get('branch_ev'), dict) else {}
+            villain_fold = data.get('villain_fold_vs_hero_3bet', 0)
+            villain_call = data.get('villain_call_vs_hero_3bet', 0)
+            villain_raise = data.get('villain_4bet_vs_hero_3bet', 0)
+            if not any([villain_fold, villain_call, villain_raise]) and isinstance(branch_ev, dict):
+                villain_fold = branch_ev.get('fold', {}).get('count', 0)
+                villain_call = branch_ev.get('call', {}).get('count', 0)
+                villain_raise = branch_ev.get('four_bet', {}).get('count', 0)
+            if not any([villain_fold, villain_call, villain_raise]):
+                by_hero_position = data.get('by_hero_position', {})
+                if isinstance(by_hero_position, dict):
+                    villain_fold = sum(pos_data.get('villain_fold', 0) for pos_data in by_hero_position.values() if isinstance(pos_data, dict))
+                    villain_call = sum(pos_data.get('villain_call', 0) for pos_data in by_hero_position.values() if isinstance(pos_data, dict))
+                    villain_raise = sum(pos_data.get('villain_4bet', 0) for pos_data in by_hero_position.values() if isinstance(pos_data, dict))
+            data['standardized'] = {
+                'facing_open_opportunities': data.get('hero_3bet_opportunities', 0),
+                'hero_3bet_count': data.get('Num_three_bets', 0),
+                'villain_response': {
+                    'fold': villain_fold,
+                    'call': villain_call,
+                    'raise': villain_raise
+                },
+                'branch_ev': {
+                    'fold': branch_ev.get('fold', {'count': 0, 'ev_bb': 0.0}),
+                    'call': branch_ev.get('call', {'count': 0, 'ev_bb': 0.0}),
+                    'raise': branch_ev.get('four_bet', {'count': 0, 'ev_bb': 0.0})
+                },
+                'hero_vs_raise': {
+                    'fold': branch_ev.get('four_bet_hero_fold', {'count': 0, 'ev_bb': 0.0}),
+                    'call': branch_ev.get('four_bet_hero_call', {'count': 0, 'ev_bb': 0.0}),
+                    'jam': branch_ev.get('four_bet_hero_5bet', {'count': 0, 'ev_bb': 0.0})
+                }
+            }
+            return data
+
+        def ensure_standardized_four_bet(data):
+            if not isinstance(data, dict):
+                return {}
+            branch_ev = data.get('branch_ev', {}) if isinstance(data.get('branch_ev'), dict) else {}
+            villain_fold = data.get('villain_fold_vs_hero_4bet', 0)
+            villain_call = data.get('villain_call_vs_hero_4bet', 0)
+            villain_raise = data.get('villain_5bet_vs_hero_4bet', 0)
+            if not any([villain_fold, villain_call, villain_raise]) and isinstance(branch_ev, dict):
+                villain_fold = branch_ev.get('fold', {}).get('count', 0)
+                villain_call = branch_ev.get('call', {}).get('count', 0)
+                villain_raise = branch_ev.get('five_bet', {}).get('count', 0)
+            if not any([villain_fold, villain_call, villain_raise]):
+                by_hero_position = data.get('by_hero_position', {})
+                if isinstance(by_hero_position, dict):
+                    villain_fold = sum(pos_data.get('villain_fold', 0) for pos_data in by_hero_position.values() if isinstance(pos_data, dict))
+                    villain_call = sum(pos_data.get('villain_call', 0) for pos_data in by_hero_position.values() if isinstance(pos_data, dict))
+                    villain_raise = sum(pos_data.get('villain_5bet', 0) for pos_data in by_hero_position.values() if isinstance(pos_data, dict))
+            data['standardized'] = {
+                'facing_3bet_opportunities': data.get('hero_4bet_opportunities', 0),
+                'hero_4bet_count': data.get('Num_four_bets', 0),
+                'villain_response': {
+                    'fold': villain_fold,
+                    'call': villain_call,
+                    'raise': villain_raise
+                },
+                'villain_raise_subtype': {
+                    'jam': data.get('villain_5bet_jam_vs_hero_4bet', 0)
+                },
+                'branch_ev': {
+                    'fold': branch_ev.get('fold', {'count': 0, 'ev_bb': 0.0}),
+                    'call': branch_ev.get('call', {'count': 0, 'ev_bb': 0.0}),
+                    'raise': branch_ev.get('five_bet', {'count': 0, 'ev_bb': 0.0})
+                },
+                'hero_vs_raise': {
+                    'fold': branch_ev.get('five_bet_hero_fold', {'count': 0, 'ev_bb': 0.0}),
+                    'call': branch_ev.get('five_bet_hero_call', {'count': 0, 'ev_bb': 0.0}),
+                    'jam': branch_ev.get('five_bet_hero_jam', {'count': 0, 'ev_bb': 0.0})
+                }
+            }
+            return data
+
+        if 'Three bet info' in metrics:
+            metrics['Three bet info'] = ensure_standardized_three_bet(metrics.get('Three bet info'))
+        if 'Four bet info' in metrics:
+            metrics['Four bet info'] = ensure_standardized_four_bet(metrics.get('Four bet info'))
         
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         flash("Error reading post data. You may need to reprocess this post.", category='error')

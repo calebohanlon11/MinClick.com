@@ -299,14 +299,22 @@
 
 <!-- Section 4: Three Bet Metrics -->
 {% set three_bet = metrics.get('Three bet info', {}) %}
-{% set total_3bets = three_bet.get('Num_three_bets', 0) %}
+{% set three_bet_std = three_bet.get('standardized', {}) %}
+{% set total_3bets = three_bet_std.get('hero_3bet_count', three_bet.get('Num_three_bets', 0)) %}
 {% set viable_hands = three_bet.get('Viable_hands', 1) %}
 {% set total_bb = three_bet.get('Sum_results_BB', 0) %}
 {% set avg_bb = three_bet.get('Avg_result_BB', 0) %}
-{% set preflop_wins = three_bet.get('Num_three_bet_wins', 0) %}
-{% set win_rate = (preflop_wins / total_3bets * 100) if total_3bets > 0 else 0 %}
-{% set three_bet_freq = (total_3bets / viable_hands * 100) if viable_hands > 0 else 0 %}
-{% set positions = ['MP', 'CO', 'BTN', 'SB', 'BB'] %}
+{% set three_bet_opps = three_bet_std.get('facing_open_opportunities', 0) %}
+{% set three_bet_opp_rate = (total_3bets / three_bet_opps * 100) if three_bet_opps > 0 else None %}
+{% set villain_response_3b = three_bet_std.get('villain_response', {}) %}
+{% set villain_fold = villain_response_3b.get('fold', 0) %}
+{% set villain_call = villain_response_3b.get('call', 0) %}
+{% set villain_4bet = villain_response_3b.get('raise', 0) %}
+{% set hero_positions = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+{% set by_hero_position = three_bet.get('by_hero_position', {}) %}
+{% set by_opener_position = three_bet.get('by_opener_position', {}) %}
+{% set branch_ev = three_bet_std.get('branch_ev', {}) %}
+{% set hero_vs_raise_3b = three_bet_std.get('hero_vs_raise', {}) %}
 
 <div class="card mb-4">
     <div class="card-header bg-warning text-dark">
@@ -321,86 +329,161 @@
                     <div class="card-body">
                         <h5 class="card-title text-muted">Total 3-Bets</h5>
                         <h3 class="text-primary">{{ total_3bets }}</h3>
-                        <small class="text-muted">{{ "%.1f"|format(three_bet_freq) }}% frequency</small>
+                        <small class="text-muted">3-Bet % (of opps):
+                            {% if three_bet_opp_rate is not none %}
+                                {{ "%.1f"|format(three_bet_opp_rate) }}%
+                            {% else %}
+                                —
+                            {% endif %}
+                        </small><br/>
+                        <small class="text-muted">Opportunities: {{ three_bet_opps }}</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card text-center border-success">
+                <div class="card text-center border-info">
                     <div class="card-body">
-                        <h5 class="card-title text-muted">Preflop Win Rate</h5>
-                        <h3 class="text-success">{{ "%.1f"|format(win_rate) }}%</h3>
-                        <small class="text-muted">{{ preflop_wins }} wins</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center {% if total_bb >= 0 %}border-success{% else %}border-danger{% endif %}">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Total Profit/Loss</h5>
-                        <h3 class="{% if total_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "%.2f"|format(total_bb) }} BB
+                        <h5 class="card-title text-muted">Fold to 3-Bet %</h5>
+                        <h3 class="text-info">
+                            {% if total_3bets > 0 %}
+                                {{ "%.1f"|format((villain_fold / total_3bets) * 100) }}%
+                            {% else %}
+                                —
+                            {% endif %}
                         </h3>
-                        <small class="text-muted">All positions</small>
+                        <small class="text-muted">{{ villain_fold }} folds</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card text-center {% if avg_bb >= 0 %}border-success{% else %}border-danger{% endif %}">
+                <div class="card text-center border-primary">
                     <div class="card-body">
-                        <h5 class="card-title text-muted">Avg per 3-Bet</h5>
-                        <h3 class="{% if avg_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "%.2f"|format(avg_bb) }} BB
+                        <h5 class="card-title text-muted">Call vs 3-Bet %</h5>
+                        <h3 class="text-primary">
+                            {% if total_3bets > 0 %}
+                                {{ "%.1f"|format((villain_call / total_3bets) * 100) }}%
+                            {% else %}
+                                —
+                            {% endif %}
                         </h3>
-                        <small class="text-muted">Per hand</small>
+                        <small class="text-muted">{{ villain_call }} calls</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">4-Bet vs 3-Bet %</h5>
+                        <h3 class="text-warning">
+                            {% if total_3bets > 0 %}
+                                {{ "%.1f"|format((villain_4bet / total_3bets) * 100) }}%
+                            {% else %}
+                                —
+                            {% endif %}
+                        </h3>
+                        <small class="text-muted">{{ villain_4bet }} 4-bets</small>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Three Bet Counts by Position -->
-        <h4 class="mb-3">Three Bet Frequency by Position</h4>
-        <table class="table table-bordered table-hover mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <div>
+                <h4 class="mb-0">Three Bet Frequency by Position</h4>
+                <small class="text-muted d-block">Hero position = your seat; Opener position = player who opened before your 3-bet.</small>
+            </div>
+            <div class="btn-group" role="group" aria-label="3-bet view toggle">
+                <button type="button" class="btn btn-sm btn-outline-primary active" id="threeBetViewHero">By Hero Position</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="threeBetViewOpener">By Opener Position</button>
+            </div>
+        </div>
+        <table class="table table-bordered table-hover mb-4" id="threeBetTableHero">
             <thead class="table-dark">
                 <tr>
                     <th>Position</th>
+                    <th>Opportunities</th>
                     <th>3-Bets</th>
-                    <th>Preflop Wins</th>
-                    <th>Win Rate</th>
+                    <th>3-Bet %</th>
+                    <th>Villain Fold % (to 3-bet)</th>
+                    <th>Villain Call % (to 3-bet)</th>
+                    <th>Villain 4-Bet % (vs 3-bet)</th>
                     <th>Total BB</th>
-                    <th>Avg BB/3-Bet</th>
+                    <th>EV / Opportunity</th>
                 </tr>
             </thead>
             <tbody>
-                {% set positions_with_utg = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
-                {% for pos in positions_with_utg %}
-                {% set pos_3bets = three_bet.get('Num_three_bets_position', {}).get(pos, 0) %}
-                {% set pos_wins = three_bet.get('Num_three_bet_wins_position', {}).get(pos, 0) %}
-                {% set pos_win_rate = (pos_wins / pos_3bets * 100) if pos_3bets > 0 else 0 %}
-                {% set pos_bb = three_bet.get('Sum_results_position_BB', {}).get(pos, 0) %}
-                {% set pos_avg_bb = (pos_bb / pos_3bets) if pos_3bets > 0 else 0 %}
+                {% for pos in hero_positions %}
+                {% set pos_data = by_hero_position.get(pos, {}) %}
+                {% set pos_opps = pos_data.get('opportunities', 0) %}
+                {% set pos_3bets = pos_data.get('three_bets', 0) %}
+                {% set pos_fold = pos_data.get('villain_fold', 0) %}
+                {% set pos_call = pos_data.get('villain_call', 0) %}
+                {% set pos_4bet = pos_data.get('villain_4bet', 0) %}
+                {% set pos_ev = pos_data.get('ev_bb', 0) %}
+                {% set pos_3bet_rate = (pos_3bets / pos_opps * 100) if pos_opps > 0 else None %}
                 <tr>
                     <td><strong>{{ pos }}</strong></td>
+                    <td>{{ pos_opps|int }}</td>
                     <td>{{ pos_3bets|int }}</td>
-                    <td>{{ pos_wins|int }}</td>
-                    <td>
-                        <span class="badge {% if pos_win_rate >= 50 %}bg-success{% elif pos_win_rate >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
-                            {{ "%.1f"|format(pos_win_rate) }}%
-                        </span>
+                    <td>{% if pos_3bet_rate is not none %}{{ "%.1f"|format(pos_3bet_rate) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_3bets > 0 %}{{ "%.1f"|format((pos_fold / pos_3bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_3bets > 0 %}{{ "%.1f"|format((pos_call / pos_3bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_3bets > 0 %}{{ "%.1f"|format((pos_4bet / pos_3bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td class="{% if pos_ev >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_ev) }} BB</strong>
                     </td>
-                    <td class="{% if pos_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        <strong>{{ "%.2f"|format(pos_bb) }} BB</strong>
+                    <td>{% if pos_opps > 0 %}{{ "%.2f"|format(pos_ev / pos_opps) }} BB{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="table table-bordered table-hover mb-4 d-none" id="threeBetTableOpener">
+            <thead class="table-dark">
+                <tr>
+                    <th>Opener Position</th>
+                    <th>Opportunities</th>
+                    <th>3-Bets</th>
+                    <th>3-Bet %</th>
+                    <th>Villain Fold % (to 3-bet)</th>
+                    <th>Villain Call % (to 3-bet)</th>
+                    <th>Villain 4-Bet % (vs 3-bet)</th>
+                    <th>Total BB</th>
+                    <th>EV / Opportunity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pos in hero_positions %}
+                {% set pos_data = by_opener_position.get(pos, {}) %}
+                {% set pos_opps = pos_data.get('opportunities', 0) %}
+                {% set pos_3bets = pos_data.get('three_bets', 0) %}
+                {% set pos_fold = pos_data.get('villain_fold', 0) %}
+                {% set pos_call = pos_data.get('villain_call', 0) %}
+                {% set pos_4bet = pos_data.get('villain_4bet', 0) %}
+                {% set pos_ev = pos_data.get('ev_bb', 0) %}
+                {% set pos_3bet_rate = (pos_3bets / pos_opps * 100) if pos_opps > 0 else None %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td>{{ pos_opps|int }}</td>
+                    <td>{{ pos_3bets|int }}</td>
+                    <td>{% if pos_3bet_rate is not none %}{{ "%.1f"|format(pos_3bet_rate) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_3bets > 0 %}{{ "%.1f"|format((pos_fold / pos_3bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_3bets > 0 %}{{ "%.1f"|format((pos_call / pos_3bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_3bets > 0 %}{{ "%.1f"|format((pos_4bet / pos_3bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td class="{% if pos_ev >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_ev) }} BB</strong>
                     </td>
-                    <td class="{% if pos_avg_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        {{ "%.2f"|format(pos_avg_bb) }} BB
-                    </td>
+                    <td>{% if pos_opps > 0 %}{{ "%.2f"|format(pos_ev / pos_opps) }} BB{% else %}—{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
         <!-- Profitability Breakdown: Preflop vs Postflop -->
+        {% set positions_with_utg = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
         <h4 class="mb-3">Profitability Breakdown: Preflop vs Postflop</h4>
+        {% set positions_with_utg = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
         <table class="table table-bordered table-hover mb-4">
             <thead class="table-dark">
                 <tr>
@@ -445,49 +528,149 @@
             </tbody>
         </table>
 
+        <h4 class="mb-3">EV by Branch (After You 3-Bet)</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Branch</th>
+                    <th>Hands</th>
+                    <th>Total EV (BB)</th>
+                    <th>EV / Hand (BB)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set fold_branch = branch_ev.get('fold', {}) %}
+                {% set call_branch = branch_ev.get('call', {}) %}
+                {% set four_bet_branch = branch_ev.get('raise', {}) %}
+                <tr>
+                    <td>Villain Folds</td>
+                    <td>{{ fold_branch.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(fold_branch.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if fold_branch.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(fold_branch.get('ev_bb', 0) / fold_branch.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Villain Calls</td>
+                    <td>{{ call_branch.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(call_branch.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if call_branch.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(call_branch.get('ev_bb', 0) / call_branch.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Villain 4-Bets</td>
+                    <td>{{ four_bet_branch.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(four_bet_branch.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if four_bet_branch.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(four_bet_branch.get('ev_bb', 0) / four_bet_branch.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% set four_bet_fold = hero_vs_raise_3b.get('fold', {}) %}
+                {% set four_bet_call = hero_vs_raise_3b.get('call', {}) %}
+                {% set four_bet_5bet = hero_vs_raise_3b.get('jam', {}) %}
+                {% if four_bet_fold.get('count', 0) or four_bet_call.get('count', 0) or four_bet_5bet.get('count', 0) %}
+                <tr>
+                    <td>Hero Folds vs 4-Bet</td>
+                    <td>{{ four_bet_fold.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(four_bet_fold.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if four_bet_fold.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(four_bet_fold.get('ev_bb', 0) / four_bet_fold.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Hero Calls vs 4-Bet</td>
+                    <td>{{ four_bet_call.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(four_bet_call.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if four_bet_call.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(four_bet_call.get('ev_bb', 0) / four_bet_call.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Hero 5-Bets vs 4-Bet</td>
+                    <td>{{ four_bet_5bet.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(four_bet_5bet.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if four_bet_5bet.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(four_bet_5bet.get('ev_bb', 0) / four_bet_5bet.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
         <!-- Key Insights -->
         <div class="alert alert-info">
             <h5><i class="fas fa-lightbulb"></i> Key Insights:</h5>
             <ul class="mb-0">
-                <li><strong>3-Bet Frequency:</strong> You're 3-betting {{ "%.1f"|format(three_bet_freq) }}% of viable hands ({{ total_3bets }} out of {{ viable_hands }} hands)</li>
-                <li><strong>Fold Equity:</strong> You win {{ "%.1f"|format(win_rate) }}% of 3-bets preflop ({{ preflop_wins }} out of {{ total_3bets }})</li>
-                <li><strong>Overall Profitability:</strong> Your 3-bets are generating {{ "%.2f"|format(total_bb) }} BB total ({{ "%.2f"|format(avg_bb) }} BB per 3-bet on average)</li>
-                {% if total_bb < 0 %}
-                <li class="text-danger"><strong>Warning:</strong> Your 3-bets are currently unprofitable. Consider tightening your 3-betting range or improving postflop play.</li>
+                <li><strong>Total 3-Bets:</strong> {{ total_3bets }} ({{ "%.1f"|format(three_bet_opp_rate) if three_bet_opp_rate is not none else "—" }}% of {{ three_bet_opps }} opportunities)</li>
+                <li><strong>Villain Response Split:</strong>
+                    {% if total_3bets > 0 %}
+                        Fold {{ "%.1f"|format((villain_fold / total_3bets) * 100) }}% /
+                        Call {{ "%.1f"|format((villain_call / total_3bets) * 100) }}% /
+                        4-Bet {{ "%.1f"|format((villain_4bet / total_3bets) * 100) }}%
+                    {% else %}
+                        —
+                    {% endif %}
+                </li>
+                <li><strong>Biggest Losing Branch:</strong>
+                    {% set fold_ev = branch_ev.get('fold', {}).get('ev_bb', 0) %}
+                    {% set call_ev = branch_ev.get('call', {}).get('ev_bb', 0) %}
+                    {% set four_ev = branch_ev.get('raise', {}).get('ev_bb', 0) %}
+                    {% if fold_ev <= call_ev and fold_ev <= four_ev %}Villain Folds{% elif call_ev <= four_ev %}Villain Calls{% else %}Villain 4-Bets{% endif %}
+                </li>
+                {% if total_3bets < 30 %}
+                <li class="text-warning"><strong>Sample size warning:</strong> Fewer than 30 total 3-bets may make percentages noisy.</li>
                 {% endif %}
             </ul>
         </div>
-
-        <!-- Chart Visualization -->
-        {% if total_3bets > 0 %}
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <h5 class="text-center mb-3">3-Bet Frequency by Position</h5>
-                <canvas id="threeBetFrequencyChart" style="max-height: 300px;"></canvas>
-            </div>
-            <div class="col-md-6">
-                <h5 class="text-center mb-3">3-Bet Profitability by Position</h5>
-                <canvas id="threeBetProfitabilityChart" style="max-height: 300px;"></canvas>
-            </div>
-        </div>
-        {% else %}
-        <div class="alert alert-warning mt-4">
-            <i class="fas fa-info-circle"></i> No 3-bets recorded in this session. 3-bet metrics will appear here once you have 3-bet hands.
-        </div>
-        {% endif %}
     </div>
 </div>
 
 <!-- Section 5: Four Bet Metrics -->
 {% set four_bet = metrics.get('Four bet info', {}) %}
-{% set total_4bets = four_bet.get('Num_four_bets', 0) %}
+{% set four_bet_std = four_bet.get('standardized', {}) %}
+{% set total_4bets = four_bet_std.get('hero_4bet_count', four_bet.get('Num_four_bets', 0)) %}
 {% set viable_hands_4b = four_bet.get('Viable_hands', 1) %}
 {% set total_bb_4b = four_bet.get('Sum_results_BB', 0) %}
 {% set avg_bb_4b = four_bet.get('Avg_result_BB', 0) %}
 {% set preflop_wins_4b = four_bet.get('Num_four_bet_wins', 0) %}
 {% set win_rate_4b = (preflop_wins_4b / total_4bets * 100) if total_4bets > 0 else 0 %}
-{% set four_bet_freq = (total_4bets / viable_hands_4b * 100) if viable_hands_4b > 0 else 0 %}
-{% set positions_4b = ['MP', 'CO', 'BTN', 'SB', 'BB'] %}
+{% set four_bet_opps = four_bet_std.get('facing_3bet_opportunities', 0) %}
+{% set four_bet_opp_rate = (total_4bets / four_bet_opps * 100) if four_bet_opps > 0 else None %}
+{% set villain_response_4b = four_bet_std.get('villain_response', {}) %}
+{% set villain_fold_4b = villain_response_4b.get('fold', 0) %}
+{% set villain_call_4b = villain_response_4b.get('call', 0) %}
+{% set villain_5bet_4b = villain_response_4b.get('raise', 0) %}
+{% set villain_5bet_jam_4b = four_bet_std.get('villain_raise_subtype', {}).get('jam', 0) %}
+{% set hero_positions_4b = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
+{% set by_hero_position_4b = four_bet.get('by_hero_position', {}) %}
+{% set by_three_bettor_position = four_bet.get('by_three_bettor_position', {}) %}
+{% set branch_ev_4b = four_bet_std.get('branch_ev', {}) %}
+{% set hero_vs_raise_4b = four_bet_std.get('hero_vs_raise', {}) %}
 
 <div class="card mb-4">
     <div class="card-header bg-warning text-dark">
@@ -502,79 +685,155 @@
                     <div class="card-body">
                         <h5 class="card-title text-muted">Total 4-Bets</h5>
                         <h3 class="text-primary">{{ total_4bets }}</h3>
-                        <small class="text-muted">{{ "%.1f"|format(four_bet_freq) }}% frequency</small>
+                        <small class="text-muted">4-Bet % (of opps):
+                            {% if four_bet_opp_rate is not none %}
+                                {{ "%.1f"|format(four_bet_opp_rate) }}%
+                            {% else %}
+                                —
+                            {% endif %}
+                        </small><br/>
+                        <small class="text-muted">Opportunities: {{ four_bet_opps }}</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card text-center border-success">
+                <div class="card text-center border-info">
                     <div class="card-body">
-                        <h5 class="card-title text-muted">Preflop Win Rate</h5>
-                        <h3 class="text-success">{{ "%.1f"|format(win_rate_4b) }}%</h3>
-                        <small class="text-muted">{{ preflop_wins_4b }} wins</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center {% if total_bb_4b >= 0 %}border-success{% else %}border-danger{% endif %}">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Total Profit/Loss</h5>
-                        <h3 class="{% if total_bb_4b >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "%.2f"|format(total_bb_4b) }} BB
+                        <h5 class="card-title text-muted">Fold to 4-Bet %</h5>
+                        <h3 class="text-info">
+                            {% if total_4bets > 0 %}
+                                {{ "%.1f"|format((villain_fold_4b / total_4bets) * 100) }}%
+                            {% else %}
+                                —
+                            {% endif %}
                         </h3>
-                        <small class="text-muted">All positions</small>
+                        <small class="text-muted">{{ villain_fold_4b }} folds</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card text-center {% if avg_bb_4b >= 0 %}border-success{% else %}border-danger{% endif %}">
+                <div class="card text-center border-primary">
                     <div class="card-body">
-                        <h5 class="card-title text-muted">Avg per 4-Bet</h5>
-                        <h3 class="{% if avg_bb_4b >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ "%.2f"|format(avg_bb_4b) }} BB
+                        <h5 class="card-title text-muted">Call vs 4-Bet %</h5>
+                        <h3 class="text-primary">
+                            {% if total_4bets > 0 %}
+                                {{ "%.1f"|format((villain_call_4b / total_4bets) * 100) }}%
+                            {% else %}
+                                —
+                            {% endif %}
                         </h3>
-                        <small class="text-muted">Per hand</small>
+                        <small class="text-muted">{{ villain_call_4b }} calls</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-muted">5-Bet vs 4-Bet %</h5>
+                        <h3 class="text-warning">
+                            {% if total_4bets > 0 %}
+                                {{ "%.1f"|format((villain_5bet_4b / total_4bets) * 100) }}%
+                            {% else %}
+                                —
+                            {% endif %}
+                        </h3>
+                        <small class="text-muted">{{ villain_5bet_4b }} 5-bets</small>
+                        {% if villain_5bet_4b > 0 %}
+                        <small class="text-muted d-block">5-bet jam %: {{ "%.1f"|format((villain_5bet_jam_4b / villain_5bet_4b) * 100) }}%</small>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Four Bet Counts by Position -->
-        <h4 class="mb-3">Four Bet Frequency by Position</h4>
-        <table class="table table-bordered table-hover mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <div>
+                <h4 class="mb-0">Four Bet Frequency by Position</h4>
+                <small class="text-muted d-block">Hero position = your seat; 3-bettor position = player who 3-bet before your 4-bet.</small>
+            </div>
+            <div class="btn-group" role="group" aria-label="4-bet view toggle">
+                <button type="button" class="btn btn-sm btn-outline-primary active" id="fourBetViewHero">By Hero Position</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="fourBetViewThreeBettor">By 3-Bettor Position</button>
+            </div>
+        </div>
+        <table class="table table-bordered table-hover mb-4" id="fourBetTableHero">
             <thead class="table-dark">
                 <tr>
                     <th>Position</th>
+                    <th>Opportunities</th>
                     <th>4-Bets</th>
-                    <th>Preflop Wins</th>
-                    <th>Win Rate</th>
+                    <th>4-Bet %</th>
+                    <th>Villain Fold % (to 4-bet)</th>
+                    <th>Villain Call % (to 4-bet)</th>
+                    <th>Villain 5-Bet % (vs 4-bet)</th>
                     <th>Total BB</th>
-                    <th>Avg BB/4-Bet</th>
+                    <th>EV / Opportunity</th>
                 </tr>
             </thead>
             <tbody>
-                {% set positions_with_utg = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] %}
-                {% for pos in positions_with_utg %}
-                {% set pos_4bets = four_bet.get('Num_four_bets_position', {}).get(pos, 0) %}
-                {% set pos_wins = four_bet.get('Num_four_bet_wins_position', {}).get(pos, 0) %}
-                {% set pos_win_rate = (pos_wins / pos_4bets * 100) if pos_4bets > 0 else 0 %}
-                {% set pos_bb = four_bet.get('Sum_results_position_BB', {}).get(pos, 0) %}
-                {% set pos_avg_bb = (pos_bb / pos_4bets) if pos_4bets > 0 else 0 %}
+                {% for pos in hero_positions_4b %}
+                {% set pos_data = by_hero_position_4b.get(pos, {}) %}
+                {% set pos_opps = pos_data.get('opportunities', 0) %}
+                {% set pos_4bets = pos_data.get('four_bets', 0) %}
+                {% set pos_fold = pos_data.get('villain_fold', 0) %}
+                {% set pos_call = pos_data.get('villain_call', 0) %}
+                {% set pos_5bet = pos_data.get('villain_5bet', 0) %}
+                {% set pos_ev = pos_data.get('ev_bb', 0) %}
+                {% set pos_4bet_rate = (pos_4bets / pos_opps * 100) if pos_opps > 0 else None %}
                 <tr>
                     <td><strong>{{ pos }}</strong></td>
+                    <td>{{ pos_opps|int }}</td>
                     <td>{{ pos_4bets|int }}</td>
-                    <td>{{ pos_wins|int }}</td>
-                    <td>
-                        <span class="badge {% if pos_win_rate >= 50 %}bg-success{% elif pos_win_rate >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
-                            {{ "%.1f"|format(pos_win_rate) }}%
-                        </span>
+                    <td>{% if pos_4bet_rate is not none %}{{ "%.1f"|format(pos_4bet_rate) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_4bets > 0 %}{{ "%.1f"|format((pos_fold / pos_4bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_4bets > 0 %}{{ "%.1f"|format((pos_call / pos_4bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_4bets > 0 %}{{ "%.1f"|format((pos_5bet / pos_4bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td class="{% if pos_ev >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_ev) }} BB</strong>
                     </td>
-                    <td class="{% if pos_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        <strong>{{ "%.2f"|format(pos_bb) }} BB</strong>
+                    <td>{% if pos_opps > 0 %}{{ "%.2f"|format(pos_ev / pos_opps) }} BB{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="table table-bordered table-hover mb-4 d-none" id="fourBetTableThreeBettor">
+            <thead class="table-dark">
+                <tr>
+                    <th>3-Bettor Position</th>
+                    <th>Opportunities</th>
+                    <th>4-Bets</th>
+                    <th>4-Bet %</th>
+                    <th>Villain Fold % (to 4-bet)</th>
+                    <th>Villain Call % (to 4-bet)</th>
+                    <th>Villain 5-Bet % (vs 4-bet)</th>
+                    <th>Total BB</th>
+                    <th>EV / Opportunity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pos in hero_positions_4b %}
+                {% set pos_data = by_three_bettor_position.get(pos, {}) %}
+                {% set pos_opps = pos_data.get('opportunities', 0) %}
+                {% set pos_4bets = pos_data.get('four_bets', 0) %}
+                {% set pos_fold = pos_data.get('villain_fold', 0) %}
+                {% set pos_call = pos_data.get('villain_call', 0) %}
+                {% set pos_5bet = pos_data.get('villain_5bet', 0) %}
+                {% set pos_ev = pos_data.get('ev_bb', 0) %}
+                {% set pos_4bet_rate = (pos_4bets / pos_opps * 100) if pos_opps > 0 else None %}
+                <tr>
+                    <td><strong>{{ pos }}</strong></td>
+                    <td>{{ pos_opps|int }}</td>
+                    <td>{{ pos_4bets|int }}</td>
+                    <td>{% if pos_4bet_rate is not none %}{{ "%.1f"|format(pos_4bet_rate) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_4bets > 0 %}{{ "%.1f"|format((pos_fold / pos_4bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_4bets > 0 %}{{ "%.1f"|format((pos_call / pos_4bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if pos_4bets > 0 %}{{ "%.1f"|format((pos_5bet / pos_4bets) * 100) }}%{% else %}—{% endif %}</td>
+                    <td class="{% if pos_ev >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        <strong>{{ "%.2f"|format(pos_ev) }} BB</strong>
                     </td>
-                    <td class="{% if pos_avg_bb >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        {{ "%.2f"|format(pos_avg_bb) }} BB
-                    </td>
+                    <td>{% if pos_opps > 0 %}{{ "%.2f"|format(pos_ev / pos_opps) }} BB{% else %}—{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -626,15 +885,122 @@
             </tbody>
         </table>
 
+        <h4 class="mb-3">EV by Branch (After You 4-Bet)</h4>
+        <table class="table table-bordered table-hover mb-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Branch</th>
+                    <th>Hands</th>
+                    <th>Total EV (BB)</th>
+                    <th>EV / Hand (BB)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set fold_branch_4b = branch_ev_4b.get('fold', {}) %}
+                {% set call_branch_4b = branch_ev_4b.get('call', {}) %}
+                {% set five_bet_branch = branch_ev_4b.get('raise', {}) %}
+                <tr>
+                    <td>Villain Folds</td>
+                    <td>{{ fold_branch_4b.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(fold_branch_4b.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if fold_branch_4b.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(fold_branch_4b.get('ev_bb', 0) / fold_branch_4b.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Villain Calls</td>
+                    <td>{{ call_branch_4b.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(call_branch_4b.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if call_branch_4b.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(call_branch_4b.get('ev_bb', 0) / call_branch_4b.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Villain 5-Bets</td>
+                    <td>{{ five_bet_branch.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(five_bet_branch.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if five_bet_branch.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(five_bet_branch.get('ev_bb', 0) / five_bet_branch.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% set five_bet_fold = hero_vs_raise_4b.get('fold', {}) %}
+                {% set five_bet_call = hero_vs_raise_4b.get('call', {}) %}
+                {% set five_bet_jam = hero_vs_raise_4b.get('jam', {}) %}
+                {% if five_bet_fold.get('count', 0) or five_bet_call.get('count', 0) or five_bet_jam.get('count', 0) %}
+                <tr>
+                    <td>Hero Folds vs 5-Bet</td>
+                    <td>{{ five_bet_fold.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(five_bet_fold.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if five_bet_fold.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(five_bet_fold.get('ev_bb', 0) / five_bet_fold.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Hero Calls vs 5-Bet</td>
+                    <td>{{ five_bet_call.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(five_bet_call.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if five_bet_call.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(five_bet_call.get('ev_bb', 0) / five_bet_call.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Hero Jams vs 5-Bet</td>
+                    <td>{{ five_bet_jam.get('count', 0) }}</td>
+                    <td>{{ "%.2f"|format(five_bet_jam.get('ev_bb', 0)) }}</td>
+                    <td>
+                        {% if five_bet_jam.get('count', 0) > 0 %}
+                            {{ "%.2f"|format(five_bet_jam.get('ev_bb', 0) / five_bet_jam.get('count', 1)) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
         <!-- Key Insights -->
         <div class="alert alert-info">
             <h5><i class="fas fa-lightbulb"></i> Key Insights:</h5>
             <ul class="mb-0">
-                <li><strong>4-Bet Frequency:</strong> You're 4-betting {{ "%.1f"|format(four_bet_freq) }}% of viable hands ({{ total_4bets }} out of {{ viable_hands_4b }} hands)</li>
-                <li><strong>Fold Equity:</strong> You win {{ "%.1f"|format(win_rate_4b) }}% of 4-bets preflop ({{ preflop_wins_4b }} out of {{ total_4bets }})</li>
-                <li><strong>Overall Profitability:</strong> Your 4-bets are generating {{ "%.2f"|format(total_bb_4b) }} BB total ({{ "%.2f"|format(avg_bb_4b) }} BB per 4-bet on average)</li>
-                {% if total_bb_4b < 0 %}
-                <li class="text-danger"><strong>Warning:</strong> Your 4-bets are currently unprofitable. Consider tightening your 4-betting range or improving postflop play.</li>
+                <li><strong>Total 4-Bets:</strong> {{ total_4bets }} ({{ "%.1f"|format(four_bet_opp_rate) if four_bet_opp_rate is not none else "—" }}% of {{ four_bet_opps }} opportunities)</li>
+                <li><strong>Villain Response Split:</strong>
+                    {% if total_4bets > 0 %}
+                        Fold {{ "%.1f"|format((villain_fold_4b / total_4bets) * 100) }}% /
+                        Call {{ "%.1f"|format((villain_call_4b / total_4bets) * 100) }}% /
+                        5-Bet {{ "%.1f"|format((villain_5bet_4b / total_4bets) * 100) }}%
+                    {% else %}
+                        —
+                    {% endif %}
+                </li>
+                <li><strong>Biggest Losing Branch:</strong>
+                    {% set fold_ev_4b = branch_ev_4b.get('fold', {}).get('ev_bb', 0) %}
+                    {% set call_ev_4b = branch_ev_4b.get('call', {}).get('ev_bb', 0) %}
+                    {% set five_ev_4b = branch_ev_4b.get('raise', {}).get('ev_bb', 0) %}
+                    {% if fold_ev_4b <= call_ev_4b and fold_ev_4b <= five_ev_4b %}Villain Folds{% elif call_ev_4b <= five_ev_4b %}Villain Calls{% else %}Villain 5-Bets{% endif %}
+                </li>
+                {% if total_4bets < 30 %}
+                <li class="text-warning"><strong>Sample size warning:</strong> Fewer than 30 total 4-bets may make percentages noisy.</li>
                 {% endif %}
             </ul>
         </div>
@@ -818,90 +1184,96 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var vpipCtx = document.getElementById('vpipChart').getContext('2d');
-    var vpipChart = new Chart(vpipCtx, {
-        type: 'bar',
-        data: {
-            labels: ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'],
-            datasets: [{
-                label: 'Player VPIP',
-                data: [{{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('UTG', 0) }},
-                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('MP', 0) }},
-                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('CO', 0) }},
-                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('BTN', 0) }},
-                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('SB', 0) }},
-                       {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('BB', 0) }}],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1,
-                barThickness: 20  // Make the bars skinnier
+    var vpipChartEl = document.getElementById('vpipChart');
+    if (vpipChartEl) {
+        var vpipCtx = vpipChartEl.getContext('2d');
+        var vpipChart = new Chart(vpipCtx, {
+            type: 'bar',
+            data: {
+                labels: ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'],
+                datasets: [{
+                    label: 'Player VPIP',
+                    data: [{{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('UTG', 0) }},
+                           {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('MP', 0) }},
+                           {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('CO', 0) }},
+                           {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('BTN', 0) }},
+                           {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('SB', 0) }},
+                           {{ metrics.get('VPIP Info', {}).get('positional_vpip', {}).get('BB', 0) }}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barThickness: 20  // Make the bars skinnier
+                },
+                {
+                    label: 'Optimal VPIP',
+                    data: [null, null, null, null, null, null],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    barThickness: 20  // Make the bars skinnier
+                }]
             },
-            {
-                label: 'Optimal VPIP',
-                data: [null, null, null, null, null, null],
-                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                borderColor: 'rgba(255, 99, 132, 1)',
-                borderWidth: 1,
-                barThickness: 20  // Make the bars skinnier
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    min: 1,  // Set minimum value to 1
-                    max: 100,  // Set maximum value to 100
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        min: 1,  // Set minimum value to 1
+                        max: 100,  // Set maximum value to 100
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 
-    var rfiVpipCtx = document.getElementById('rfiVpipChart').getContext('2d');
-    var rfiVpipChart = new Chart(rfiVpipCtx, {
-        type: 'bar',
-        data: {
-            labels: ['UTG', 'MP', 'CO', 'BTN', 'SB'],
-            datasets: [{
-                label: 'Player RFI VPIP',
-                data: [{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('UTG', 0) }},
-                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('MP', 0) }},
-                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('CO', 0) }},
-                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('BTN', 0) }},
-                       {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('SB', 0) }}],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1,
-                barThickness: 20  // Make the bars skinnier
+    var rfiVpipChartEl = document.getElementById('rfiVpipChart');
+    if (rfiVpipChartEl) {
+        var rfiVpipCtx = rfiVpipChartEl.getContext('2d');
+        var rfiVpipChart = new Chart(rfiVpipCtx, {
+            type: 'bar',
+            data: {
+                labels: ['UTG', 'MP', 'CO', 'BTN', 'SB'],
+                datasets: [{
+                    label: 'Player RFI VPIP',
+                    data: [{{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('UTG', 0) }},
+                           {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('MP', 0) }},
+                           {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('CO', 0) }},
+                           {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('BTN', 0) }},
+                           {{ metrics.get('RFI VPIP Info', {}).get('positional_rfi_vpip', {}).get('SB', 0) }}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barThickness: 20  // Make the bars skinnier
+                },
+                {
+                    label: 'Optimal RFI VPIP',
+                    data: [17.5, 21.5, 30, 45, 42],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    barThickness: 20  // Make the bars skinnier
+                }]
             },
-            {
-                label: 'Optimal RFI VPIP',
-                data: [17.5, 21.5, 30, 45, 42],
-                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                borderColor: 'rgba(255, 99, 132, 1)',
-                borderWidth: 1,
-                barThickness: 20  // Make the bars skinnier
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    min: 1,  // Set minimum value to 1
-                    max: 100,  // Set maximum value to 100
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        min: 1,  // Set minimum value to 1
+                        max: 100,  // Set maximum value to 100
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 
     // Three Bet Frequency Chart
     {% if three_bet.get('Num_three_bets', 0) > 0 %}
@@ -1014,6 +1386,54 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     {% endif %}
+
+    var heroToggle = document.getElementById('threeBetViewHero');
+    var openerToggle = document.getElementById('threeBetViewOpener');
+    var heroTable = document.getElementById('threeBetTableHero');
+    var openerTable = document.getElementById('threeBetTableOpener');
+
+    function showHeroView() {
+        if (heroTable) heroTable.classList.remove('d-none');
+        if (openerTable) openerTable.classList.add('d-none');
+        if (heroToggle) heroToggle.classList.add('active');
+        if (openerToggle) openerToggle.classList.remove('active');
+    }
+
+    function showOpenerView() {
+        if (heroTable) heroTable.classList.add('d-none');
+        if (openerTable) openerTable.classList.remove('d-none');
+        if (heroToggle) heroToggle.classList.remove('active');
+        if (openerToggle) openerToggle.classList.add('active');
+    }
+
+    if (heroToggle && openerToggle) {
+        heroToggle.addEventListener('click', showHeroView);
+        openerToggle.addEventListener('click', showOpenerView);
+    }
+
+    var fourBetHeroToggle = document.getElementById('fourBetViewHero');
+    var fourBetThreeToggle = document.getElementById('fourBetViewThreeBettor');
+    var fourBetHeroTable = document.getElementById('fourBetTableHero');
+    var fourBetThreeTable = document.getElementById('fourBetTableThreeBettor');
+
+    function showFourBetHeroView() {
+        if (fourBetHeroTable) fourBetHeroTable.classList.remove('d-none');
+        if (fourBetThreeTable) fourBetThreeTable.classList.add('d-none');
+        if (fourBetHeroToggle) fourBetHeroToggle.classList.add('active');
+        if (fourBetThreeToggle) fourBetThreeToggle.classList.remove('active');
+    }
+
+    function showFourBetThreeBettorView() {
+        if (fourBetHeroTable) fourBetHeroTable.classList.add('d-none');
+        if (fourBetThreeTable) fourBetThreeTable.classList.remove('d-none');
+        if (fourBetHeroToggle) fourBetHeroToggle.classList.remove('active');
+        if (fourBetThreeToggle) fourBetThreeToggle.classList.add('active');
+    }
+
+    if (fourBetHeroToggle && fourBetThreeToggle) {
+        fourBetHeroToggle.addEventListener('click', showFourBetHeroView);
+        fourBetThreeToggle.addEventListener('click', showFourBetThreeBettorView);
+    }
 });
 
 

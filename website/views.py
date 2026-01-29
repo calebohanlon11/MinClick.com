@@ -1645,7 +1645,7 @@ def normalize_stake(stake):
         return stake
 
 
-def aggregate_user_stats(user_id):
+def aggregate_user_stats(user_id, filters=None):
     """Aggregate poker statistics for a user across all their sessions (online and live)"""
     user_posts = Post.query.filter_by(author=user_id).all()
     live_sessions = LiveSession.query.filter_by(user_id=user_id).all()
@@ -1704,58 +1704,171 @@ def aggregate_user_stats(user_id):
     live_session_earnings = []
     live_session_dates = []
     
+    # Aggregated post metrics (BB-based) across all posts
+    aggregated_post_metrics = {
+        'total_hands': 0,
+        'vpip_count': 0,
+        'rfi_count': 0,
+        'rfi_hands': 0,
+        'three_bet_count': 0,
+        'three_bet_opportunities': 0,
+        'four_bet_count': 0,
+        'four_bet_opportunities': 0,
+        'iso_raise_count': 0,
+        'iso_raise_hands': 0,
+        'total_bb_earnings': 0.0
+    }
+    aggregated_postflop = {
+        'flop': {
+            'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0,
+            'ip': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0},
+            'oop': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0},
+            'multiway': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0}
+        },
+        'turn': {
+            'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0,
+            'ip': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0},
+            'oop': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0},
+            'multiway': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0}
+        },
+        'river': {
+            'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0,
+            'ip': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0},
+            'oop': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0},
+            'multiway': {'total_hands': 0, 'bets': 0, 'checks': 0, 'calls': 0, 'folds': 0, 'raises': 0}
+        }
+    }
+    
+    # Apply optional filters to posts
+    if filters:
+        start_date = filters.get('start_date')
+        end_date = filters.get('end_date')
+        stake_filter = filters.get('stake')
+        site_filter = filters.get('site')
+        filtered_posts = []
+        for post in user_posts:
+            if start_date and post.date_created < start_date:
+                continue
+            if end_date and post.date_created > end_date:
+                continue
+            if stake_filter and normalize_stake(post.stake) != stake_filter:
+                continue
+            if site_filter and post.category != site_filter:
+                continue
+            filtered_posts.append(post)
+        user_posts = filtered_posts
+
+    def load_post_metrics(post):
+        if not post.data_frame_results:
+            return None
+        try:
+            metrics_list = json.loads(post.data_frame_results)
+        except Exception:
+            return None
+        if not metrics_list or not isinstance(metrics_list, list):
+            return None
+        metrics = metrics_list[0]
+        if isinstance(metrics, str):
+            try:
+                metrics = json.loads(metrics)
+            except Exception:
+                try:
+                    metrics = ast.literal_eval(metrics)
+                except Exception:
+                    return None
+        return metrics if isinstance(metrics, dict) else None
+
+    def parse_nested_metric(value):
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str) and value:
+            try:
+                return json.loads(value)
+            except Exception:
+                try:
+                    return ast.literal_eval(value)
+                except Exception:
+                    return {}
+        return {}
+
+    def update_action_agg(target, source):
+        if not isinstance(source, dict):
+            return
+        target['total_hands'] += source.get('total_hands', 0)
+        target['bets'] += source.get('bets', 0)
+        target['checks'] += source.get('checks', 0)
+        target['calls'] += source.get('calls', 0)
+        target['folds'] += source.get('folds', 0)
+        target['raises'] += source.get('raises', 0)
+        for key in ['ip', 'oop', 'multiway']:
+            src_bucket = source.get(key, {})
+            if not isinstance(src_bucket, dict):
+                continue
+            target[key]['total_hands'] += src_bucket.get('total_hands', 0) or src_bucket.get('total', 0)
+            target[key]['bets'] += src_bucket.get('bets', 0)
+            target[key]['checks'] += src_bucket.get('checks', 0)
+            target[key]['calls'] += src_bucket.get('calls', 0)
+            target[key]['folds'] += src_bucket.get('folds', 0)
+            target[key]['raises'] += src_bucket.get('raises', 0)
+
     for post in user_posts:
         try:
-            # Parse the metrics data
-            metrics_list = json.loads(post.data_frame_results)
-            if metrics_list and isinstance(metrics_list, list):
-                metrics = metrics_list[0]
-
-                # Normalize metrics if stored as a JSON string
-                if isinstance(metrics, str):
-                    try:
-                        metrics = json.loads(metrics)
-                    except json.JSONDecodeError:
-                        continue
-
-                if not isinstance(metrics, dict):
-                    continue
+            metrics = load_post_metrics(post)
+            if not metrics:
+                continue
 
                 # Extract key metrics
-                vpip_info = metrics.get('VPIP Info', {})
-                if isinstance(vpip_info, str):
-                    try:
-                        vpip_info = json.loads(vpip_info)
-                    except json.JSONDecodeError:
-                        vpip_info = {}
-                if not isinstance(vpip_info, dict):
-                    vpip_info = {}
+            vpip_info = parse_nested_metric(metrics.get('VPIP Info', {}))
+            rfi_info = parse_nested_metric(metrics.get('RFI VPIP Info', {}))
+            three_bet_info = parse_nested_metric(metrics.get('Three bet info', {}))
+            four_bet_info = parse_nested_metric(metrics.get('Four bet info', {}))
+            iso_raise_info = parse_nested_metric(metrics.get('Iso Raise info', {}))
 
-                hands = vpip_info.get('num_viable_hands', 0)
-                earnings = float(metrics.get('Session Earnings', 0))
-                bb_earnings = float(metrics.get('Session BB Earnings', 0))
-                
-                online_total_hands += hands
-                online_total_earnings += earnings
-                online_total_bb_earnings += bb_earnings
-                online_session_earnings.append(earnings)
-                online_session_dates.append(post.date_created)
+            hands = vpip_info.get('num_viable_hands', 0)
+            earnings = float(metrics.get('Session Earnings', 0))
+            bb_earnings = float(metrics.get('Session BB Earnings', 0))
+            
+            online_total_hands += hands
+            online_total_earnings += earnings
+            online_total_bb_earnings += bb_earnings
+            online_session_earnings.append(earnings)
+            online_session_dates.append(post.date_created)
+            
+            aggregated_post_metrics['total_hands'] += hands or 0
+            aggregated_post_metrics['vpip_count'] += vpip_info.get('vpip_count', 0) or 0
+            aggregated_post_metrics['rfi_count'] += rfi_info.get('rfi_count', 0) or 0
+            aggregated_post_metrics['rfi_hands'] += rfi_info.get('num_viable_hands', 0) or 0
+            aggregated_post_metrics['three_bet_count'] += three_bet_info.get('Num_three_bets', 0) or 0
+            aggregated_post_metrics['three_bet_opportunities'] += three_bet_info.get('hero_3bet_opportunities', 0) or 0
+            aggregated_post_metrics['four_bet_count'] += four_bet_info.get('Num_four_bets', 0) or 0
+            aggregated_post_metrics['four_bet_opportunities'] += four_bet_info.get('hero_4bet_opportunities', 0) or 0
+            aggregated_post_metrics['iso_raise_count'] += iso_raise_info.get('Num_iso_raises', 0) or 0
+            aggregated_post_metrics['iso_raise_hands'] += iso_raise_info.get('Viable_hands', 0) or 0
+            aggregated_post_metrics['total_bb_earnings'] += bb_earnings or 0.0
+
+            # Aggregate postflop action frequencies
+            flop_freq = parse_nested_metric(metrics.get('Flop Action Frequency', {}))
+            turn_freq = parse_nested_metric(metrics.get('Turn Action Frequency', {}))
+            river_freq = parse_nested_metric(metrics.get('River Action Frequency', {}))
+            update_action_agg(aggregated_postflop['flop'], flop_freq)
+            update_action_agg(aggregated_postflop['turn'], turn_freq)
+            update_action_agg(aggregated_postflop['river'], river_freq)
                 
                 # Track stake breakdown (normalize stake first)
-                stake = normalize_stake(post.stake)
-                if stake not in stake_breakdown:
-                    stake_breakdown[stake] = {'sessions': 0, 'earnings': 0, 'hands': 0}
-                stake_breakdown[stake]['sessions'] += 1
-                stake_breakdown[stake]['earnings'] += earnings
-                stake_breakdown[stake]['hands'] += hands
-                
-                # Track site breakdown
-                site = post.category
-                if site not in site_breakdown:
-                    site_breakdown[site] = {'sessions': 0, 'earnings': 0, 'hands': 0}
-                site_breakdown[site]['sessions'] += 1
-                site_breakdown[site]['earnings'] += earnings
-                site_breakdown[site]['hands'] += hands
+            stake = normalize_stake(post.stake)
+            if stake not in stake_breakdown:
+                stake_breakdown[stake] = {'sessions': 0, 'earnings': 0, 'hands': 0}
+            stake_breakdown[stake]['sessions'] += 1
+            stake_breakdown[stake]['earnings'] += earnings
+            stake_breakdown[stake]['hands'] += hands
+            
+            # Track site breakdown
+            site = post.category
+            if site not in site_breakdown:
+                site_breakdown[site] = {'sessions': 0, 'earnings': 0, 'hands': 0}
+            site_breakdown[site]['sessions'] += 1
+            site_breakdown[site]['earnings'] += earnings
+            site_breakdown[site]['hands'] += hands
                 
         except (json.JSONDecodeError, KeyError, ValueError):
             continue
@@ -1856,40 +1969,23 @@ def aggregate_user_stats(user_id):
     aggregated_board_analysis = {}
     for post in user_posts:
         try:
-            metrics_list = json.loads(post.data_frame_results)
-            if metrics_list and isinstance(metrics_list, list):
-                metrics = metrics_list[0]
+            metrics = load_post_metrics(post)
+            if not metrics:
+                continue
 
-                # Normalize metrics if stored as a JSON string
-                if isinstance(metrics, str):
-                    try:
-                        metrics = json.loads(metrics)
-                    except json.JSONDecodeError:
-                        continue
-                if not isinstance(metrics, dict):
-                    continue
+            board_analysis = parse_nested_metric(metrics.get('Board High Card Analysis', {}))
+            if not isinstance(board_analysis, dict):
+                board_analysis = {}
 
-                board_analysis = metrics.get('Board High Card Analysis', {})
-                if isinstance(board_analysis, str):
-                    try:
-                        board_analysis = json.loads(board_analysis)
-                    except json.JSONDecodeError:
-                        board_analysis = {}
-                # If nested JSON still resolves to a string, skip it
-                if isinstance(board_analysis, str):
-                    board_analysis = {}
-                if not isinstance(board_analysis, dict):
-                    board_analysis = {}
-
-                for board_type, data in board_analysis.items():
-                    if board_type not in aggregated_board_analysis:
-                        aggregated_board_analysis[board_type] = {
-                            'total_hands': 0,
-                            'total_bb_earnings': 0.0,
-                            'avg_bb_per_hand': 0.0
-                        }
-                    aggregated_board_analysis[board_type]['total_hands'] += data.get('total_hands', 0)
-                    aggregated_board_analysis[board_type]['total_bb_earnings'] += data.get('total_bb_earnings', 0)
+            for board_type, data in board_analysis.items():
+                if board_type not in aggregated_board_analysis:
+                    aggregated_board_analysis[board_type] = {
+                        'total_hands': 0,
+                        'total_bb_earnings': 0.0,
+                        'avg_bb_per_hand': 0.0
+                    }
+                aggregated_board_analysis[board_type]['total_hands'] += data.get('total_hands', 0)
+                aggregated_board_analysis[board_type]['total_bb_earnings'] += data.get('total_bb_earnings', 0)
         except (json.JSONDecodeError, KeyError, ValueError):
             continue
     
@@ -1920,45 +2016,75 @@ def aggregate_user_stats(user_id):
         '3-Bet Multiway Pots': {},
         '4-Bet Multiway Pots': {}
     }
+    aggregated_matchup_debug = {
+        'RFI Pots': {},
+        '3-Bet Pots': {},
+        '4-Bet Pots': {},
+        'RFI Multiway Pots': {},
+        '3-Bet Multiway Pots': {},
+        '4-Bet Multiway Pots': {}
+    }
     
     for post in user_posts:
         try:
-            metrics_list = json.loads(post.data_frame_results)
-            if metrics_list and isinstance(metrics_list, list):
-                metrics = metrics_list[0]
-                positional_matchups = metrics.get('Positional Matchups', {})
-                
-                # Handle both old format (flat dict) and new format (nested by pot type)
-                if isinstance(positional_matchups, dict):
-                    # Check if it's the new format (has 'RFI Pots', '3-Bet Pots', etc.)
-                    if 'RFI Pots' in positional_matchups or '3-Bet Pots' in positional_matchups:
-                        # New format - iterate through pot types (including multiway)
-                        for pot_type in ['RFI Pots', '3-Bet Pots', '4-Bet Pots', 'RFI Multiway Pots', '3-Bet Multiway Pots', '4-Bet Multiway Pots']:
-                            pot_matchups = positional_matchups.get(pot_type, {})
-                            for matchup, data in pot_matchups.items():
-                                if matchup not in aggregated_positional_matchups[pot_type]:
-                                    aggregated_positional_matchups[pot_type][matchup] = {
-                                        'total_hands': 0,
-                                        'total_bb_earnings': 0.0,
-                                        'total_earnings': 0.0,
-                                        'avg_bb_per_hand': 0.0
-                                    }
-                                aggregated_positional_matchups[pot_type][matchup]['total_hands'] += data.get('total_hands', 0)
-                                aggregated_positional_matchups[pot_type][matchup]['total_bb_earnings'] += data.get('total_bb_earnings', 0)
-                                aggregated_positional_matchups[pot_type][matchup]['total_earnings'] += data.get('total_earnings', 0)
-                    else:
-                        # Old format - treat as RFI Pots for backward compatibility
-                        for matchup, data in positional_matchups.items():
-                            if matchup not in aggregated_positional_matchups['RFI Pots']:
-                                aggregated_positional_matchups['RFI Pots'][matchup] = {
+            metrics = load_post_metrics(post)
+            if not metrics:
+                continue
+            positional_matchups = parse_nested_metric(metrics.get('Positional Matchups', {}))
+            
+            # Handle both old format (flat dict) and new format (nested by pot type)
+            if isinstance(positional_matchups, dict):
+                # Check if it's the new format (has 'RFI Pots', '3-Bet Pots', etc.)
+                if 'RFI Pots' in positional_matchups or '3-Bet Pots' in positional_matchups:
+                    # New format - iterate through pot types (including multiway)
+                    for pot_type in ['RFI Pots', '3-Bet Pots', '4-Bet Pots', 'RFI Multiway Pots', '3-Bet Multiway Pots', '4-Bet Multiway Pots']:
+                        pot_matchups = positional_matchups.get(pot_type, {})
+                        for matchup, data in pot_matchups.items():
+                            if matchup not in aggregated_positional_matchups[pot_type]:
+                                aggregated_positional_matchups[pot_type][matchup] = {
                                     'total_hands': 0,
                                     'total_bb_earnings': 0.0,
                                     'total_earnings': 0.0,
                                     'avg_bb_per_hand': 0.0
                                 }
-                            aggregated_positional_matchups['RFI Pots'][matchup]['total_hands'] += data.get('total_hands', 0)
-                            aggregated_positional_matchups['RFI Pots'][matchup]['total_bb_earnings'] += data.get('total_bb_earnings', 0)
-                            aggregated_positional_matchups['RFI Pots'][matchup]['total_earnings'] += data.get('total_earnings', 0)
+                            aggregated_positional_matchups[pot_type][matchup]['total_hands'] += data.get('total_hands', 0)
+                            aggregated_positional_matchups[pot_type][matchup]['total_bb_earnings'] += data.get('total_bb_earnings', 0)
+                            aggregated_positional_matchups[pot_type][matchup]['total_earnings'] += data.get('total_earnings', 0)
+                            if matchup not in aggregated_matchup_debug[pot_type]:
+                                aggregated_matchup_debug[pot_type][matchup] = []
+                            if data.get('total_hands', 0):
+                                aggregated_matchup_debug[pot_type][matchup].append({
+                                    'post_id': post.id,
+                                    'post_date': post.date_created.strftime('%Y-%m-%d'),
+                                    'hand_id': data.get('hand_id') or data.get('hand_ids'),
+                                    'hands': data.get('total_hands', 0),
+                                    'bb': data.get('total_bb_earnings', 0),
+                                    'earnings': data.get('total_earnings', 0)
+                                })
+                else:
+                    # Old format - treat as RFI Pots for backward compatibility
+                    for matchup, data in positional_matchups.items():
+                        if matchup not in aggregated_positional_matchups['RFI Pots']:
+                            aggregated_positional_matchups['RFI Pots'][matchup] = {
+                                'total_hands': 0,
+                                'total_bb_earnings': 0.0,
+                                'total_earnings': 0.0,
+                                'avg_bb_per_hand': 0.0
+                            }
+                        aggregated_positional_matchups['RFI Pots'][matchup]['total_hands'] += data.get('total_hands', 0)
+                        aggregated_positional_matchups['RFI Pots'][matchup]['total_bb_earnings'] += data.get('total_bb_earnings', 0)
+                        aggregated_positional_matchups['RFI Pots'][matchup]['total_earnings'] += data.get('total_earnings', 0)
+                        if matchup not in aggregated_matchup_debug['RFI Pots']:
+                            aggregated_matchup_debug['RFI Pots'][matchup] = []
+                        if data.get('total_hands', 0):
+                            aggregated_matchup_debug['RFI Pots'][matchup].append({
+                                'post_id': post.id,
+                                'post_date': post.date_created.strftime('%Y-%m-%d'),
+                                'hand_id': data.get('hand_id') or data.get('hand_ids'),
+                                'hands': data.get('total_hands', 0),
+                                'bb': data.get('total_bb_earnings', 0),
+                                'earnings': data.get('total_earnings', 0)
+                            })
         except (json.JSONDecodeError, KeyError, ValueError):
             continue
     
@@ -1992,134 +2118,112 @@ def aggregate_user_stats(user_id):
     aggregated_four_bet_matrix = {}
     for post in user_posts:
         try:
-            metrics_list = json.loads(post.data_frame_results)
-            if metrics_list and isinstance(metrics_list, list):
-                metrics = metrics_list[0]
+            metrics = load_post_metrics(post)
+            if not metrics:
+                continue
 
-                # Normalize metrics if stored as a JSON string
-                if isinstance(metrics, str):
-                    try:
-                        metrics = json.loads(metrics)
-                    except json.JSONDecodeError:
-                        continue
-                if not isinstance(metrics, dict):
-                    continue
+            def normalize_matrix(value):
+                value = parse_nested_metric(value)
+                return value if isinstance(value, dict) else {}
 
-                hand_matrix = metrics.get('Hand Matrix Analysis', {})
-                rfi_matrix = metrics.get('RFI Matrix Analysis', {})
-                three_bet_matrix = metrics.get('3-Bet Matrix Analysis', {})
-                four_bet_matrix = metrics.get('4-Bet Matrix Analysis', {})
+            def normalize_entry(value):
+                value = parse_nested_metric(value)
+                return value if isinstance(value, dict) else {}
 
-                def normalize_matrix(value):
-                    if isinstance(value, str):
-                        try:
-                            value = json.loads(value)
-                        except json.JSONDecodeError:
-                            value = {}
-                    return value if isinstance(value, dict) else {}
-
-                def normalize_entry(value):
-                    if isinstance(value, str):
-                        try:
-                            value = json.loads(value)
-                        except json.JSONDecodeError:
-                            value = {}
-                    return value if isinstance(value, dict) else {}
-
-                hand_matrix = normalize_matrix(hand_matrix)
-                rfi_matrix = normalize_matrix(rfi_matrix)
-                three_bet_matrix = normalize_matrix(three_bet_matrix)
-                four_bet_matrix = normalize_matrix(four_bet_matrix)
+            hand_matrix = normalize_matrix(metrics.get('Hand Matrix Analysis', {}))
+            rfi_matrix = normalize_matrix(metrics.get('RFI Matrix Analysis', {}))
+            three_bet_matrix = normalize_matrix(metrics.get('3-Bet Matrix Analysis', {}))
+            four_bet_matrix = normalize_matrix(metrics.get('4-Bet Matrix Analysis', {}))
+            
+            # Aggregate BB earnings hand matrix
+            for hand_type, hand_data in hand_matrix.items():
+                hand_data = normalize_entry(hand_data)
+                if hand_type not in aggregated_hand_matrix:
+                    aggregated_hand_matrix[hand_type] = {
+                        'total_hands': 0,
+                        'total_bb_earnings': 0.0,
+                        'avg_bb_per_hand': 0.0,
+                        'combos': {}
+                    }
                 
-                # Aggregate BB earnings hand matrix
-                for hand_type, hand_data in hand_matrix.items():
-                    hand_data = normalize_entry(hand_data)
-                    if hand_type not in aggregated_hand_matrix:
-                        aggregated_hand_matrix[hand_type] = {
+                aggregated_hand_matrix[hand_type]['total_hands'] += hand_data.get('total_hands', 0)
+                aggregated_hand_matrix[hand_type]['total_bb_earnings'] += hand_data.get('total_bb_earnings', 0)
+                
+                # Aggregate combos
+                combos = normalize_entry(hand_data.get('combos', {}))
+                for combo, combo_data in combos.items():
+                    combo_data = normalize_entry(combo_data)
+                    if combo not in aggregated_hand_matrix[hand_type]['combos']:
+                        aggregated_hand_matrix[hand_type]['combos'][combo] = {
                             'total_hands': 0,
                             'total_bb_earnings': 0.0,
-                            'avg_bb_per_hand': 0.0,
-                            'combos': {}
+                            'avg_bb_per_hand': 0.0
                         }
-                    
-                    aggregated_hand_matrix[hand_type]['total_hands'] += hand_data.get('total_hands', 0)
-                    aggregated_hand_matrix[hand_type]['total_bb_earnings'] += hand_data.get('total_bb_earnings', 0)
-                    
-                    # Aggregate combos
-                    combos = normalize_entry(hand_data.get('combos', {}))
-                    for combo, combo_data in combos.items():
-                        combo_data = normalize_entry(combo_data)
-                        if combo not in aggregated_hand_matrix[hand_type]['combos']:
-                            aggregated_hand_matrix[hand_type]['combos'][combo] = {
-                                'total_hands': 0,
-                                'total_bb_earnings': 0.0,
-                                'avg_bb_per_hand': 0.0
-                            }
-                        aggregated_hand_matrix[hand_type]['combos'][combo]['total_hands'] += combo_data.get('total_hands', 0)
-                        aggregated_hand_matrix[hand_type]['combos'][combo]['total_bb_earnings'] += combo_data.get('total_bb_earnings', 0)
+                    aggregated_hand_matrix[hand_type]['combos'][combo]['total_hands'] += combo_data.get('total_hands', 0)
+                    aggregated_hand_matrix[hand_type]['combos'][combo]['total_bb_earnings'] += combo_data.get('total_bb_earnings', 0)
+            
+            # Aggregate RFI matrix
+            for hand_type, hand_data in rfi_matrix.items():
+                hand_data = normalize_entry(hand_data)
+                if hand_type not in aggregated_rfi_matrix:
+                    aggregated_rfi_matrix[hand_type] = {
+                        'total_rfi': 0,
+                        'combos': {}
+                    }
                 
-                # Aggregate RFI matrix
-                for hand_type, hand_data in rfi_matrix.items():
-                    hand_data = normalize_entry(hand_data)
-                    if hand_type not in aggregated_rfi_matrix:
-                        aggregated_rfi_matrix[hand_type] = {
-                            'total_rfi': 0,
-                            'combos': {}
-                        }
-                    
-                    aggregated_rfi_matrix[hand_type]['total_rfi'] += hand_data.get('total_rfi', 0)
-                    
-                    # Aggregate combos
-                    combos = normalize_entry(hand_data.get('combos', {}))
-                    for combo, combo_data in combos.items():
-                        combo_data = normalize_entry(combo_data)
-                        if combo not in aggregated_rfi_matrix[hand_type]['combos']:
-                            aggregated_rfi_matrix[hand_type]['combos'][combo] = {
-                                'total_rfi': 0
-                            }
-                        aggregated_rfi_matrix[hand_type]['combos'][combo]['total_rfi'] += combo_data.get('total_rfi', 0)
+                aggregated_rfi_matrix[hand_type]['total_rfi'] += hand_data.get('total_rfi', 0)
                 
-                # Aggregate 3-bet matrix
-                for hand_type, hand_data in three_bet_matrix.items():
-                    hand_data = normalize_entry(hand_data)
-                    if hand_type not in aggregated_three_bet_matrix:
-                        aggregated_three_bet_matrix[hand_type] = {
-                            'total_three_bet': 0,
-                            'combos': {}
+                # Aggregate combos
+                combos = normalize_entry(hand_data.get('combos', {}))
+                for combo, combo_data in combos.items():
+                    combo_data = normalize_entry(combo_data)
+                    if combo not in aggregated_rfi_matrix[hand_type]['combos']:
+                        aggregated_rfi_matrix[hand_type]['combos'][combo] = {
+                            'total_rfi': 0
                         }
-                    
-                    aggregated_three_bet_matrix[hand_type]['total_three_bet'] += hand_data.get('total_three_bet', 0)
-                    
-                    # Aggregate combos
-                    combos = normalize_entry(hand_data.get('combos', {}))
-                    for combo, combo_data in combos.items():
-                        combo_data = normalize_entry(combo_data)
-                        if combo not in aggregated_three_bet_matrix[hand_type]['combos']:
-                            aggregated_three_bet_matrix[hand_type]['combos'][combo] = {
-                                'total_three_bet': 0
-                            }
-                        aggregated_three_bet_matrix[hand_type]['combos'][combo]['total_three_bet'] += combo_data.get('total_three_bet', 0)
+                    aggregated_rfi_matrix[hand_type]['combos'][combo]['total_rfi'] += combo_data.get('total_rfi', 0)
+            
+            # Aggregate 3-bet matrix
+            for hand_type, hand_data in three_bet_matrix.items():
+                hand_data = normalize_entry(hand_data)
+                if hand_type not in aggregated_three_bet_matrix:
+                    aggregated_three_bet_matrix[hand_type] = {
+                        'total_three_bet': 0,
+                        'combos': {}
+                    }
                 
-                # Aggregate 4-bet matrix
-                for hand_type, hand_data in four_bet_matrix.items():
-                    hand_data = normalize_entry(hand_data)
-                    if hand_type not in aggregated_four_bet_matrix:
-                        aggregated_four_bet_matrix[hand_type] = {
-                            'total_four_bet': 0,
-                            'combos': {}
+                aggregated_three_bet_matrix[hand_type]['total_three_bet'] += hand_data.get('total_three_bet', 0)
+                
+                # Aggregate combos
+                combos = normalize_entry(hand_data.get('combos', {}))
+                for combo, combo_data in combos.items():
+                    combo_data = normalize_entry(combo_data)
+                    if combo not in aggregated_three_bet_matrix[hand_type]['combos']:
+                        aggregated_three_bet_matrix[hand_type]['combos'][combo] = {
+                            'total_three_bet': 0
                         }
-                    
-                    aggregated_four_bet_matrix[hand_type]['total_four_bet'] += hand_data.get('total_four_bet', 0)
-                    
-                    # Aggregate combos
-                    combos = normalize_entry(hand_data.get('combos', {}))
-                    for combo, combo_data in combos.items():
-                        combo_data = normalize_entry(combo_data)
-                        if combo not in aggregated_four_bet_matrix[hand_type]['combos']:
-                            aggregated_four_bet_matrix[hand_type]['combos'][combo] = {
-                                'total_four_bet': 0
-                            }
-                        aggregated_four_bet_matrix[hand_type]['combos'][combo]['total_four_bet'] += combo_data.get('total_four_bet', 0)
+                    aggregated_three_bet_matrix[hand_type]['combos'][combo]['total_three_bet'] += combo_data.get('total_three_bet', 0)
+            
+            # Aggregate 4-bet matrix
+            for hand_type, hand_data in four_bet_matrix.items():
+                hand_data = normalize_entry(hand_data)
+                if hand_type not in aggregated_four_bet_matrix:
+                    aggregated_four_bet_matrix[hand_type] = {
+                        'total_four_bet': 0,
+                        'combos': {}
+                    }
+                
+                aggregated_four_bet_matrix[hand_type]['total_four_bet'] += hand_data.get('total_four_bet', 0)
+                
+                # Aggregate combos
+                combos = normalize_entry(hand_data.get('combos', {}))
+                for combo, combo_data in combos.items():
+                    combo_data = normalize_entry(combo_data)
+                    if combo not in aggregated_four_bet_matrix[hand_type]['combos']:
+                        aggregated_four_bet_matrix[hand_type]['combos'][combo] = {
+                            'total_four_bet': 0
+                        }
+                    aggregated_four_bet_matrix[hand_type]['combos'][combo]['total_four_bet'] += combo_data.get('total_four_bet', 0)
         except (json.JSONDecodeError, KeyError, ValueError):
             continue
     
@@ -2129,26 +2233,21 @@ def aggregate_user_stats(user_id):
     
     for post in user_posts:
         try:
-            metrics_list = json.loads(post.data_frame_results)
-            if metrics_list and isinstance(metrics_list, list):
-                metrics = metrics_list[0]
+            metrics = load_post_metrics(post)
+            if not metrics:
+                continue
 
-                if isinstance(metrics, str):
+            leaks = metrics.get('Leak Detection', [])
+            if isinstance(leaks, str):
+                try:
+                    leaks = json.loads(leaks)
+                except json.JSONDecodeError:
                     try:
-                        metrics = json.loads(metrics)
-                    except json.JSONDecodeError:
-                        continue
-                if not isinstance(metrics, dict):
-                    continue
-
-                leaks = metrics.get('Leak Detection', [])
-                if isinstance(leaks, str):
-                    try:
-                        leaks = json.loads(leaks)
-                    except json.JSONDecodeError:
+                        leaks = ast.literal_eval(leaks)
+                    except Exception:
                         leaks = []
-                if not isinstance(leaks, list):
-                    leaks = []
+            if not isinstance(leaks, list):
+                leaks = []
 
                 for leak in leaks:
                     if isinstance(leak, str):
@@ -2229,6 +2328,30 @@ def aggregate_user_stats(user_id):
                 )
                 combo_data['total_bb_earnings'] = round(combo_data['total_bb_earnings'], 2)
     
+    # Aggregate rates across all posts (BB-based)
+    total_hands_all = aggregated_post_metrics['total_hands']
+    vpip_rate = (aggregated_post_metrics['vpip_count'] / total_hands_all * 100) if total_hands_all > 0 else 0
+    rfi_rate = (aggregated_post_metrics['rfi_count'] / aggregated_post_metrics['rfi_hands'] * 100) if aggregated_post_metrics['rfi_hands'] > 0 else 0
+    three_bet_rate = (aggregated_post_metrics['three_bet_count'] / aggregated_post_metrics['three_bet_opportunities'] * 100) if aggregated_post_metrics['three_bet_opportunities'] > 0 else 0
+    four_bet_rate = (aggregated_post_metrics['four_bet_count'] / aggregated_post_metrics['four_bet_opportunities'] * 100) if aggregated_post_metrics['four_bet_opportunities'] > 0 else 0
+    iso_raise_rate = (aggregated_post_metrics['iso_raise_count'] / aggregated_post_metrics['iso_raise_hands'] * 100) if aggregated_post_metrics['iso_raise_hands'] > 0 else 0
+    
+    def finalize_action_bucket(bucket):
+        total = bucket.get('total_hands', 0)
+        bucket['bet_pct'] = round((bucket.get('bets', 0) / total * 100), 1) if total > 0 else 0
+        bucket['check_pct'] = round((bucket.get('checks', 0) / total * 100), 1) if total > 0 else 0
+        return bucket
+    
+    def finalize_action_stats(action_stats):
+        finalize_action_bucket(action_stats)
+        for key in ['ip', 'oop', 'multiway']:
+            finalize_action_bucket(action_stats[key])
+        return action_stats
+    
+    aggregated_postflop['flop'] = finalize_action_stats(aggregated_postflop['flop'])
+    aggregated_postflop['turn'] = finalize_action_stats(aggregated_postflop['turn'])
+    aggregated_postflop['river'] = finalize_action_stats(aggregated_postflop['river'])
+    
     return {
         # Combined totals (in EUR)
         'total_combined_earnings_eur': round(total_combined_earnings_eur, 2),
@@ -2283,7 +2406,25 @@ def aggregate_user_stats(user_id):
         'aggregated_four_bet_matrix': aggregated_four_bet_matrix,
         'aggregated_positional_matchups': sorted_positional_matchups,
         'aggregated_leaks': aggregated_leaks,
-        'usd_to_eur_rate': USD_TO_EUR_RATE
+        'usd_to_eur_rate': USD_TO_EUR_RATE,
+        
+        # Aggregated post metrics (BB-based)
+        'agg_total_hands': aggregated_post_metrics['total_hands'],
+        'agg_total_bb_earnings': round(aggregated_post_metrics['total_bb_earnings'], 2),
+        'agg_vpip_count': aggregated_post_metrics['vpip_count'],
+        'agg_vpip_rate': round(vpip_rate, 2),
+        'agg_rfi_count': aggregated_post_metrics['rfi_count'],
+        'agg_rfi_rate': round(rfi_rate, 2),
+        'agg_three_bet_count': aggregated_post_metrics['three_bet_count'],
+        'agg_three_bet_opportunities': aggregated_post_metrics['three_bet_opportunities'],
+        'agg_three_bet_rate': round(three_bet_rate, 2),
+        'agg_four_bet_count': aggregated_post_metrics['four_bet_count'],
+        'agg_four_bet_opportunities': aggregated_post_metrics['four_bet_opportunities'],
+        'agg_four_bet_rate': round(four_bet_rate, 2),
+        'agg_iso_raise_count': aggregated_post_metrics['iso_raise_count'],
+        'agg_iso_raise_rate': round(iso_raise_rate, 2),
+        'agg_postflop_action': aggregated_postflop,
+        'aggregated_matchup_debug': aggregated_matchup_debug
     }
 
 
@@ -2297,14 +2438,54 @@ def user_profile(username):
         flash('User not found.', category='error')
         return redirect(url_for('views.all_posts'))
     
+    # Parse filters
+    from datetime import datetime, timedelta
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    stake_filter = request.args.get('stake') or None
+    site_filter = request.args.get('site') or None
+    start_date = None
+    end_date = None
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+    except ValueError:
+        start_date = None
+        end_date = None
+    
+    filters = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'stake': normalize_stake(stake_filter) if stake_filter else None,
+        'site': site_filter
+    }
+    
+    # Filter options
+    all_posts = Post.query.filter_by(author=user.id).all()
+    stake_options = sorted({normalize_stake(p.stake) for p in all_posts if p.stake})
+    site_options = sorted({p.category for p in all_posts if p.category})
+    
     # Get aggregated statistics
-    stats = aggregate_user_stats(user.id)
+    stats = aggregate_user_stats(user.id, filters=filters)
     
     return render_template('user_profile.html', 
                          user=current_user,
                          profile_user=user, 
                          stats=stats, 
-                         current_user=current_user)
+                         current_user=current_user,
+                         filters=filters,
+                         filter_values={
+                             'start_date': start_date_str or '',
+                             'end_date': end_date_str or '',
+                             'stake': stake_filter or '',
+                             'site': site_filter or ''
+                         },
+                         filter_options={
+                             'stakes': stake_options,
+                             'sites': site_options
+                         })
 
 
 @views.route('/my-profile')

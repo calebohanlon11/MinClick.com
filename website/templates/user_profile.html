@@ -42,6 +42,44 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Profile Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ filter_values.start_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ filter_values.end_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Stake</label>
+                        <select name="stake" class="form-select">
+                            <option value="">All</option>
+                            {% for stake in filter_options.stakes %}
+                            <option value="{{ stake }}" {% if filter_values.stake == stake %}selected{% endif %}>{{ stake }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Site</label>
+                        <select name="site" class="form-select">
+                            <option value="">All</option>
+                            {% for site in filter_options.sites %}
+                            <option value="{{ site }}" {% if filter_values.site == site %}selected{% endif %}>{{ site }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        <a href="{{ url_for('views.user_profile', username=profile_user.username) }}" class="btn btn-outline-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- Combined Total Earnings (EUR) -->
         <div class="row mb-4">
@@ -64,6 +102,133 @@
                         </p>
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Big Picture (BB) -->
+        <div class="row mb-4">
+            <div class="col-12 mb-3">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Big Picture (All Posts, BB)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">Total BB</h6>
+                                <h4 class="{% if stats.agg_total_bb_earnings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ stats.agg_total_bb_earnings }} BB
+                                </h4>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">BB/100</h6>
+                                <h4 class="text-info">
+                                    {% if stats.agg_total_hands > 0 %}
+                                    {{ "%.2f"|format((stats.agg_total_bb_earnings / stats.agg_total_hands) * 100) }}
+                                    {% else %}
+                                    0.00
+                                    {% endif %}
+                                </h4>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">Total Hands</h6>
+                                <h4>{{ stats.agg_total_hands }}</h4>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">VPIP</h6>
+                                <h4 class="text-info">{{ stats.agg_vpip_rate }}%</h4>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">RFI</h6>
+                                <h4 class="text-info">{{ stats.agg_rfi_rate }}%</h4>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">3-Bet</h6>
+                                <h4 class="text-info">{{ stats.agg_three_bet_rate }}%</h4>
+                                <small class="text-muted">{{ stats.agg_three_bet_count }} / {{ stats.agg_three_bet_opportunities }}</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">4-Bet</h6>
+                                <h4 class="text-info">{{ stats.agg_four_bet_rate }}%</h4>
+                                <small class="text-muted">{{ stats.agg_four_bet_count }} / {{ stats.agg_four_bet_opportunities }}</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <h6 class="text-muted">Iso-Raise</h6>
+                                <h4 class="text-info">{{ stats.agg_iso_raise_rate }}%</h4>
+                                <small class="text-muted">{{ stats.agg_iso_raise_count }} hands</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Postflop Action Frequencies -->
+        {% set postflop = stats.agg_postflop_action %}
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Postflop Action Frequencies (Aggregated)</h5>
+            </div>
+            <div class="card-body">
+                {% for street_label, street_key in [('Flop','flop'), ('Turn','turn'), ('River','river')] %}
+                {% set street = postflop.get(street_key, {}) %}
+                <h6 class="text-muted mb-2">{{ street_label }}</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Bucket</th>
+                                <th>Total Hands</th>
+                                <th>Bet %</th>
+                                <th>Check %</th>
+                                <th>Calls</th>
+                                <th>Raises</th>
+                                <th>Folds</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Overall</strong></td>
+                                <td>{{ street.total_hands }}</td>
+                                <td>{{ street.bet_pct }}%</td>
+                                <td>{{ street.check_pct }}%</td>
+                                <td>{{ street.calls }}</td>
+                                <td>{{ street.raises }}</td>
+                                <td>{{ street.folds }}</td>
+                            </tr>
+                            <tr>
+                                <td>IP</td>
+                                <td>{{ street.ip.total_hands }}</td>
+                                <td>{{ street.ip.bet_pct }}%</td>
+                                <td>{{ street.ip.check_pct }}%</td>
+                                <td>{{ street.ip.calls }}</td>
+                                <td>{{ street.ip.raises }}</td>
+                                <td>{{ street.ip.folds }}</td>
+                            </tr>
+                            <tr>
+                                <td>OOP</td>
+                                <td>{{ street.oop.total_hands }}</td>
+                                <td>{{ street.oop.bet_pct }}%</td>
+                                <td>{{ street.oop.check_pct }}%</td>
+                                <td>{{ street.oop.calls }}</td>
+                                <td>{{ street.oop.raises }}</td>
+                                <td>{{ street.oop.folds }}</td>
+                            </tr>
+                            <tr>
+                                <td>Multiway</td>
+                                <td>{{ street.multiway.total_hands }}</td>
+                                <td>{{ street.multiway.bet_pct }}%</td>
+                                <td>{{ street.multiway.check_pct }}%</td>
+                                <td>{{ street.multiway.calls }}</td>
+                                <td>{{ street.multiway.raises }}</td>
+                                <td>{{ street.multiway.folds }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {% endfor %}
             </div>
         </div>
 
@@ -408,13 +573,20 @@
                         <div class="tab-content mt-3" id="analyticsTabContent">
                             {% if stats.aggregated_positional_matchups %}
                             <div class="tab-pane fade show active" id="matchups-panel" role="tabpanel">
+                                <details class="mb-3">
+                                    <summary class="text-muted">Debug: show matchup sources</summary>
+                                    <div class="mt-2">
+                                        <pre class="small bg-light p-2 border rounded" style="max-height: 220px; overflow:auto;">{{ stats.aggregated_matchup_debug | tojson(indent=2) }}</pre>
+                                    </div>
+                                </details>
                                 {% macro render_matchup_table(pot_type, matchups_data) %}
                                 {% if matchups_data and matchups_data|length > 0 %}
                                 {% set table_id = pot_type|lower|replace(' ', '-')|replace('(', '')|replace(')', '')|replace('[', '')|replace(']', '')|replace(',', '')|replace('+', '') %}
+                                {% set pot_hand_count = matchups_data.values()|map(attribute='total_hands')|sum %}
                                 <div class="card mb-3">
                                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
                                         <div>
-                                            <h4 class="mb-0">{{ pot_type }}</h4>
+                                            <h4 class="mb-0">{{ pot_type }} <small class="text-muted">({{ pot_hand_count }} hands)</small></h4>
                                             <p class="mb-0"><small>BB earnings for each Hero Position vs Villain Position matchup</small></p>
                                         </div>
                                         <div class="mt-2 mt-md-0">

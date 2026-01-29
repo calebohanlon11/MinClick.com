@@ -577,7 +577,7 @@ class LadbrooksPokerHandProcessor:
 
     def csv_process_poker_hand(self, processed_data):
         columns = [
-            'vpip', 'position', 'no_players', 'limp', 'rfi', 'call_rfi', 'three_bet', 'call_three_bet',
+            'hand_id', 'vpip', 'position', 'no_players', 'limp', 'rfi', 'call_rfi', 'three_bet', 'call_three_bet',
             'four_bet', 'call_four_bet', 'five_bet', 'call_five_bet', 'six_bet', 'call_six_bet', 'flop', 'fold',
             'hero_saw_flop', 'hero_is_active_on_flop', 'hero_saw_turn', 'hero_is_active_on_turn',
             'hero_saw_river', 'hero_is_active_on_river',
@@ -646,6 +646,7 @@ class LadbrooksPokerHandProcessor:
                 vpip = False
             
             hand_data = {
+                "hand_id": hand.get('hand_id'),
                 "hand_result": hand_result,
                 "vpip": vpip,  # Use HandHistory vpip if available, otherwise from process_summary
                 "position": hand.get('Hero Position', hand.get('position', '')),
@@ -778,12 +779,28 @@ class LadbrooksPokerHandProcessor:
         """Parse hand header to extract metadata"""
         header_data = {}
         
-        # Extract hand ID
-        hand_id_match = re.search(r'\*\*\*\*\* Hand History For Game (\S+)', hand)
+        # Extract hand ID (support multiple header formats)
+        hand_id = None
+        hand_id_match = re.search(r'\*+\s*Hand History For Game\s+(\S+)', hand, re.IGNORECASE)
+        if not hand_id_match:
+            hand_id_match = re.search(r'Hand History(?:\s*for\s*Game)?\s*#?\s*(\S+)', hand, re.IGNORECASE)
+        if not hand_id_match:
+            hand_id_match = re.search(r'Game\s*ID[:\s]+(\S+)', hand, re.IGNORECASE)
         if hand_id_match:
-            header_data['hand_id'] = hand_id_match.group(1)
+            hand_id = hand_id_match.group(1)
         else:
-            header_data['hand_id'] = "unknown"
+            # If the split removed the prefix, the first line often starts with the id
+            first_line = hand.split('\n')[0].strip() if hand else ""
+            if first_line and '*****' in first_line:
+                candidate = first_line.split('*****')[0].strip()
+                if candidate:
+                    hand_id = candidate
+            elif first_line and not re.search(r'(holdem|table|total number of players|seat)', first_line, re.IGNORECASE):
+                token = first_line.split()[0].strip('*') if first_line.split() else ""
+                if token and '/' not in token:
+                    hand_id = token
+
+        header_data['hand_id'] = hand_id or "unknown"
         
         # Extract timestamp
         timestamp_match = re.search(r'(\w{3} \d{1,2} \d{2}:\d{2}:\d{2} \w{3} \d{4})', hand)
@@ -1245,6 +1262,10 @@ class LadbrooksPokerHandProcessor:
         
         # Try each pattern - process in order: bet (most specific), lost, didn't bet
         for match in re.finditer(pattern_bet, summary_section):
+            line_text = match.group(0).lower() if match else ""
+            # Skip lines that are clearly "lost" or "didn't bet" so they can be handled by their patterns
+            if re.search(r'\blost\b', line_text) or "didn't bet" in line_text or "didnt bet" in line_text:
+                continue
             try:
                 player_name = match.group(1)
                 if player_name in processed_players:
@@ -2417,7 +2438,12 @@ class LadbrooksPokerHandProcessor:
             hands = self.data.strip().split("***** Hand History For Game")
             if len(hands) <= 1:
                 return False, "Basic processing impossible: No hand histories found.", self.data
-            valid_hands = [hand.strip() for hand in hands[1:] if self.validate_hand(hand.strip())]
+            valid_hands = []
+            for hand in hands[1:]:
+                hand = hand.strip()
+                if self.validate_hand(hand):
+                    # Restore the original header prefix so header parsing can extract hand_id
+                    valid_hands.append(f"***** Hand History For Game{hand}")
             if len(valid_hands) < len(hands) - 1:
                 return True, "Dataset has trimmed non six-max hands", valid_hands
             return True, "Dataset is valid", valid_hands
@@ -4231,6 +4257,10 @@ class LadbrooksPokerHandProcessor:
             raw_hand = row.get('Raw Hand', '')
             if not raw_hand:
                 continue
+            
+            # Only include hands where Hero saw the flop
+            if not row.get('hero_saw_flop', False):
+                continue
                 
             villain_position = self._get_villain_position_from_raw_hand(raw_hand, hero_position)
             
@@ -4465,7 +4495,8 @@ class LadbrooksPokerHandProcessor:
                     'total_hands': 0,
                     'total_bb_earnings': 0.0,
                     'total_earnings': 0.0,
-                    'avg_bb_per_hand': 0.0
+                    'avg_bb_per_hand': 0.0,
+                    'hand_ids': []
                 }
             
             # Calculate BB earnings safely
@@ -4487,6 +4518,9 @@ class LadbrooksPokerHandProcessor:
             matchups[pot_type][matchup_key]['total_hands'] += 1
             matchups[pot_type][matchup_key]['total_bb_earnings'] += bb_earnings
             matchups[pot_type][matchup_key]['total_earnings'] += earnings
+            hand_id = row.get('hand_id')
+            if hand_id:
+                matchups[pot_type][matchup_key]['hand_ids'].append(hand_id)
         
         # Calculate averages and round values
         for pot_type in list(matchups.keys()):

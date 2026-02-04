@@ -87,6 +87,74 @@ from .Learning_question_generator import get_quantmath_questions
 views = Blueprint("views", __name__)
 import datetime
 
+POKER_MATH_MODULES = [
+    {
+        "id": "probability",
+        "title": "Probability & Counting",
+        "summary": "Core counting, combinations, and probability basics.",
+        "bullets": [
+            "Complements and conditional probability",
+            "Combinations (nCr)",
+            "Starting hand combo counts",
+            "Range and board combo counting",
+            "Blocker effects",
+        ],
+    },
+    {
+        "id": "outs",
+        "title": "Outs & Equity",
+        "summary": "Outs, draw odds, and equity approximations.",
+        "bullets": [
+            "Rule of 2 & 4",
+            "Exact draw probability",
+            "Clean vs dirty outs",
+            "Backdoor draw probabilities",
+        ],
+    },
+    {
+        "id": "pot_odds",
+        "title": "Pot Odds & Implied Odds",
+        "summary": "Break-even calls and implied odds calculations.",
+        "bullets": [
+            "Required equity to call",
+            "Multiway pot odds",
+            "Implied and reverse implied odds",
+            "SPR (stack-to-pot ratio)",
+        ],
+    },
+    {
+        "id": "ev",
+        "title": "EV & Betting Math",
+        "summary": "EV for calls, bets, and bluffs.",
+        "bullets": [
+            "EV of a call",
+            "EV of a bet/raise",
+            "Bluff break-even fold %",
+            "Bluffcatch required win rate",
+            "Value bet threshold",
+        ],
+    },
+    {
+        "id": "mdf",
+        "title": "Defense Frequencies (MDF)",
+        "summary": "Minimum defense frequency vs bet sizes.",
+        "bullets": [
+            "MDF formula and sizing examples",
+            "Defend vs common bet sizes",
+        ],
+    },
+    {
+        "id": "rake",
+        "title": "Cash Game Rake Impact",
+        "summary": "Rake-adjusted EV and break-even thresholds.",
+        "bullets": [
+            "Rake % and cap",
+            "Rake-adjusted EV",
+            "Break-even equity with rake",
+        ],
+    },
+]
+
 @views.route('/')
 def landing():
     if current_user.is_authenticated:
@@ -1294,6 +1362,44 @@ def admin_delete_comment():
 @login_required
 def learning():
     return render_template('learning_base.html', user=current_user)
+
+
+@views.route('/poker-math')
+@login_required
+def poker_math_index():
+    return render_template('poker_math/index.html', user=current_user, modules=POKER_MATH_MODULES)
+
+
+@views.route('/poker-math/<module_id>/learn')
+@login_required
+def poker_math_learn(module_id):
+    module = next((m for m in POKER_MATH_MODULES if m["id"] == module_id), None)
+    if not module:
+        flash('Module not found.', category='error')
+        return redirect(url_for('views.poker_math_index'))
+    return render_template('poker_math/learn.html', user=current_user, module=module)
+
+
+@views.route('/poker-math/<module_id>/quiz')
+@login_required
+def poker_math_quiz(module_id):
+    module = next((m for m in POKER_MATH_MODULES if m["id"] == module_id), None)
+    if not module:
+        flash('Module not found.', category='error')
+        return redirect(url_for('views.poker_math_index'))
+    return render_template('poker_math/quiz.html', user=current_user, module=module, mode='module')
+
+
+@views.route('/poker-math/mixed')
+@login_required
+def poker_math_mixed():
+    return render_template('poker_math/quiz.html', user=current_user, module=None, mode='mixed')
+
+
+@views.route('/poker-math/results')
+@login_required
+def poker_math_results():
+    return render_template('poker_math/results.html', user=current_user, modules=POKER_MATH_MODULES)
 
 
 @views.route('/complete_signup')

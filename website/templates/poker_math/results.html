@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Poker Math Results{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='poker_math/poker_math.css') }}">
+
+<div class="container my-4 poker-math">
+  <a class="btn btn-link mb-3" href="{{ url_for('views.poker_math_index') }}">
+    <i class="fas fa-arrow-left me-1"></i>Back to modules
+  </a>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h3 class="mb-3">Quiz Results</h3>
+      <div id="resultsSummary" class="mb-3"></div>
+
+      <h5>Module Breakdown</h5>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>Module</th>
+              <th>Correct</th>
+              <th>Total</th>
+              <th>Accuracy</th>
+              <th>Recommendation</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBreakdown"></tbody>
+        </table>
+      </div>
+
+      <h5 class="mt-4">Missed Questions</h5>
+      <div id="resultsMissed"></div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='poker_math/math_utils.js') }}"></script>
+<script src="{{ url_for('static', filename='poker_math/question_bank.js') }}"></script>
+<script src="{{ url_for('static', filename='poker_math/poker_math.js') }}"></script>
+{% endblock %}

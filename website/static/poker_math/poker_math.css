@@ -1,0 +1,36 @@
+.poker-math .quiz-prompt {
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.poker-math .choice-btn {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+.poker-math .feedback-correct {
+  border-left: 4px solid #28a745;
+  background: #f0fff4;
+  padding: 0.75rem;
+}
+
+.poker-math .feedback-wrong {
+  border-left: 4px solid #dc3545;
+  background: #fff5f5;
+  padding: 0.75rem;
+}
+
+.poker-math .formula {
+  font-family: "Courier New", monospace;
+  background: #f8f9fa;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.poker-math .results-card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}

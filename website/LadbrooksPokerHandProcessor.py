@@ -3691,6 +3691,61 @@ class LadbrooksPokerHandProcessor:
         
         return analysis
 
+    def calculate_action_matrix_analysis(self, dataframe, action_key, total_key):
+        """Calculate hand matrix counts for a specific preflop action."""
+        analysis = {}
+        rank_names = {14: 'A', 13: 'K', 12: 'Q', 11: 'J', 10: 'T', 9: '9', 8: '8', 7: '7', 6: '6', 5: '5', 4: '4', 3: '3', 2: '2'}
+
+        for _, row in dataframe.iterrows():
+            if not row.get(action_key, False):
+                continue
+
+            hand = row.get('hand', [])
+            if not hand or not isinstance(hand, list) or len(hand) < 2:
+                continue
+
+            card1 = hand[0].strip().upper() if isinstance(hand[0], str) else str(hand[0]).strip().upper()
+            card2 = hand[1].strip().upper() if isinstance(hand[1], str) else str(hand[1]).strip().upper()
+
+            if len(card1) < 2 or len(card2) < 2:
+                continue
+
+            rank1 = self._parse_card_rank(card1)
+            rank2 = self._parse_card_rank(card2)
+            suit1 = card1[-1] if len(card1) > 1 else ''
+            suit2 = card2[-1] if len(card2) > 1 else ''
+
+            # Determine combo name
+            if rank1 == rank2:
+                combo = f'{rank_names.get(rank1, str(rank1))}{rank_names.get(rank2, str(rank2))}'
+            elif suit1 == suit2:
+                if rank1 > rank2:
+                    combo = f'{rank_names.get(rank1, str(rank1))}{rank_names.get(rank2, str(rank2))}s'
+                else:
+                    combo = f'{rank_names.get(rank2, str(rank2))}{rank_names.get(rank1, str(rank1))}s'
+            else:
+                if rank1 > rank2:
+                    combo = f'{rank_names.get(rank1, str(rank1))}{rank_names.get(rank2, str(rank2))}o'
+                else:
+                    combo = f'{rank_names.get(rank2, str(rank2))}{rank_names.get(rank1, str(rank1))}o'
+
+            if combo not in analysis:
+                analysis[combo] = {
+                    total_key: 0,
+                    'combos': {}
+                }
+
+            analysis[combo][total_key] += 1
+
+            suit_combo = f'{card1}{card2}'
+            if suit_combo not in analysis[combo]['combos']:
+                analysis[combo]['combos'][suit_combo] = {
+                    total_key: 0
+                }
+            analysis[combo]['combos'][suit_combo][total_key] += 1
+
+        return analysis
+
     def calculate_ip_op_profitability(self, dataframe):
         ip_profitability = 0
         op_profitability = 0
@@ -5553,6 +5608,12 @@ class LadbrooksPokerHandProcessor:
             
             # Ensure total_hands matches the categorized totals
             stats['total_hands'] = stats['ip']['total'] + stats['oop']['total'] + stats['multiway']['total']
+            # Populate overall action counts from buckets
+            stats['bets'] = stats['ip']['bets'] + stats['oop']['bets'] + stats['multiway']['bets']
+            stats['checks'] = stats['ip']['checks'] + stats['oop']['checks'] + stats['multiway']['checks']
+            stats['calls'] = stats['ip']['calls'] + stats['oop']['calls'] + stats['multiway']['calls']
+            stats['folds'] = stats['ip']['folds'] + stats['oop']['folds'] + stats['multiway']['folds']
+            stats['raises'] = stats['ip']['raises'] + stats['oop']['raises'] + stats['multiway']['raises']
             
             return stats
 
@@ -6300,6 +6361,25 @@ class LadbrooksPokerHandProcessor:
             import traceback
             traceback.print_exc()
             hand_matrix = {'Pairs': {}, 'Suited': {}, 'Offsuit': {}}
+
+        # Calculate RFI/3-bet/4-bet matrices (counts)
+        try:
+            rfi_matrix = self.calculate_action_matrix_analysis(dataframe, 'rfi', 'total_rfi')
+        except Exception as e:
+            print(f"Error calculating RFI matrix: {e}")
+            rfi_matrix = {}
+
+        try:
+            three_bet_matrix = self.calculate_action_matrix_analysis(dataframe, 'three_bet', 'total_three_bet')
+        except Exception as e:
+            print(f"Error calculating 3-bet matrix: {e}")
+            three_bet_matrix = {}
+
+        try:
+            four_bet_matrix = self.calculate_action_matrix_analysis(dataframe, 'four_bet', 'total_four_bet')
+        except Exception as e:
+            print(f"Error calculating 4-bet matrix: {e}")
+            four_bet_matrix = {}
         
         # Calculate leak detection
         try:
@@ -6390,6 +6470,9 @@ class LadbrooksPokerHandProcessor:
         results['River High Card Analysis'] = river_high_card
         results['Board High Card Analysis'] = board_high_card
         results['Hand Matrix Analysis'] = hand_matrix
+        results['RFI Matrix Analysis'] = rfi_matrix
+        results['3-Bet Matrix Analysis'] = three_bet_matrix
+        results['4-Bet Matrix Analysis'] = four_bet_matrix
         results['Leak Detection'] = leaks
         results['Positional Matchups'] = overall_positional_matchups  # Overall matchups for boards and hands section
         results['Flop Positional Matchups'] = flop_positional_matchups
@@ -6400,7 +6483,8 @@ class LadbrooksPokerHandProcessor:
         # Convert nested dicts to JSON strings so pandas can serialize them properly
         import json
         nested_keys = ['Flop High Card Analysis', 'Turn High Card Analysis', 'River High Card Analysis', 
-                      'Board High Card Analysis', 'Hand Matrix Analysis', 'Leak Detection',
+                      'Board High Card Analysis', 'Hand Matrix Analysis', 'RFI Matrix Analysis',
+                      '3-Bet Matrix Analysis', '4-Bet Matrix Analysis', 'Leak Detection',
                       'Positional Matchups', 'Flop Positional Matchups', 'Turn Positional Matchups', 'River Positional Matchups',
                       'Biggest Hands',
                       'VPIP Info', 'RFI VPIP Info', 'Three bet info', 'Four bet info', 'Iso Raise info', 'Positional Profitability',

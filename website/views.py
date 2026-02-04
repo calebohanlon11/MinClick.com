@@ -2111,7 +2111,7 @@ def aggregate_user_stats(user_id, filters=None):
             key=lambda x: x[1]['total_bb_earnings']
         ))
     
-    # Aggregate Hand Matrix Analysis
+    # Aggregate Hand Matrix Analysis (flattened by combo for UI)
     aggregated_hand_matrix = {}
     aggregated_rfi_matrix = {}
     aggregated_three_bet_matrix = {}
@@ -2135,32 +2135,33 @@ def aggregate_user_stats(user_id, filters=None):
             three_bet_matrix = normalize_matrix(metrics.get('3-Bet Matrix Analysis', {}))
             four_bet_matrix = normalize_matrix(metrics.get('4-Bet Matrix Analysis', {}))
             
-            # Aggregate BB earnings hand matrix
-            for hand_type, hand_data in hand_matrix.items():
+            # Aggregate BB earnings hand matrix (flatten by combo: "AKs", "KQo", "TT")
+            for _, hand_data in hand_matrix.items():
                 hand_data = normalize_entry(hand_data)
-                if hand_type not in aggregated_hand_matrix:
-                    aggregated_hand_matrix[hand_type] = {
-                        'total_hands': 0,
-                        'total_bb_earnings': 0.0,
-                        'avg_bb_per_hand': 0.0,
-                        'combos': {}
-                    }
-                
-                aggregated_hand_matrix[hand_type]['total_hands'] += hand_data.get('total_hands', 0)
-                aggregated_hand_matrix[hand_type]['total_bb_earnings'] += hand_data.get('total_bb_earnings', 0)
-                
-                # Aggregate combos
-                combos = normalize_entry(hand_data.get('combos', {}))
-                for combo, combo_data in combos.items():
+                for combo, combo_data in hand_data.items():
                     combo_data = normalize_entry(combo_data)
-                    if combo not in aggregated_hand_matrix[hand_type]['combos']:
-                        aggregated_hand_matrix[hand_type]['combos'][combo] = {
+                    if combo not in aggregated_hand_matrix:
+                        aggregated_hand_matrix[combo] = {
                             'total_hands': 0,
                             'total_bb_earnings': 0.0,
-                            'avg_bb_per_hand': 0.0
+                            'avg_bb_per_hand': 0.0,
+                            'combos': {}
                         }
-                    aggregated_hand_matrix[hand_type]['combos'][combo]['total_hands'] += combo_data.get('total_hands', 0)
-                    aggregated_hand_matrix[hand_type]['combos'][combo]['total_bb_earnings'] += combo_data.get('total_bb_earnings', 0)
+                    aggregated_hand_matrix[combo]['total_hands'] += combo_data.get('total_hands', 0)
+                    aggregated_hand_matrix[combo]['total_bb_earnings'] += combo_data.get('total_bb_earnings', 0)
+
+                    # Aggregate suit combos
+                    suit_combos = normalize_entry(combo_data.get('combos', {}))
+                    for suit_combo, suit_data in suit_combos.items():
+                        suit_data = normalize_entry(suit_data)
+                        if suit_combo not in aggregated_hand_matrix[combo]['combos']:
+                            aggregated_hand_matrix[combo]['combos'][suit_combo] = {
+                                'total_hands': 0,
+                                'total_bb_earnings': 0.0,
+                                'avg_bb_per_hand': 0.0
+                            }
+                        aggregated_hand_matrix[combo]['combos'][suit_combo]['total_hands'] += suit_data.get('total_hands', 0)
+                        aggregated_hand_matrix[combo]['combos'][suit_combo]['total_bb_earnings'] += suit_data.get('total_bb_earnings', 0)
             
             # Aggregate RFI matrix
             for hand_type, hand_data in rfi_matrix.items():
@@ -2226,6 +2227,19 @@ def aggregate_user_stats(user_id, filters=None):
                     aggregated_four_bet_matrix[hand_type]['combos'][combo]['total_four_bet'] += combo_data.get('total_four_bet', 0)
         except (json.JSONDecodeError, KeyError, ValueError):
             continue
+
+    # Calculate averages for flattened hand matrix
+    for combo, combo_data in aggregated_hand_matrix.items():
+        total_hands = combo_data.get('total_hands', 0)
+        if total_hands:
+            combo_data['avg_bb_per_hand'] = round(combo_data['total_bb_earnings'] / total_hands, 2)
+            combo_data['total_bb_earnings'] = round(combo_data['total_bb_earnings'], 2)
+        suit_combos = combo_data.get('combos', {})
+        for suit_combo, suit_data in suit_combos.items():
+            suit_hands = suit_data.get('total_hands', 0)
+            if suit_hands:
+                suit_data['avg_bb_per_hand'] = round(suit_data['total_bb_earnings'] / suit_hands, 2)
+                suit_data['total_bb_earnings'] = round(suit_data['total_bb_earnings'], 2)
     
     # Aggregate Leak Detection
     aggregated_leaks = []
@@ -2306,27 +2320,49 @@ def aggregate_user_stats(user_id, filters=None):
     
     aggregated_leaks.sort(key=lambda x: x.get('impact', 0), reverse=True)
     
-    # Calculate averages for hand matrix
-    for hand_type in aggregated_hand_matrix:
-        if aggregated_hand_matrix[hand_type]['total_hands'] > 0:
-            aggregated_hand_matrix[hand_type]['avg_bb_per_hand'] = round(
-                aggregated_hand_matrix[hand_type]['total_bb_earnings'] / 
-                aggregated_hand_matrix[hand_type]['total_hands'], 
-                2
-            )
-            aggregated_hand_matrix[hand_type]['total_bb_earnings'] = round(
-                aggregated_hand_matrix[hand_type]['total_bb_earnings'], 2
-            )
-        
-        # Calculate combo averages
-        for combo in aggregated_hand_matrix[hand_type]['combos']:
-            combo_data = aggregated_hand_matrix[hand_type]['combos'][combo]
-            if combo_data['total_hands'] > 0:
-                combo_data['avg_bb_per_hand'] = round(
-                    combo_data['total_bb_earnings'] / combo_data['total_hands'], 
-                    2
-                )
-                combo_data['total_bb_earnings'] = round(combo_data['total_bb_earnings'], 2)
+    # Normalize hand matrix to flat combo map if needed
+    if any(key in aggregated_hand_matrix for key in ('Pairs', 'Suited', 'Offsuit')):
+        flat_hand_matrix = {}
+        for group_key in ('Pairs', 'Suited', 'Offsuit'):
+            group_data = aggregated_hand_matrix.get(group_key, {})
+            if not isinstance(group_data, dict):
+                continue
+            for combo, combo_data in group_data.items():
+                if not isinstance(combo_data, dict):
+                    continue
+                if combo not in flat_hand_matrix:
+                    flat_hand_matrix[combo] = {
+                        'total_hands': 0,
+                        'total_bb_earnings': 0.0,
+                        'avg_bb_per_hand': 0.0,
+                        'combos': {}
+                    }
+                flat_hand_matrix[combo]['total_hands'] += combo_data.get('total_hands', 0)
+                flat_hand_matrix[combo]['total_bb_earnings'] += combo_data.get('total_bb_earnings', 0)
+                suit_combos = combo_data.get('combos', {}) if isinstance(combo_data.get('combos', {}), dict) else {}
+                for suit_combo, suit_data in suit_combos.items():
+                    if suit_combo not in flat_hand_matrix[combo]['combos']:
+                        flat_hand_matrix[combo]['combos'][suit_combo] = {
+                            'total_hands': 0,
+                            'total_bb_earnings': 0.0,
+                            'avg_bb_per_hand': 0.0
+                        }
+                    flat_hand_matrix[combo]['combos'][suit_combo]['total_hands'] += suit_data.get('total_hands', 0)
+                    flat_hand_matrix[combo]['combos'][suit_combo]['total_bb_earnings'] += suit_data.get('total_bb_earnings', 0)
+        aggregated_hand_matrix = flat_hand_matrix
+
+    # Calculate averages for flattened hand matrix
+    for combo, combo_data in aggregated_hand_matrix.items():
+        total_hands = combo_data.get('total_hands', 0)
+        if total_hands:
+            combo_data['avg_bb_per_hand'] = round(combo_data['total_bb_earnings'] / total_hands, 2)
+            combo_data['total_bb_earnings'] = round(combo_data['total_bb_earnings'], 2)
+        suit_combos = combo_data.get('combos', {})
+        for suit_combo, suit_data in suit_combos.items():
+            suit_hands = suit_data.get('total_hands', 0)
+            if suit_hands:
+                suit_data['avg_bb_per_hand'] = round(suit_data['total_bb_earnings'] / suit_hands, 2)
+                suit_data['total_bb_earnings'] = round(suit_data['total_bb_earnings'], 2)
     
     # Aggregate rates across all posts (BB-based)
     total_hands_all = aggregated_post_metrics['total_hands']

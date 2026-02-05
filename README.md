@@ -34,9 +34,13 @@ The main parsing logic lives in `website/LadbrooksPokerHandProcessor.py`. It:
 - Aggregates positional profitability and multiway breakdowns
 - Builds hand and action matrices for deeper range analysis
 
+## Learning Section
+The learning section includes basic math practice, quant math quizzes, and poker math
+fundamentals. It provides short lessons and quizzes on topics like combinatorics,
+pot odds, EV, and defense frequencies.
+
 ## Poker Math Module
-The poker math learning section provides short lessons and quizzes on fundamentals
-such as combinatorics, pot odds, EV, and defense frequencies. It lives under:
+The poker math content lives under:
 - Templates: `website/templates/poker_math/`
 - Scripts/CSS: `website/static/poker_math/`
 - Routes: `website/views.py`

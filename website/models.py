@@ -72,6 +72,10 @@ class QuantMathResult(db.Model):
     mean_coupon_time = db.Column(db.Float, nullable=False)
     mean_option_time = db.Column(db.Float, nullable=False)
     mean_ev_time = db.Column(db.Float, nullable=False)
+    score = db.Column(db.Float, nullable=True)
+    correct_count = db.Column(db.Integer, nullable=True)
+    total_questions = db.Column(db.Integer, nullable=True)
+    quiz_type = db.Column(db.String(20), nullable=True, default='quant')
     timestamp = db.Column(db.DateTime, default=func.now(), nullable=False)
 
 class LiveSession(db.Model):

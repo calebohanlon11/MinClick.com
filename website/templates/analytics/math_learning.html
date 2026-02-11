@@ -1,102 +1,221 @@
 {% block content %}
-
-<h2 align="center">Quant Maths Analytics</h2>
 <div class="container my-4">
-    {% if not quiz_results %}
-    <div class="alert alert-warning text-center" role="alert">
-        Sorry, no quiz results.
-    </div>
+    {% if not math_learning_data %}
+        <div class="alert alert-warning text-center" role="alert">
+            Sorry, no quiz results yet.
+        </div>
     {% else %}
-    <table class="table table-sm table-bordered table-hover small-table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Total (s)</th>
-                <th>Bayes (s)</th>
-                <th>Coupon (s)</th>
-                <th>Option (s)</th>
-                <th>EV (s)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for result in quiz_results|reverse %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ result.timestamp.strftime('%Y-%m-%d') if result.timestamp else 'N/A' }}</td>
-                <td>{{ result.total_time }}</td>
-                <td>{{ result.mean_bayes_time }}</td>
-                <td>{{ result.mean_coupon_time }}</td>
-                <td>{{ result.mean_option_time }}</td>
-                <td>{{ result.mean_ev_time }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="mb-0">Quant Maths Analytics</h2>
+                <p class="text-muted mb-0">Performance overview across Arithmatic and Quant Math quizzes.</p>
+            </div>
+            <span class="badge bg-light text-dark">Last attempt: {{ math_learning_data.last_attempt_date }}</span>
+        </div>
 
-    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#chartContainer" aria-expanded="false" aria-controls="chartContainer">
-        View Charts
-    </button>
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Total Attempts</h6>
+                        <h3 class="mb-0">{{ math_learning_data.total_attempts }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Average Total Time</h6>
+                        <h3 class="mb-0">{{ math_learning_data.avg_total_time }}s</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Best Total Time</h6>
+                        <h3 class="mb-0">{{ math_learning_data.best_total_time }}s</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Last Score</h6>
+                        <h3 class="mb-0">
+                            {% if math_learning_data.last_score is not none %}
+                                {{ math_learning_data.last_score }}/10
+                            {% else %}
+                                —
+                            {% endif %}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <div class="collapse mt-4" id="chartContainer">
-        <h3>Total Time</h3>
-        <canvas id="totalTimeChart" height="100"></canvas>
-        <br>
-        <h3>Mean Times</h3>
-        <canvas id="meanTimesChart" height="100"></canvas>
-    </div>
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Average Score</h6>
+                        <h3 class="mb-0">
+                            {% if math_learning_data.avg_score is not none %}
+                                {{ math_learning_data.avg_score }}/10
+                            {% else %}
+                                —
+                            {% endif %}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Best Score</h6>
+                        <h3 class="mb-0">
+                            {% if math_learning_data.best_score is not none %}
+                                {{ math_learning_data.best_score }}/10
+                            {% else %}
+                                —
+                            {% endif %}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Last Attempt EV Time</h6>
+                        <h3 class="mb-0">{{ math_learning_data.last_ev_time }}s</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Bayes</h6>
+                        <div>Avg: {{ math_learning_data.avg_bayes_time }}s</div>
+                        <div>Best: {{ math_learning_data.best_bayes_time }}s</div>
+                        <div>Last: {{ math_learning_data.last_bayes_time }}s</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Coupon</h6>
+                        <div>Avg: {{ math_learning_data.avg_coupon_time }}s</div>
+                        <div>Best: {{ math_learning_data.best_coupon_time }}s</div>
+                        <div>Last: {{ math_learning_data.last_coupon_time }}s</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Option</h6>
+                        <div>Avg: {{ math_learning_data.avg_option_time }}s</div>
+                        <div>Best: {{ math_learning_data.best_option_time }}s</div>
+                        <div>Last: {{ math_learning_data.last_option_time }}s</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">EV</h6>
+                        <div>Avg: {{ math_learning_data.avg_ev_time }}s</div>
+                        <div>Best: {{ math_learning_data.best_ev_time }}s</div>
+                        <div>Last: {{ math_learning_data.last_ev_time }}s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Recent Performance</strong>
+                <span class="text-muted small">Last {{ math_learning_data.chart_labels|length }} attempts</span>
+            </div>
+            <div class="card-body">
+                <canvas id="totalTimeChart" height="110"></canvas>
+                <div class="mt-4">
+                    <canvas id="meanTimesChart" height="110"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Attempt History</strong>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover small-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Date</th>
+                                <th>Quiz</th>
+                                <th>Score</th>
+                                <th>Total (s)</th>
+                                <th>Bayes (s)</th>
+                                <th>Coupon (s)</th>
+                                <th>Option (s)</th>
+                                <th>EV (s)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in math_learning_data.recent_results %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ result.timestamp.strftime('%Y-%m-%d') if result.timestamp else 'N/A' }}</td>
+                                <td>{{ result.quiz_type|default('quant')|title }}</td>
+                                <td>
+                                    {% if result.score is not none %}
+                                        {{ result.score }}/10
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ result.total_time }}</td>
+                                <td>{{ result.mean_bayes_time }}</td>
+                                <td>{{ result.mean_coupon_time }}</td>
+                                <td>{{ result.mean_option_time }}</td>
+                                <td>{{ result.mean_ev_time }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     {% endif %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var labels = [
-        {% for result in quiz_results|reverse %}
-            "{{ result.timestamp.strftime('%Y-%m-%d') }}",
-        {% endfor %}
-    ];
+    {% if math_learning_data %}
+    const labels = {{ math_learning_data.chart_labels|tojson }};
+    const totalTimeData = {{ math_learning_data.chart_total|tojson }};
+    const bayesTimeData = {{ math_learning_data.chart_bayes|tojson }};
+    const couponTimeData = {{ math_learning_data.chart_coupon|tojson }};
+    const optionTimeData = {{ math_learning_data.chart_option|tojson }};
+    const evTimeData = {{ math_learning_data.chart_ev|tojson }};
 
-    var totalTimeData = [
-        {% for result in quiz_results|reverse %}
-            {{ result.total_time }},
-        {% endfor %}
-    ];
-
-    var bayesTimeData = [
-        {% for result in quiz_results|reverse %}
-            {{ result.mean_bayes_time }},
-        {% endfor %}
-    ];
-
-    var couponTimeData = [
-        {% for result in quiz_results|reverse %}
-            {{ result.mean_coupon_time }},
-        {% endfor %}
-    ];
-
-    var optionTimeData = [
-        {% for result in quiz_results|reverse %}
-            {{ result.mean_option_time }},
-        {% endfor %}
-    ];
-
-    var evTimeData = [
-        {% for result in quiz_results|reverse %}
-            {{ result.mean_ev_time }},
-        {% endfor %}
-    ];
-
-    // Chart 1: Total Time
-    var chartCanvas1 = document.getElementById('totalTimeChart').getContext('2d');
+    const chartCanvas1 = document.getElementById('totalTimeChart').getContext('2d');
     new Chart(chartCanvas1, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [
                 {
-                    label: 'Total Time',
+                    label: 'Total Time (s)',
                     data: totalTimeData,
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 2,
@@ -113,8 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Chart 2: Mean Times (Bayes, Coupon, Option, EV)
-    var chartCanvas2 = document.getElementById('meanTimesChart').getContext('2d');
+    const chartCanvas2 = document.getElementById('meanTimesChart').getContext('2d');
     new Chart(chartCanvas2, {
         type: 'line',
         data: {
@@ -158,6 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    {% endif %}
 });
 </script>
 {% endblock %}

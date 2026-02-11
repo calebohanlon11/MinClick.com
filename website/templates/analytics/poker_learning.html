@@ -1,0 +1,226 @@
+{% if poker_learning_data %}
+<div class="container-fluid py-4">
+    <h2 class="mb-4">Poker Learning Analytics</h2>
+    <p class="text-muted mb-3">Based on your Poker Math Quiz attempts.</p>
+
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Attempts</h6>
+                    <h3 class="mb-0">{{ poker_learning_data.total_attempts }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Questions</h6>
+                    <h3 class="mb-0">{{ poker_learning_data.total_questions }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Overall Accuracy</h6>
+                    <h3 class="mb-0">{{ poker_learning_data.overall_accuracy }}%</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Last 10 Accuracy</h6>
+                    <h3 class="mb-0">{{ poker_learning_data.last_ten_accuracy }}%</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header">
+                    <strong>Needs Most Work</strong>
+                </div>
+                <div class="card-body">
+                    {% if poker_learning_data.weakest %}
+                        {% for module in poker_learning_data.weakest %}
+                            <div class="mb-2">
+                                <strong>{{ module.title }}</strong>
+                                <span class="text-muted">({{ module.accuracy }}% on {{ module.total }} questions)</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">Not enough data yet.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header">
+                    <strong>Strongest Areas</strong>
+                </div>
+                <div class="card-body">
+                    {% if poker_learning_data.strongest %}
+                        {% for module in poker_learning_data.strongest %}
+                            <div class="mb-2">
+                                <strong>{{ module.title }}</strong>
+                                <span class="text-muted">({{ module.accuracy }}% on {{ module.total }} questions)</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">Not enough data yet.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Topic Performance Dashboard</strong>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Topic</th>
+                            <th>Average</th>
+                            <th>Last 5 Avg</th>
+                            <th>Trend</th>
+                            <th>Recent Results</th>
+                            <th>Total Qs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for module in poker_learning_data.modules %}
+                        <tr>
+                            <td>{{ module.title }}</td>
+                            <td>{{ module.accuracy }}%</td>
+                            <td>{{ module.recent_accuracy }}%</td>
+                            <td>
+                                {% if module.trend > 0 %}
+                                    <span class="text-success">▲ {{ "%.1f"|format(module.trend) }}%</span>
+                                {% elif module.trend < 0 %}
+                                    <span class="text-danger">▼ {{ "%.1f"|format(module.trend|abs) }}%</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if module.recent_attempts %}
+                                    {% for attempt in module.recent_attempts %}
+                                        <span class="badge bg-light text-dark me-1 mb-1">{{ attempt.accuracy }}%</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">No attempts</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ module.total }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <strong>Last 10 Attempts (All Topics)</strong>
+        </div>
+        <div class="card-body">
+            {% if poker_learning_data.attempts %}
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Topic</th>
+                            <th>Correct</th>
+                            <th>Total</th>
+                            <th>Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attempt in poker_learning_data.attempts %}
+                        <tr>
+                            <td>{{ attempt.module_title }}</td>
+                            <td>{{ attempt.correct }}</td>
+                            <td>{{ attempt.total }}</td>
+                            <td>{{ attempt.accuracy }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <span class="text-muted">No attempts yet.</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="container my-4">
+    <div class="alert alert-info text-center">
+        No Poker Math Quiz attempts yet. Take a quiz to see analytics.
+        <div class="mt-2">
+            <a class="btn btn-primary btn-sm" href="{{ url_for('views.poker_math_index') }}">Start Poker Math Quiz</a>
+            <button class="btn btn-outline-secondary btn-sm ms-2" id="sync-poker-math">
+                Sync past attempts
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const syncButton = document.getElementById('sync-poker-math');
+        if (!syncButton) {
+            return;
+        }
+        syncButton.addEventListener('click', async () => {
+            const rawAttempts = JSON.parse(localStorage.getItem('pokerMathAttempts') || '[]');
+            const attempts = rawAttempts.map(item => {
+                if (typeof item === 'string') {
+                    try {
+                        return JSON.parse(item);
+                    } catch (e) {
+                        return null;
+                    }
+                }
+                return item;
+            }).filter(Boolean);
+            if (!attempts.length) {
+                alert('No local attempts found to sync.');
+                return;
+            }
+            syncButton.disabled = true;
+            syncButton.textContent = 'Syncing...';
+            try {
+                const response = await fetch('/poker-math/save-attempts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(attempts)
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    alert(`Sync failed: ${text || response.status}`);
+                    syncButton.disabled = false;
+                    syncButton.textContent = 'Sync past attempts';
+                    return;
+                }
+                alert('Sync complete. Reloading analytics.');
+                location.reload();
+            } catch (error) {
+                alert('Some attempts failed to sync. Try again.');
+                syncButton.disabled = false;
+                syncButton.textContent = 'Sync past attempts';
+            }
+        });
+    });
+</script>
+{% endif %}

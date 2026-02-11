@@ -101,7 +101,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `You have ${outs} outs on the turn with ${unseen} unseen cards. What is your exact % to hit on the turn?`,
+        promptHtml: `You are on the flop with ${outs} outs and ${unseen} unseen cards remaining. What is the exact % you hit one of your outs on the next card (the turn)?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `Conditional probability: <span class="formula">${outs}/${unseen}</span> = ${answer}%.`
@@ -206,10 +206,10 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Using the Rule of 2, what % to hit by the turn with ${outs} outs?`,
+        promptHtml: `You are on the flop with ${outs} outs. Using the Rule of 2 (approximate % to hit on the next card only = outs × 2), what is the approximate % you improve on the turn card?`,
         answer,
         tolerance: 0.5,
-        explanationHtml: `Rule of 2: <span class="formula">outs × 2</span> = ${answer}%.`
+        explanationHtml: `Rule of 2 approximation: <span class="formula">turn % ≈ outs × 2</span> = ${answer}%.`
       };
     }
   },
@@ -226,10 +226,10 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Using the Rule of 4, what % to hit by the river with ${outs} outs?`,
+        promptHtml: `You are on the flop with ${outs} outs. Using the Rule of 4 (approximate % to hit across both remaining cards = outs × 4), what is the approximate % you improve by the river?`,
         answer,
         tolerance: 0.5,
-        explanationHtml: `Rule of 4: <span class="formula">outs × 4</span> = ${answer}%.`
+        explanationHtml: `Rule of 4 approximation: <span class="formula">river % ≈ outs × 4</span> = ${answer}%.`
       };
     }
   },
@@ -247,7 +247,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Exact chance to hit by the river with ${outs} outs (U=${unseen})?`,
+        promptHtml: `You are on the flop with ${outs} outs and ${unseen} unseen cards remaining. What is the exact % you hit one of your outs across both the turn and river cards?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `Exact: <span class="formula">1 - ((U-N)/U) × ((U-1-N)/(U-1))</span> = ${answer}%.`
@@ -268,7 +268,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Exact chance to hit on the turn with ${outs} outs (U=${unseen})?`,
+        promptHtml: `You are on the flop with ${outs} outs and ${unseen} unseen cards remaining. What is the exact % you hit one of your outs on the next card (the turn)?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `Exact: <span class="formula">outs / U</span> = ${answer}%.`
@@ -309,7 +309,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Backdoor flush (you hold 2 suited, flop has 1 of suit). Exact % to complete by river?`,
+        promptHtml: `You hold 2 suited cards and the flop contains exactly 1 card of your suit (3 of your suit accounted for, 10 remaining in the deck, ${unseen} unseen cards). What is the exact % you complete a backdoor flush by hitting your suit on both the turn AND the river?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `Need two suited: <span class="formula">(10/47) × (9/46)</span> = ${answer}%.`
@@ -420,7 +420,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Effective stack ${stack} BB and pot ${pot} BB. What is SPR?`,
+        promptHtml: `Your effective stack is ${stack} BB and the pot is ${pot} BB. What is the Stack-to-Pot Ratio (SPR)?`,
         answer,
         tolerance: 0.05,
         explanationHtml: `<span class="formula">SPR = stack / pot</span> = ${answer}.`
@@ -441,7 +441,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Pot ${pot} BB, call ${call} BB. Required equity % (show percent only).`,
+        promptHtml: `The pot is ${pot} BB and you must call ${call} BB. What is the minimum equity % you need to break even on this call?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `Required equity = ${answer}%.`
@@ -488,7 +488,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Bet ${bet} BB into ${pot} BB. Fold% = ${fold}%, equity when called = ${equity}%. EV?`,
+        promptHtml: `You bet ${bet} BB into a ${pot} BB pot. Your opponent folds ${fold}% of the time. When called, you have ${equity}% equity. What is the EV of this bet in BB?`,
         answer,
         tolerance: 0.05,
         explanationHtml: `<span class="formula">EV = f×pot + (1-f)×(eq×(pot+bet) - (1-eq)×bet)</span> = ${answer} BB.`
@@ -530,7 +530,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `Facing a ${bet} BB bet into ${pot} BB. Required win rate to call?`,
+        promptHtml: `Your opponent bets ${bet} BB into a ${pot} BB pot. What is the minimum % of the time you need to win at showdown to make calling break-even?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `Same as pot odds: ${answer}%.`
@@ -551,7 +551,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `If you bet ${bet} BB into ${pot} BB and always get called, what equity % makes the bet break-even?`,
+        promptHtml: `You bet ${bet} BB into a ${pot} BB pot and your opponent always calls (never folds). What minimum equity % do you need for this value bet to break even?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `Break-even when called: <span class="formula">bet / (pot + 2×bet)</span> = ${answer}%.`
@@ -617,7 +617,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `MDF vs half-pot bet: pot ${pot} BB, bet ${bet} BB.`,
+        promptHtml: `The pot is ${pot} BB and your opponent bets ${bet} BB (half-pot). What is your Minimum Defence Frequency (MDF) %?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `MDF = ${answer}%.`
@@ -638,7 +638,7 @@ const QUESTION_TEMPLATES = [
         moduleId: this.moduleId,
         difficulty: this.difficulty,
         format: this.format,
-        promptHtml: `MDF vs 2/3 pot bet: pot ${pot} BB, bet ${bet} BB.`,
+        promptHtml: `The pot is ${pot} BB and your opponent bets ${bet} BB (approximately 2/3 pot). What is your Minimum Defence Frequency (MDF) %?`,
         answer,
         tolerance: 0.5,
         explanationHtml: `MDF = ${answer}%.`

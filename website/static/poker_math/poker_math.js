@@ -41,6 +41,17 @@ function showFeedback(target, correct, question, userAnswer) {
   `;
 }
 
+function persistAttempt(attempt) {
+  const payload = JSON.stringify(attempt);
+  return fetch("/poker-math/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+    keepalive: true,
+    credentials: "include"
+  });
+}
+
 function startQuiz() {
   const root = document.querySelector(".poker-math[data-mode]");
   if (!root) return;
@@ -149,7 +160,7 @@ function startQuiz() {
     }
   });
 
-  function finishQuiz() {
+  async function finishQuiz() {
     const correctCount = answers.filter(a => a.correct).length;
     const attempt = {
       id: `attempt_${Date.now()}`,
@@ -163,6 +174,14 @@ function startQuiz() {
     const existing = JSON.parse(localStorage.getItem("pokerMathAttempts") || "[]");
     existing.push(attempt);
     localStorage.setItem("pokerMathAttempts", JSON.stringify(existing));
+    try {
+      await Promise.race([
+        persistAttempt(attempt),
+        new Promise(resolve => setTimeout(resolve, 500))
+      ]);
+    } catch (e) {
+      // best effort only
+    }
     window.location.href = `/poker-math/results?attempt=${attempt.id}`;
   }
 
@@ -181,6 +200,14 @@ function renderResults() {
   if (!attempt) {
     summaryEl.innerHTML = "<p class='text-muted'>Attempt not found.</p>";
     return;
+  }
+  const savedKey = `pokerMathAttemptSaved:${attempt.id}`;
+  if (!localStorage.getItem(savedKey)) {
+    persistAttempt(attempt)
+      .then(() => {
+        localStorage.setItem(savedKey, "1");
+      })
+      .catch(() => {});
   }
 
   summaryEl.innerHTML = `

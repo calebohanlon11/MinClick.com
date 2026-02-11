@@ -82,6 +82,7 @@ import ast
 import pandas as pd
 from io import StringIO
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, session
+from sqlalchemy import text
 from datetime import datetime
 from .Learning_question_generator import get_quantmath_questions
 views = Blueprint("views", __name__)
@@ -1402,6 +1403,54 @@ def poker_math_results():
     return render_template('poker_math/results.html', user=current_user, modules=POKER_MATH_MODULES)
 
 
+@views.route('/poker-math/save', methods=['POST'])
+@login_required
+def poker_math_save_attempt():
+    raw = request.get_json(silent=True)
+    if raw is None and request.data:
+        try:
+            raw = json.loads(request.data.decode('utf-8'))
+        except Exception:
+            raw = None
+
+    def normalize_attempt(value):
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str) and value:
+            try:
+                parsed = json.loads(value)
+                return parsed if isinstance(parsed, dict) else None
+            except Exception:
+                return None
+        return None
+
+    attempts = []
+    if isinstance(raw, list):
+        for item in raw:
+            normalized = normalize_attempt(item)
+            if normalized:
+                attempts.append(normalized)
+    else:
+        normalized = normalize_attempt(raw)
+        if normalized:
+            attempts.append(normalized)
+
+    if not attempts:
+        return jsonify({'status': 'error', 'message': 'Invalid payload'}), 400
+
+    for attempt_data in attempts:
+        attempt = QuizResult(user_id=current_user.id, session_data=attempt_data)
+        db.session.add(attempt)
+    db.session.commit()
+    return jsonify({'status': 'ok', 'saved': len(attempts)})
+
+
+@views.route('/poker-math/save-attempts', methods=['POST'])
+@login_required
+def poker_math_save_attempts():
+    return poker_math_save_attempt()
+
+
 @views.route('/complete_signup')
 def complete_signup():
 
@@ -1443,19 +1492,74 @@ def calculate_bankroll_data(user_id):
     # Time series data for graph
     session_data = []  # List of {date, earnings, bb_earnings, stake}
     
+    def _ensure_metrics_list(raw_value):
+        if raw_value is None:
+            return []
+        if isinstance(raw_value, list):
+            return raw_value
+        if isinstance(raw_value, dict):
+            return [raw_value]
+        if isinstance(raw_value, str):
+            try:
+                parsed = json.loads(raw_value)
+            except Exception:
+                try:
+                    parsed = ast.literal_eval(raw_value)
+                except Exception:
+                    return []
+            if isinstance(parsed, list):
+                return parsed
+            if isinstance(parsed, dict):
+                return [parsed]
+        return []
+
+    def _ensure_metrics_dict(raw_value):
+        if isinstance(raw_value, dict):
+            return raw_value
+        if isinstance(raw_value, str):
+            try:
+                parsed = json.loads(raw_value)
+            except Exception:
+                try:
+                    parsed = ast.literal_eval(raw_value)
+                except Exception:
+                    return {}
+            if isinstance(parsed, dict):
+                return parsed
+        return {}
+
+    def _parse_nested_metric(value):
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str) and value:
+            try:
+                return json.loads(value)
+            except Exception:
+                try:
+                    return ast.literal_eval(value)
+                except Exception:
+                    return {}
+        return {}
+
+    def _safe_get(obj, key, default):
+        return obj.get(key, default) if isinstance(obj, dict) else default
+
     for post in user_posts:
         try:
             # Parse metrics
-            metrics_list = json.loads(post.data_frame_results)
-            if not metrics_list or not isinstance(metrics_list, list):
+            metrics_list = _ensure_metrics_list(post.data_frame_results)
+            if not metrics_list:
                 continue
-                
-            metrics = metrics_list[0]
+
+            metrics = _ensure_metrics_dict(metrics_list[0])
+            if not metrics:
+                continue
             
             # Extract session data
-            hands = metrics.get('VPIP Info', {}).get('num_viable_hands', 0)
-            earnings = float(metrics.get('Session Earnings', 0))
-            bb_earnings = float(metrics.get('Session BB Earnings', 0))
+            vpip_info = _parse_nested_metric(_safe_get(metrics, 'VPIP Info', {}))
+            hands = _safe_get(vpip_info, 'num_viable_hands', 0)
+            earnings = float(_safe_get(metrics, 'Session Earnings', 0))
+            bb_earnings = float(_safe_get(metrics, 'Session BB Earnings', 0))
             stake = post.stake
             
             # Normalize stake before tracking
@@ -1600,6 +1704,202 @@ def calculate_bankroll_data(user_id):
     }
 
 
+def build_poker_math_analytics(user_id, recent_per_topic=5):
+    attempts = QuizResult.query.filter_by(user_id=user_id).all()
+    if not attempts:
+        return None
+
+    module_titles = {module["id"]: module["title"] for module in POKER_MATH_MODULES}
+    module_stats = {}
+    attempt_summaries = []
+    per_topic_attempts = {}
+    total_correct = 0
+    total_questions = 0
+
+    def normalize_attempt(raw):
+        if isinstance(raw, dict):
+            return raw
+        if isinstance(raw, str) and raw:
+            try:
+                return json.loads(raw)
+            except Exception:
+                try:
+                    return ast.literal_eval(raw)
+                except Exception:
+                    return {}
+        return {}
+
+    for attempt in attempts:
+        data = normalize_attempt(attempt.session_data)
+        if not isinstance(data, dict):
+            continue
+
+        answers = data.get('answers', [])
+        attempt_total = int(data.get('total', 0) or 0)
+        attempt_correct = int(data.get('correct', 0) or 0)
+        attempt_module = data.get('moduleId', 'mixed') or 'mixed'
+        timestamp = data.get('timestamp')
+
+        if isinstance(answers, list) and answers:
+            for ans in answers:
+                if not isinstance(ans, dict):
+                    continue
+                module_id = ans.get('moduleId') or attempt_module or 'mixed'
+                stats = module_stats.setdefault(module_id, {
+                    'module_id': module_id,
+                    'title': module_titles.get(module_id, module_id.title()),
+                    'correct': 0,
+                    'total': 0,
+                    'attempts': 0
+                })
+                stats['total'] += 1
+                stats['correct'] += 1 if ans.get('correct') else 0
+            total_questions += len([a for a in answers if isinstance(a, dict)])
+            total_correct += len([a for a in answers if isinstance(a, dict) and a.get('correct')])
+        else:
+            if attempt_module != 'mixed':
+                stats = module_stats.setdefault(attempt_module, {
+                    'module_id': attempt_module,
+                    'title': module_titles.get(attempt_module, attempt_module.title()),
+                    'correct': 0,
+                    'total': 0,
+                    'attempts': 0
+                })
+                stats['total'] += attempt_total
+                stats['correct'] += attempt_correct
+            total_questions += attempt_total
+            total_correct += attempt_correct
+
+        if attempt_module in module_stats:
+            module_stats[attempt_module]['attempts'] += 1
+
+        accuracy = round((attempt_correct / attempt_total) * 100, 1) if attempt_total else 0.0
+        attempt_record = {
+            'timestamp': timestamp,
+            'module_id': attempt_module,
+            'module_title': module_titles.get(attempt_module, attempt_module.title()),
+            'correct': attempt_correct,
+            'total': attempt_total,
+            'accuracy': accuracy
+        }
+        attempt_summaries.append(attempt_record)
+        per_topic_attempts.setdefault(attempt_module, []).append(attempt_record)
+
+    for module_id, stats in module_stats.items():
+        stats['accuracy'] = round((stats['correct'] / stats['total']) * 100, 1) if stats['total'] else 0.0
+        topic_attempts = sorted(per_topic_attempts.get(module_id, []), key=lambda a: a['timestamp'] or 0, reverse=True)
+        recent_attempts = topic_attempts[:recent_per_topic]
+        recent_questions = sum(item['total'] for item in recent_attempts)
+        recent_correct = sum(item['correct'] for item in recent_attempts)
+        stats['recent_attempts'] = recent_attempts
+        stats['recent_accuracy'] = round((recent_correct / recent_questions) * 100, 1) if recent_questions else 0.0
+        if len(recent_attempts) >= 2:
+            stats['trend'] = recent_attempts[0]['accuracy'] - recent_attempts[1]['accuracy']
+        else:
+            stats['trend'] = 0.0
+
+    module_list = sorted(module_stats.values(), key=lambda s: s['accuracy'])
+    weakest = [m for m in module_list if m['total'] >= 5][:2]
+    strongest = list(reversed(module_list))[:2]
+
+    attempt_summaries = sorted(attempt_summaries, key=lambda a: a['timestamp'] or 0, reverse=True)
+    last_ten = attempt_summaries[:10]
+    last_ten_accuracy = 0.0
+    last_ten_questions = sum(item['total'] for item in last_ten)
+    last_ten_correct = sum(item['correct'] for item in last_ten)
+    if last_ten_questions:
+        last_ten_accuracy = round((last_ten_correct / last_ten_questions) * 100, 1)
+
+    return {
+        'total_attempts': len(attempt_summaries),
+        'total_questions': total_questions,
+        'overall_accuracy': round((total_correct / total_questions) * 100, 1) if total_questions else 0.0,
+        'last_ten_accuracy': last_ten_accuracy,
+        'modules': sorted(module_stats.values(), key=lambda s: s['title']),
+        'weakest': weakest,
+        'strongest': strongest,
+        'attempts': last_ten
+    }
+
+
+def ensure_quant_math_columns():
+    try:
+        columns = [row[1] for row in db.session.execute(text("PRAGMA table_info(quant_math_result)"))]
+    except Exception:
+        return
+
+    if 'score' not in columns:
+        db.session.execute(text("ALTER TABLE quant_math_result ADD COLUMN score FLOAT"))
+    if 'correct_count' not in columns:
+        db.session.execute(text("ALTER TABLE quant_math_result ADD COLUMN correct_count INTEGER"))
+    if 'total_questions' not in columns:
+        db.session.execute(text("ALTER TABLE quant_math_result ADD COLUMN total_questions INTEGER"))
+    if 'quiz_type' not in columns:
+        db.session.execute(text("ALTER TABLE quant_math_result ADD COLUMN quiz_type VARCHAR(20)"))
+    db.session.commit()
+
+
+def build_math_learning_analytics(quiz_results, chart_limit=10):
+    if not quiz_results:
+        return None
+
+    sorted_results = sorted(quiz_results, key=lambda r: r.timestamp or datetime.datetime.min, reverse=True)
+    recent_results = sorted_results[:chart_limit]
+    total_attempts = len(sorted_results)
+
+    def avg(values):
+        return round(sum(values) / len(values), 2) if values else 0.0
+
+    def best(values):
+        return round(min(values), 2) if values else 0.0
+
+    total_times = [r.total_time for r in sorted_results]
+    bayes_times = [r.mean_bayes_time for r in sorted_results]
+    coupon_times = [r.mean_coupon_time for r in sorted_results]
+    option_times = [r.mean_option_time for r in sorted_results]
+    ev_times = [r.mean_ev_time for r in sorted_results]
+    scores = [r.score for r in sorted_results if r.score is not None]
+
+    last_attempt = sorted_results[0]
+
+    recent_chart = list(reversed(recent_results))
+    chart_labels = [r.timestamp.strftime('%Y-%m-%d') if r.timestamp else 'N/A' for r in recent_chart]
+    chart_total = [r.total_time for r in recent_chart]
+    chart_bayes = [r.mean_bayes_time for r in recent_chart]
+    chart_coupon = [r.mean_coupon_time for r in recent_chart]
+    chart_option = [r.mean_option_time for r in recent_chart]
+    chart_ev = [r.mean_ev_time for r in recent_chart]
+
+    return {
+        'total_attempts': total_attempts,
+        'avg_total_time': avg(total_times),
+        'best_total_time': best(total_times),
+        'last_attempt_date': last_attempt.timestamp.strftime('%Y-%m-%d') if last_attempt.timestamp else 'N/A',
+        'avg_score': avg(scores) if scores else None,
+        'best_score': best(scores) if scores else None,
+        'last_score': last_attempt.score,
+        'avg_bayes_time': avg(bayes_times),
+        'best_bayes_time': best(bayes_times),
+        'last_bayes_time': last_attempt.mean_bayes_time,
+        'avg_coupon_time': avg(coupon_times),
+        'best_coupon_time': best(coupon_times),
+        'last_coupon_time': last_attempt.mean_coupon_time,
+        'avg_option_time': avg(option_times),
+        'best_option_time': best(option_times),
+        'last_option_time': last_attempt.mean_option_time,
+        'avg_ev_time': avg(ev_times),
+        'best_ev_time': best(ev_times),
+        'last_ev_time': last_attempt.mean_ev_time,
+        'recent_results': recent_results,
+        'chart_labels': chart_labels,
+        'chart_total': chart_total,
+        'chart_bayes': chart_bayes,
+        'chart_coupon': chart_coupon,
+        'chart_option': chart_option,
+        'chart_ev': chart_ev
+    }
+
+
 @views.route('/view_analytics')
 @login_required
 def view_analytics():
@@ -1609,27 +1909,18 @@ def view_analytics():
         stage = request.args.get('stage', 'math_learning')  # Default to 'math_learning'
 
         if stage == 'math_learning':
-            # Fetch the latest 10 results, ordered by timestamp (newest first)
-            quiz_results = QuantMathResult.query.filter_by(user_id=user_id).order_by(QuantMathResult.timestamp.desc()).limit(10).all()
-            placeholder_date = datetime.datetime(1970, 1, 1)
-
-            # Ensure there are 10 entries by filling missing ones with zeros
-            while len(quiz_results) < 10:
-                quiz_results.append(QuantMathResult(
-                    user_id=user_id,
-                    total_time=0.0,
-                    mean_bayes_time=0.0,
-                    mean_coupon_time=0.0,
-                    mean_option_time=0.0,
-                    mean_ev_time=0.0,
-                    timestamp=placeholder_date
-                ))
-
-            return render_template('view_analytics.html', user=current_user, quiz_results=quiz_results)
+            ensure_quant_math_columns()
+            quiz_results = QuantMathResult.query.filter_by(user_id=user_id).order_by(QuantMathResult.timestamp.desc()).all()
+            math_learning_data = build_math_learning_analytics(quiz_results)
+            return render_template('view_analytics.html', user=current_user, math_learning_data=math_learning_data)
         
         elif stage == 'bankroll':
             bankroll_data = calculate_bankroll_data(user_id)
             return render_template('view_analytics.html', user=current_user, bankroll_data=bankroll_data)
+
+        elif stage == 'poker_learning':
+            poker_learning_data = build_poker_math_analytics(user_id)
+            return render_template('view_analytics.html', user=current_user, poker_learning_data=poker_learning_data)
         
         elif stage == 'live_sessions':
             live_sessions = LiveSession.query.filter_by(user_id=user_id).order_by(LiveSession.session_date.desc()).all()
@@ -1668,6 +1959,7 @@ def view_analytics():
 @views.route('/save_quant_test', methods=['POST'])
 @login_required
 def save_quant_test():
+    ensure_quant_math_columns()
     # Retrieve data from the JSON payload
     data = request.get_json()
     bayes_time = data.get('bayes_time')  # Accumulated time for Bayes Theorem questions
@@ -1681,6 +1973,12 @@ def save_quant_test():
     mean_coupon_time = round(coupon_time / 3, 1) if coupon_time else 0
     mean_option_time = round(option_time / 3, 1) if option_time else 0
     mean_ev_time = round(ev_time / 3, 1) if ev_time else 0
+
+    correct_count = int(data.get('correct_count') or 0)
+    total_questions = int(data.get('total_questions') or 0)
+    score_out_of_10 = data.get('score_out_of_10')
+    if score_out_of_10 is None and total_questions:
+        score_out_of_10 = round((correct_count / total_questions) * 10, 2)
 
     # Fetch existing results for the current user
     results = QuantMathResult.query.filter_by(user_id=current_user.id).order_by(QuantMathResult.timestamp.desc()).all()
@@ -1697,6 +1995,10 @@ def save_quant_test():
         mean_coupon_time=mean_coupon_time,
         mean_option_time=mean_option_time,
         mean_ev_time=mean_ev_time,
+        score=score_out_of_10,
+        correct_count=correct_count,
+        total_questions=total_questions,
+        quiz_type='quant'
     )
 
     # Save the new result to the database
@@ -1704,6 +2006,36 @@ def save_quant_test():
     db.session.commit()
 
     flash('Quant test results saved successfully!', category='success')
+    return jsonify({'success': True}), 200
+
+
+@views.route('/save_results', methods=['POST'])
+@login_required
+def save_arith_results():
+    ensure_quant_math_columns()
+    data = request.get_json() or {}
+    total_time = float(data.get('total_time') or 0.0)
+    correct_count = int(data.get('correct_count') or 0)
+    total_questions = int(data.get('total_questions') or 0)
+    score_out_of_10 = data.get('score_out_of_10')
+    if score_out_of_10 is None and total_questions:
+        score_out_of_10 = round((correct_count / total_questions) * 10, 2)
+
+    new_result = QuantMathResult(
+        user_id=current_user.id,
+        total_time=total_time,
+        mean_bayes_time=0.0,
+        mean_coupon_time=0.0,
+        mean_option_time=0.0,
+        mean_ev_time=0.0,
+        score=score_out_of_10,
+        correct_count=correct_count,
+        total_questions=total_questions,
+        quiz_type='arith'
+    )
+
+    db.session.add(new_result)
+    db.session.commit()
     return jsonify({'success': True}), 200
 
 

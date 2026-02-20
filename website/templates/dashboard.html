@@ -831,11 +831,11 @@
                 
                 let handKey = '';
                 if (i === j) {
-                    handKey = ranks[i] + ranks[j];
+                    handKey = ranks[i] + ranks[j];           // Pair: "AA", "KK", etc.
                 } else if (i < j) {
-                    handKey = ranks[j] + ranks[i] + 'o';
+                    handKey = ranks[i] + ranks[j] + 's';     // Above diagonal = suited, higher rank first
                 } else {
-                    handKey = ranks[i] + ranks[j] + 's';
+                    handKey = ranks[j] + ranks[i] + 'o';     // Below diagonal = offsuit, higher rank first
                 }
 
                 const handData = data[handKey] || {};
@@ -857,9 +857,20 @@
 
                 let r, g, b;
                 if (heatmapView === 'bb') {
-                    r = isPositive ? Math.floor(16 + (239 - 16) * intensity) : Math.floor(239 - (239 - 16) * intensity);
-                    g = isPositive ? Math.floor(185 + (255 - 185) * intensity) : Math.floor(16);
-                    b = isPositive ? Math.floor(52 + (255 - 52) * intensity) : Math.floor(16);
+                    if (value === 0) {
+                        // Neutral slate for no data / break-even
+                        r = 55; g = 65; b = 81;
+                    } else if (isPositive) {
+                        // Light pastel green → rich dark green (high profit = strong green)
+                        r = Math.floor(187 * (1 - intensity) + 22 * intensity);
+                        g = Math.floor(247 * (1 - intensity) + 163 * intensity);
+                        b = Math.floor(208 * (1 - intensity) + 74 * intensity);
+                    } else {
+                        // Light pastel red → rich dark red (big loss = strong red)
+                        r = Math.floor(254 * (1 - intensity) + 185 * intensity);
+                        g = Math.floor(202 * (1 - intensity) + 28 * intensity);
+                        b = Math.floor(202 * (1 - intensity) + 28 * intensity);
+                    }
                 } else {
                     // RFI and 3-bet use purple/blue gradient
                     r = Math.floor(102 + (234 - 102) * intensity);
@@ -868,7 +879,10 @@
                 }
 
                 cell.style.background = `rgb(${r}, ${g}, ${b})`;
-                cell.innerHTML = `<span>${handKey}</span>`;
+                // Use dark text on light backgrounds, white on dark
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                const textColor = brightness > 160 ? '#1a1a2e' : '#ffffff';
+                cell.innerHTML = `<span style="color:${textColor}">${handKey}</span>`;
 
                 // Tooltip
                 cell.addEventListener('mouseenter', function(e) {

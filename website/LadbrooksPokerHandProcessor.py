@@ -5126,6 +5126,7 @@ class LadbrooksPokerHandProcessor:
             })
 
         # Leak 8: Over-limping
+        limp_rate = limp_series.sum() / total_hands * 100 if total_hands > 0 else 0
         if limp_rate > 10:
             leaks.append({
                 'type': 'Preflop',

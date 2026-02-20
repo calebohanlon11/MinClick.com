@@ -8,7 +8,7 @@ performance, and session-level outcomes.
 
 This repository includes:
 - A Flask backend with authentication, post creation, and analytics views.
-- A robust hand-history processor focused on Ladbrokes Poker formats.
+- Hand-history processors for both Ladbrokes and PokerStars formats.
 - Dynamic HTML templates for dashboards, metrics, and learning modules.
 - Database migrations and scripts for post processing and maintenance.
 
@@ -27,7 +27,8 @@ This repository includes:
 4. The UI renders insights across preflop/postflop streets and position breakdowns.
 
 ## Hand Processor Overview
-The main parsing logic lives in `website/LadbrooksPokerHandProcessor.py`. It:
+The parsing logic lives in `website/LadbrooksPokerHandProcessor.py` and
+`website/PokerStarsHandProcessor.py`. It:
 - Splits raw files into individual hands and validates formats
 - Extracts stakes, hand IDs, timestamps, and seat/position data
 - Computes preflop action metrics (VPIP, RFI, 3-bet/4-bet, iso-raise)

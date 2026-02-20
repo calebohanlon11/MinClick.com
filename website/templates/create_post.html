@@ -34,7 +34,7 @@
     </div>
     <div class="form-check form-check-inline">
       <input class="form-check-input" type="radio" id="stars" name="category" value="stars" required>
-      <label class="form-check-label" for="stars">Stars</label>
+      <label class="form-check-label" for="stars">PokerStars</label>
     </div>
     <div class="form-check form-check-inline">
       <input class="form-check-input" type="radio" id="gg" name="category" value="gg" required>
@@ -60,8 +60,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const categoryRadios = document.querySelectorAll('input[name="category"]');
     categoryRadios.forEach(radio => {
         radio.addEventListener('change', function() {
-            if (this.value !== 'ladbrooks') {
-                alert('Sorry, currently only ladbrooks is supported');
+            if (this.value !== 'ladbrooks' && this.value !== 'stars') {
+                alert('Sorry, only Ladbrooks and PokerStars are currently supported');
                 document.getElementById('ladbrooks').checked = true;
             }
         });

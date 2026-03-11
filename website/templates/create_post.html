@@ -60,10 +60,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const categoryRadios = document.querySelectorAll('input[name="category"]');
     categoryRadios.forEach(radio => {
         radio.addEventListener('change', function() {
-            if (this.value !== 'ladbrooks' && this.value !== 'stars') {
-                alert('Sorry, only Ladbrooks and PokerStars are currently supported');
-                document.getElementById('ladbrooks').checked = true;
-            }
         });
     });
 });

@@ -7,7 +7,7 @@ from .models import User, Comment, QuantMathResult, LiveSession, Post, QuizResul
 from . import db
 from .LadbrooksPokerHandProcessor import LadbrooksPokerHandProcessor
 from .PokerStarsHandProcessor import PokerStarsHandProcessor
-from .PokerStarsHandProcessor import PokerStarsHandProcessor
+from .GGPokerHandProcessor import GGPokerHandProcessor
 
 
 def _normalize_stake_value(value):
@@ -870,6 +870,109 @@ def create_post():
                     db.session.commit()
                     flash(f'Post created successfully! (Stake: {stake_key})', category='success')
                     return redirect(url_for('views.all_posts'))
+            elif category == 'gg':
+                def _gg_extract_stakes(hand_text):
+                    m = re.search(r'\(\$?([\d.]+)/\$?([\d.]+)\)', hand_text)
+                    if m:
+                        return float(m.group(1)), float(m.group(2))
+                    return None
+
+                temp_gg = GGPokerHandProcessor(file_data)
+                gg_stake_levels = {}
+                for hand in temp_gg.split_hands():
+                    stakes = _gg_extract_stakes(hand)
+                    if not stakes:
+                        continue
+                    stake_key = _format_stake_key(*stakes)
+                    gg_stake_levels[stake_key] = gg_stake_levels.get(stake_key, 0) + 1
+
+                if not gg_stake_levels:
+                    flash('No valid GGPoker cash-game stake levels detected.', category='error')
+                    return redirect(url_for('views.create_post'))
+
+                if len(gg_stake_levels) > 1:
+                    split_data = {}
+                    for hand in temp_gg.split_hands():
+                        stakes = _gg_extract_stakes(hand)
+                        if not stakes:
+                            continue
+                        stake_key = _format_stake_key(*stakes)
+                        split_data.setdefault(stake_key, []).append(hand)
+                    split_data = {key: "\n\n\n".join(hands) for key, hands in split_data.items()}
+                    posts_created = []
+
+                    for stake_key, stake_file_data in split_data.items():
+                        gg_processor = GGPokerHandProcessor(stake_file_data)
+                        is_real, reason, proc_df, results = gg_processor.process_ggpoker()
+
+                        if not is_real:
+                            flash(f'Error processing stake {stake_key}: {reason}', category='error')
+                            continue
+
+                        if proc_df.empty or len(proc_df) == 0:
+                            flash(f'No valid hands found for stake {stake_key}. Skipping.', category='warning')
+                            continue
+
+                        df_json = proc_df.to_json(orient='records')
+                        df_results_json = results.to_json(orient='records')
+
+                        post = Post(
+                            text=f"{text}\n\n[Stake: {stake_key}]",
+                            author=current_user.id,
+                            file_data=stake_file_data.encode('utf-8'),
+                            data_frame=df_json,
+                            data_frame_results=df_results_json,
+                            category=category,
+                            stake=stake_key,
+                            game_type=game_type,
+                            table_size=table_size,
+                            game_name=game_name,
+                            buy_in=buy_in,
+                            cash_out=cash_out,
+                            currency=currency,
+                        )
+                        db.session.add(post)
+                        posts_created.append(stake_key)
+
+                    db.session.commit()
+
+                    if posts_created:
+                        flash(f'Successfully created {len(posts_created)} post(s) for stakes: {", ".join(posts_created)}', category='success')
+                        return redirect(url_for('views.all_posts'))
+                    else:
+                        flash('Failed to create any posts from GGPoker file.', category='error')
+                        return redirect(url_for('views.create_post'))
+                else:
+                    stake_key = list(gg_stake_levels.keys())[0]
+                    gg_processor = GGPokerHandProcessor(file_data)
+                    is_real, reason, proc_df, results = gg_processor.process_ggpoker()
+
+                    if not is_real:
+                        flash(reason, category='error')
+                        return redirect(url_for('views.create_post'))
+
+                    df_json = proc_df.to_json(orient='records')
+                    df_results_json = results.to_json(orient='records')
+
+                    post = Post(
+                        text=text,
+                        author=current_user.id,
+                        file_data=file_data.encode('utf-8'),
+                        data_frame=df_json,
+                        data_frame_results=df_results_json,
+                        category=category,
+                        stake=stake_key,
+                        game_type=game_type,
+                        table_size=table_size,
+                        game_name=game_name,
+                        buy_in=buy_in,
+                        cash_out=cash_out,
+                        currency=currency,
+                    )
+                    db.session.add(post)
+                    db.session.commit()
+                    flash(f'Post created successfully! (Stake: {stake_key})', category='success')
+                    return redirect(url_for('views.all_posts'))
             else:
                 flash('No Poker Site selected', category='error')
         else:
@@ -982,8 +1085,33 @@ def reprocess_post(post_id):
 
             flash('Post reprocessed successfully with updated analytics!', category='success')
             return redirect(url_for('views.view_metrics', post_id=post_id))
+        elif post.category == 'gg':
+            gg_processor = GGPokerHandProcessor(file_data)
+            is_real_dataset, reason, processed_dataframe, results = gg_processor.process_ggpoker()
+
+            if not is_real_dataset:
+                flash(f'Reprocessing failed: {reason}', category='error')
+                return redirect(url_for('views.all_posts'))
+
+            if processed_dataframe.empty or len(processed_dataframe) == 0:
+                flash('Reprocessing failed: No valid hands found in the file.', category='error')
+                return redirect(url_for('views.all_posts'))
+
+            if results.empty or len(results) == 0:
+                flash('Reprocessing failed: No results generated.', category='error')
+                return redirect(url_for('views.all_posts'))
+
+            df_json = processed_dataframe.to_json(orient='records')
+            df_results_json = results.to_json(orient='records')
+
+            post.data_frame = df_json
+            post.data_frame_results = df_results_json
+            db.session.commit()
+
+            flash('Post reprocessed successfully with updated analytics!', category='success')
+            return redirect(url_for('views.view_metrics', post_id=post_id))
         else:
-            flash('Reprocessing is only available for Ladbrooks and PokerStars posts.', category='error')
+            flash('Reprocessing is only available for Ladbrooks, PokerStars, and GGPoker posts.', category='error')
             return redirect(url_for('views.all_posts'))
             
     except Exception as e:

@@ -1,24 +1,161 @@
 {% extends "base.html" %}
-{% block title %}Welcome To Min Click Learning{% endblock %}
+{% block title %}Min-Click Learning Hub{% endblock %}
 {% block content %}
 
+{% set stage = request.args.get('stage', '') %}
 
+<style>
+    .learning-hero {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .learning-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(102,126,234,0.15) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    .learning-hero h2 {
+        color: #fff;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .learning-hero p {
+        color: rgba(255,255,255,0.65);
+        margin-bottom: 0;
+        font-size: 1.05rem;
+    }
 
+    .module-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+    .module-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 1.75rem 1.5rem;
+        text-decoration: none;
+        color: var(--text-color);
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .module-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        border-color: transparent;
+        color: var(--text-color);
+        text-decoration: none;
+    }
+    .module-card.active {
+        border-color: #667eea;
+        box-shadow: 0 0 0 2px rgba(102,126,234,0.3), 0 8px 24px rgba(102,126,234,0.1);
+    }
+    .module-card .icon-wrap {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .module-card h5 {
+        font-weight: 600;
+        margin: 0;
+        font-size: 1.05rem;
+    }
+    .module-card .module-desc {
+        font-size: 0.85rem;
+        color: rgba(127,127,127,1);
+        line-height: 1.45;
+        margin: 0;
+    }
+    .module-card .module-tag {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        width: fit-content;
+    }
 
-<div class="container my-4">
-  <div class="btn-group btn-group-lg d-flex justify-content-center" role="group">
-    <a href="?stage=arithmatic" class="btn btn-secondary">Arithmatic</a>
-    <a href="?stage=quant" class="btn btn-secondary">Quant Math</a>
-    <a href="?stage=ranges" class="btn btn-secondary">Ranges</a>
-    <a href="{{ url_for('views.poker_math_index') }}" class="btn btn-secondary">Poker Math Quiz</a>
-  </div>
+    .icon-arithmetic { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .icon-quant     { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .icon-ranges    { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+    .icon-pokermath { background: linear-gradient(135deg, #fa709a, #fee140); }
+
+    .tag-fundamentals { background: rgba(102,126,234,0.12); color: #667eea; }
+    .tag-advanced     { background: rgba(245,87,108,0.12); color: #f5576c; }
+    .tag-strategy     { background: rgba(67,233,123,0.12); color: #2db86b; }
+    .tag-quiz         { background: rgba(250,112,154,0.12); color: #fa709a; }
+
+    .section-divider {
+        border: none;
+        border-top: 1px solid var(--border-color);
+        margin: 0.5rem 0 2rem;
+    }
+</style>
+
+<!-- Hero -->
+<div class="learning-hero">
+    <h2><i class="fas fa-graduation-cap me-2"></i>Learning Hub</h2>
+    <p>Sharpen your edge — drills, quizzes, and strategy fundamentals</p>
 </div>
 
+<!-- Module Cards -->
+<div class="module-grid">
+    <a href="?stage=arithmatic" class="module-card {{ 'active' if stage == 'arithmatic' }}">
+        <div class="icon-wrap icon-arithmetic"><i class="fas fa-calculator"></i></div>
+        <h5>Arithmetic</h5>
+        <p class="module-desc">Speed drills for mental math — pot odds, bet sizing, and stack calculations on the fly.</p>
+        <span class="module-tag tag-fundamentals">Fundamentals</span>
+    </a>
 
+    <a href="?stage=quant" class="module-card {{ 'active' if stage == 'quant' }}">
+        <div class="icon-wrap icon-quant"><i class="fas fa-square-root-variable"></i></div>
+        <h5>Quant Math</h5>
+        <p class="module-desc">Probability, combinatorics, and expected value problems for deeper analytical thinking.</p>
+        <span class="module-tag tag-advanced">Advanced</span>
+    </a>
 
+    <a href="?stage=ranges" class="module-card {{ 'active' if stage == 'ranges' }}">
+        <div class="icon-wrap icon-ranges"><i class="fas fa-layer-group"></i></div>
+        <h5>Poker Ranges</h5>
+        <p class="module-desc">Visualise and memorise preflop opening, 3-betting, and defending ranges by position.</p>
+        <span class="module-tag tag-strategy">Strategy</span>
+    </a>
 
+    <a href="{{ url_for('views.poker_math_index') }}" class="module-card">
+        <div class="icon-wrap icon-pokermath"><i class="fas fa-brain"></i></div>
+        <h5>Poker Math Quiz</h5>
+        <p class="module-desc">Timed quiz covering pot odds, equity, EV, SPR, MDF and more — track your progress.</p>
+        <span class="module-tag tag-quiz">Quiz</span>
+    </a>
+</div>
+
+<!-- Active Section Content -->
+{% if stage %}
+<hr class="section-divider">
 <div>
-    {% set stage = request.args.get('stage', 'arithmatic') %}
     {% if stage == 'arithmatic' %}
     {% include 'learning/Arithmatic.html' %}
     {% elif stage == 'quant' %}
@@ -27,4 +164,6 @@
     {% include 'learning/Poker_Ranges.html' %}
     {% endif %}
 </div>
+{% endif %}
+
 {% endblock %}

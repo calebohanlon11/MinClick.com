@@ -8,7 +8,7 @@ performance, and session-level outcomes.
 
 This repository includes:
 - A Flask backend with authentication, post creation, and analytics views.
-- Hand-history processors for both Ladbrokes and PokerStars formats.
+- Hand-history processors for Ladbrokes, PokerStars, and GGPoker formats.
 - Dynamic HTML templates for dashboards, metrics, and learning modules.
 - Database migrations and scripts for post processing and maintenance.
 
@@ -27,13 +27,28 @@ This repository includes:
 4. The UI renders insights across preflop/postflop streets and position breakdowns.
 
 ## Hand Processor Overview
-The parsing logic lives in `website/LadbrooksPokerHandProcessor.py` and
-`website/PokerStarsHandProcessor.py`. It:
-- Splits raw files into individual hands and validates formats
+The project supports three poker sites, each with a dedicated parser that
+feeds into a shared analytics engine:
+
+| Processor | File | Formats |
+|-----------|------|---------|
+| Ladbrokes | `website/LadbrooksPokerHandProcessor.py` | Ladbrokes / Entain 6-max cash |
+| PokerStars | `website/PokerStarsHandProcessor.py` | PokerStars 6-max cash (incl. Zoom) |
+| GGPoker | `website/GGPokerHandProcessor.py` | GGPoker 6-max cash |
+
+All three processors share the same analytics pipeline. Each one:
+- Splits raw files into individual hands and validates site-specific formats
 - Extracts stakes, hand IDs, timestamps, and seat/position data
+- Maps players to positions (UTG, MP, CO, BTN, SB, BB)
 - Computes preflop action metrics (VPIP, RFI, 3-bet/4-bet, iso-raise)
-- Aggregates positional profitability and multiway breakdowns
-- Builds hand and action matrices for deeper range analysis
+- Tracks postflop action frequencies per street (flop, turn, river)
+- Aggregates positional profitability, IP/OOP splits, and multiway breakdowns
+- Builds hand and action matrices (RFI, 3-bet, 4-bet) for range analysis
+- Detects common leaks and calculates biggest winning/losing hands
+- Computes positional matchups by pot type (RFI, 3-bet, 4-bet, multiway)
+
+The PokerStars and GGPoker processors extend the Ladbrokes processor,
+overriding only the text-parsing layer while reusing all analytics methods.
 
 ## Learning Section
 The learning section includes basic math practice, quant math quizzes, and poker math
@@ -67,6 +82,15 @@ The poker math content lives under:
 3. Run the app:
    - Windows: `start_server.bat` or `start_server.ps1`
    - Or use `python app.py`
+
+## Supported Sites
+- **Ladbrokes** — full support (6-max cash games)
+- **PokerStars** — full support (6-max cash games, including Zoom)
+- **GGPoker** — full support (6-max cash games)
+
+Adding a new site involves subclassing `LadbrooksPokerHandProcessor`, overriding
+the parsing methods, and wiring it into `views.py`. See the PokerStars or GGPoker
+processors for reference.
 
 ## Notes
 This codebase is built to be extensible for new poker sites and additional analytics.

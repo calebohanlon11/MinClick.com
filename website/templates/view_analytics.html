@@ -1,18 +1,173 @@
 {% extends "base.html" %}
-<br>
+{% block title %}Analytics Dashboard{% endblock %}
 {% block content %}
 
-<div class="container my-4">
-  <div class="btn-group btn-group-lg d-flex justify-content-center" role="group">
-    <a href="?stage=bankroll" class="btn btn-secondary">Bankroll Management</a>
-    <a href="?stage=math_learning" class="btn btn-secondary">Math Learning</a>
-    <a href="?stage=poker_learning" class="btn btn-secondary">Poker Learning</a>
-    <a href="?stage=live_sessions" class="btn btn-secondary">Live Sessions</a>
-  </div>
+{% set stage = request.args.get('stage', '') %}
+
+<style>
+    .analytics-hero {
+        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .analytics-hero::before {
+        content: '';
+        position: absolute;
+        bottom: -40%;
+        left: -10%;
+        width: 350px;
+        height: 350px;
+        background: radial-gradient(circle, rgba(118,75,162,0.18) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    .analytics-hero::after {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 250px;
+        height: 250px;
+        background: radial-gradient(circle, rgba(102,126,234,0.12) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    .analytics-hero h2 {
+        color: #fff;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+    }
+    .analytics-hero p {
+        color: rgba(255,255,255,0.6);
+        margin-bottom: 0;
+        font-size: 1.05rem;
+        position: relative;
+    }
+
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+    .analytics-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 1.75rem 1.5rem;
+        text-decoration: none;
+        color: var(--text-color);
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .analytics-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        border-color: transparent;
+        color: var(--text-color);
+        text-decoration: none;
+    }
+    .analytics-card.active {
+        border-color: #764ba2;
+        box-shadow: 0 0 0 2px rgba(118,75,162,0.3), 0 8px 24px rgba(118,75,162,0.1);
+    }
+    .analytics-card .icon-wrap {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .analytics-card h5 {
+        font-weight: 600;
+        margin: 0;
+        font-size: 1.05rem;
+    }
+    .analytics-card .card-desc {
+        font-size: 0.85rem;
+        color: rgba(127,127,127,1);
+        line-height: 1.45;
+        margin: 0;
+    }
+    .analytics-card .card-tag {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        width: fit-content;
+    }
+
+    .icon-bankroll  { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .icon-mathlearn { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .icon-pokerlearn{ background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .icon-live      { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+    .tag-finance   { background: rgba(102,126,234,0.12); color: #667eea; }
+    .tag-math      { background: rgba(79,172,254,0.12); color: #4facfe; }
+    .tag-poker     { background: rgba(245,87,108,0.12); color: #f5576c; }
+    .tag-tracking  { background: rgba(67,233,123,0.12); color: #2db86b; }
+
+    .section-divider {
+        border: none;
+        border-top: 1px solid var(--border-color);
+        margin: 0.5rem 0 2rem;
+    }
+</style>
+
+<!-- Hero -->
+<div class="analytics-hero">
+    <h2><i class="fas fa-chart-bar me-2"></i>Analytics Dashboard</h2>
+    <p>Track your progress, review performance, and identify areas for growth</p>
 </div>
 
+<!-- Analytics Cards -->
+<div class="analytics-grid">
+    <a href="?stage=bankroll" class="analytics-card {{ 'active' if stage == 'bankroll' }}">
+        <div class="icon-wrap icon-bankroll"><i class="fas fa-wallet"></i></div>
+        <h5>Bankroll Management</h5>
+        <p class="card-desc">Monitor your bankroll health, session results, and profit/loss trends across all stakes.</p>
+        <span class="card-tag tag-finance">Finance</span>
+    </a>
+
+    <a href="?stage=math_learning" class="analytics-card {{ 'active' if stage == 'math_learning' }}">
+        <div class="icon-wrap icon-mathlearn"><i class="fas fa-square-root-variable"></i></div>
+        <h5>Math Learning</h5>
+        <p class="card-desc">Review your arithmetic and quant quiz scores — see accuracy by topic and over time.</p>
+        <span class="card-tag tag-math">Math</span>
+    </a>
+
+    <a href="?stage=poker_learning" class="analytics-card {{ 'active' if stage == 'poker_learning' }}">
+        <div class="icon-wrap icon-pokerlearn"><i class="fas fa-brain"></i></div>
+        <h5>Poker Learning</h5>
+        <p class="card-desc">Analyse your poker math quiz performance — strongest and weakest topics at a glance.</p>
+        <span class="card-tag tag-poker">Poker</span>
+    </a>
+
+    <a href="?stage=live_sessions" class="analytics-card {{ 'active' if stage == 'live_sessions' }}">
+        <div class="icon-wrap icon-live"><i class="fas fa-broadcast-tower"></i></div>
+        <h5>Live Sessions</h5>
+        <p class="card-desc">Log and review live poker sessions with buy-in, cash-out, and hourly rate tracking.</p>
+        <span class="card-tag tag-tracking">Tracking</span>
+    </a>
+
+</div>
+
+<!-- Active Section Content -->
+{% if stage and stage != 'arithmatic' %}
+<hr class="section-divider">
 <div>
-    {% set stage = request.args.get('stage', 'arithmatic') %}
     {% if stage == 'bankroll' %}
     {% include 'analytics/bankroll.html' %}
     {% elif stage == 'math_learning' %}
@@ -23,4 +178,6 @@
     {% include 'analytics/live_sessions.html' %}
     {% endif %}
 </div>
+{% endif %}
+
 {% endblock %}

@@ -2,88 +2,125 @@
 {% block title %}Min-Click.com — Poker Analytics{% endblock %}
 
 {% block content %}
-<div class="py-5">
-  <div class="row align-items-center">
-    <div class="col-md-6">
-      <h1 class="display-5 fw-bold">Min-Click.com</h1>
-      <p class="lead text-muted">
-        A professional poker analytics platform to upload sessions, view metrics, and track your performance over time.
-      </p>
-      <ul class="text-muted mb-4">
-        <li>Upload hand histories and generate session metrics</li>
-        <li>Street-by-street analysis: preflop, flop, turn, river</li>
-        <li>Personal profile with aggregated stats and trends</li>
-        <li>Learning modules for math and poker concepts</li>
-      </ul>
-      <div class="d-flex gap-2">
-        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">
-          <i class="fas fa-sign-in-alt me-1"></i> Login
+<style>
+    .landing-hero {
+        text-align: center;
+        padding: 4rem 1rem 3rem;
+    }
+    .landing-hero h1 {
+        font-size: 3rem;
+        font-weight: 800;
+        letter-spacing: -1.5px;
+        margin-bottom: 1rem;
+    }
+    .landing-hero h1 .accent { color: var(--accent-green); }
+    .landing-hero .lead {
+        color: var(--text-secondary);
+        font-size: 1.15rem;
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        line-height: 1.6;
+    }
+    .landing-hero .btn { font-size: 1rem; padding: 0.7rem 2rem; }
+
+    .feature-card {
+        background: var(--gradient-card);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 1.75rem 1.5rem;
+        height: 100%;
+        transition: all 0.25s ease;
+    }
+    .feature-card:hover {
+        border-color: var(--border-glow);
+        box-shadow: var(--shadow-hover), var(--shadow-glow);
+        transform: translateY(-3px);
+    }
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .feature-card h6 {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .feature-card p {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        margin: 0;
+        line-height: 1.5;
+    }
+    .landing-footer {
+        text-align: center;
+        padding: 2rem 0 3rem;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+    .landing-footer a { color: var(--accent-green); }
+</style>
+
+<div class="landing-hero">
+    <h1>Play. Learn. <span class="accent">Win.</span> Repeat.</h1>
+    <p class="lead">
+        Upload hand histories, analyze your sessions street-by-street, track your bankroll, and sharpen your edge with built-in learning tools.
+    </p>
+    <div class="d-flex gap-3 justify-content-center">
+        <a href="{{ url_for('auth.sign_up') }}" class="btn btn-success btn-lg">
+            <i class="fas fa-user-plus me-1"></i> Get Started
         </a>
-        <a href="{{ url_for('auth.sign_up') }}" class="btn btn-outline-secondary btn-lg">
-          <i class="fas fa-user-plus me-1"></i> Sign Up
+        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="fas fa-sign-in-alt me-1"></i> Login
         </a>
-      </div>
     </div>
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title mb-3"><i class="fas fa-chart-line me-2"></i>What you can do</h5>
-          <div class="row g-3">
-            <div class="col-12">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-upload text-primary me-3 mt-1"></i>
-                <div>
-                  <strong>Upload sessions</strong>
-                  <div class="text-muted small">Import your hand histories and we’ll structure them into a clean dataset.</div>
-                </div>
-              </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-lg-3 col-md-6">
+        <div class="feature-card">
+            <div class="feature-icon" style="background:var(--accent-green-dim); color:var(--accent-green);">
+                <i class="fas fa-upload"></i>
             </div>
-            <div class="col-12">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-table text-success me-3 mt-1"></i>
-                <div>
-                  <strong>Analyze results</strong>
-                  <div class="text-muted small">See VPIP, BB/100, earnings, position stats, and more—broken down by streets.</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-user text-info me-3 mt-1"></i>
-                <div>
-                  <strong>Track your progress</strong>
-                  <div class="text-muted small">Your profile aggregates all sessions with bankroll and performance trends.</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-graduation-cap text-warning me-3 mt-1"></i>
-                <div>
-                  <strong>Learn & improve</strong>
-                  <div class="text-muted small">Use built-in learning modules to sharpen math and poker skills.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr class="my-4">
-          <div class="text-muted small">
-            Already have an account? <a href="{{ url_for('auth.login') }}">Login</a>
-          </div>
+            <h6>Upload Sessions</h6>
+            <p>Import hand histories from Ladbrokes, PokerStars, or GGPoker and we'll structure them into a clean dataset.</p>
         </div>
-      </div>
     </div>
-  </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="feature-card">
+            <div class="feature-icon" style="background:var(--accent-purple-dim); color:var(--accent-purple);">
+                <i class="fas fa-table"></i>
+            </div>
+            <h6>Analyze Results</h6>
+            <p>See VPIP, BB/100, earnings, positional matchups, and more — broken down by preflop, flop, turn, and river.</p>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="feature-card">
+            <div class="feature-icon" style="background:rgba(59,130,246,0.15); color:var(--accent-blue);">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h6>Track Progress</h6>
+            <p>Your profile aggregates all sessions with bankroll trends, hand heatmaps, and comprehensive performance analytics.</p>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="feature-card">
+            <div class="feature-icon" style="background:rgba(245,158,11,0.15); color:var(--accent-orange);">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <h6>Learn & Improve</h6>
+            <p>Built-in learning modules for arithmetic, quant math, poker ranges, and timed poker math quizzes.</p>
+        </div>
+    </div>
+</div>
+
+<div class="landing-footer">
+    Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a>
 </div>
 {% endblock %}
-
-
-
-
-
-
-
-
-
-
-

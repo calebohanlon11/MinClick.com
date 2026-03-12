@@ -4,34 +4,29 @@
 {% block content %}
 <style>
     :root {
-        --dashboard-primary: #667eea;
-        --dashboard-secondary: #764ba2;
+        --dashboard-primary: #10b981;
+        --dashboard-secondary: #8b5cf6;
         --dashboard-success: #10b981;
         --dashboard-danger: #ef4444;
         --dashboard-warning: #f59e0b;
         --dashboard-info: #3b82f6;
         --dashboard-dark: #1e293b;
-        --dashboard-light: #f8fafc;
-        --dashboard-card-bg: rgba(255, 255, 255, 0.95);
-        --dashboard-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        --dashboard-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.15);
-    }
-
-    [data-theme="dark"] {
-        --dashboard-card-bg: rgba(30, 41, 59, 0.95);
-        --dashboard-light: #0f172a;
+        --dashboard-light: #0a0e17;
+        --dashboard-card-bg: rgba(26, 34, 53, 0.95);
         --dashboard-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         --dashboard-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.4);
     }
 
-    .dashboard-container {
-        padding: 2rem 1rem;
-        background: linear-gradient(135deg, var(--dashboard-light) 0%, #e2e8f0 100%);
-        min-height: 100vh;
+    [data-theme="light"] {
+        --dashboard-card-bg: rgba(255, 255, 255, 0.95);
+        --dashboard-light: #f1f5f9;
+        --dashboard-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        --dashboard-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.12);
     }
 
-    [data-theme="dark"] .dashboard-container {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    .dashboard-container {
+        padding: 2rem 1rem;
+        min-height: 100vh;
     }
 
     .dashboard-header {
@@ -51,11 +46,11 @@
 
     .stat-card {
         background: var(--dashboard-card-bg);
-        border-radius: 16px;
+        border-radius: 14px;
         padding: 1.5rem;
         box-shadow: var(--dashboard-shadow);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--border-color);
         backdrop-filter: blur(10px);
         position: relative;
         overflow: hidden;
@@ -68,7 +63,7 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
+        height: 3px;
         background: linear-gradient(90deg, var(--dashboard-primary), var(--dashboard-secondary));
         transform: scaleX(0);
         transform-origin: left;
@@ -76,8 +71,9 @@
     }
 
     .stat-card:hover {
-        transform: translateY(-8px);
-        box-shadow: var(--dashboard-shadow-hover);
+        transform: translateY(-4px);
+        border-color: var(--border-glow);
+        box-shadow: var(--dashboard-shadow-hover), var(--shadow-glow);
     }
 
     .stat-card:hover::before {

@@ -887,7 +887,7 @@ class PokerStarsHandProcessor(LadbrooksPokerHandProcessor):
             line = line.strip()
             if 'is sitting out' in line:
                 continue
-            m = re.match(r'Seat (\d+): (.+?) \([€£$]?([\d.]+)', line)
+            m = re.match(r'Seat (\d+): (.+?) \([€£$]?([\d.]+) in chips\)', line)
             if m:
                 seat_info.append((int(m.group(1)), m.group(2).strip()))
         return seat_info

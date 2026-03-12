@@ -5,14 +5,20 @@
 {% block content %}
 <style>
     #analyticsTabs .nav-link {
-        color: black !important;
+        color: var(--text-secondary) !important;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
     }
     #analyticsTabs .nav-link.active {
-        color: black !important;
-        background-color: #f8f9fa !important;
+        color: var(--accent-green) !important;
+        background-color: var(--accent-green-dim) !important;
+        border-color: transparent !important;
     }
     #analyticsTabs .nav-link:hover {
-        color: black !important;
+        color: var(--text-primary) !important;
+        background-color: var(--bg-card-hover) !important;
     }
 </style>
 {% if stats %}

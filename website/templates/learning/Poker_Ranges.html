@@ -1,1118 +1,2041 @@
-<div class="container-fluid px-4 py-4" style="background: #1a1a1a; min-height: 100vh;">
-    <div class="container-fluid">
-        <!-- Top Header Bar -->
-        <div class="top-header-bar mb-3">
-            <div class="header-left">
-                <span class="game-settings">Cash 100bb</span>
-                <span class="game-settings">6max NL50</span>
-                <span class="game-settings">General 2.5x</span>
-                <span class="game-settings">3b: GTO</span>
-            </div>
-            <div class="header-right">
-                <button class="btn-change">Change</button>
-                <button id="editModeToggle" class="btn-edit-mode">Edit Ranges</button>
-                <button id="saveRangesBtn" class="btn-save" style="display: none;">Save Changes</button>
-                <button id="resetRangesBtn" class="btn-reset" style="display: none;">Reset to Default</button>
-            </div>
+<!-- Poker Ranges Viewer & Editor -->
+<div class="ranges-app" id="rangesApp">
+
+    <!-- Flow Bar -->
+    <div class="flow-bar" id="flowBar">
+        <div class="flow-info">
+            <i class="fas fa-play-circle flow-icon"></i>
+            <span class="flow-text" id="flowText">UTG to act — Open or Fold</span>
         </div>
+        <button class="btn-action btn-reset-flow" id="resetFlowBtn">
+            <i class="fas fa-redo"></i> Reset Table
+        </button>
+    </div>
 
-        <!-- Position Selection Bar -->
-        <div class="position-bar mb-4" id="positionBar">
-            <!-- Will be populated by JavaScript -->
+    <!-- Header -->
+    <div class="ranges-header">
+        <div class="header-info">
+            <span class="info-badge">Cash 100bb</span>
+            <span class="info-badge">6-Max</span>
+            <span class="info-badge" id="scenarioLabel">RFI (Open Raise)</span>
         </div>
+        <div class="header-actions">
+            <button class="btn-action btn-import" id="importBtn">
+                <i class="fas fa-file-import"></i> Import
+            </button>
+            <button class="btn-action btn-export" id="exportBtn">
+                <i class="fas fa-file-export"></i> Export
+            </button>
+            <button class="btn-action btn-edit" id="editToggle">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn-action btn-save" id="saveBtn" style="display:none">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button class="btn-action btn-reset" id="resetBtn" style="display:none">
+                <i class="fas fa-undo"></i> Reset
+            </button>
+        </div>
+    </div>
 
-        <!-- Main Content Area -->
-        <div class="main-content-area">
-            <!-- Left: Matrix Section -->
-            <div class="matrix-area">
-                <div id="current-matrix" class="hand-matrix"></div>
-            </div>
+    <!-- Position Selector -->
+    <div id="positionSelector" class="position-selector"></div>
 
-            <!-- Right: Analytics Section -->
-            <div class="analytics-area">
-                <div class="analytics-tabs">
-                    <button class="analytics-tab active" data-tab="overview">Overview</button>
-                    <button class="analytics-tab" data-tab="table">Table</button>
-                    <button class="analytics-tab" data-tab="equity">Equity chart</button>
-                </div>
-                
-                <div class="analytics-content">
-                    <div id="analytics-overview" class="analytics-panel active">
-                        <div class="action-overview-section">
-                            <h3 class="section-title">Actions</h3>
-                            <div id="current-actions" class="action-cards"></div>
-                        </div>
-                    </div>
-                    <div id="analytics-table" class="analytics-panel">
-                        <p style="color: #b8b8b8;">Table view coming soon...</p>
-                    </div>
-                    <div id="analytics-equity" class="analytics-panel">
-                        <p style="color: #b8b8b8;">Equity chart coming soon...</p>
-                    </div>
+    <!-- Main Content -->
+    <div class="ranges-main">
+        <div class="matrix-panel">
+            <div id="matrixContainer" class="hand-matrix"></div>
+        </div>
+        <div class="info-panel">
+            <div class="info-tabs">
+                <button class="info-tab active" data-tab="actions">Actions</button>
+                <button class="info-tab" data-tab="hands">Hand List</button>
+            </div>
+            <div id="infoContent" class="info-content"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal" style="display:none">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h4><i class="fas fa-file-import me-2"></i>Import Range</h4>
+            <button class="modal-close" id="importClose">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="import-action-selector" id="importActionGroup" style="display:none">
+                <label class="import-label">Importing as:</label>
+                <div class="radio-group">
+                    <label class="radio-opt"><input type="radio" name="importAction" value="r" checked> <span class="color-dot dot-raise"></span> Raise / 3-Bet / 4-Bet</label>
+                    <label class="radio-opt"><input type="radio" name="importAction" value="c"> <span class="color-dot dot-call"></span> Call</label>
                 </div>
             </div>
+            <label class="import-label">Paste range text:</label>
+            <textarea id="importText" class="import-textarea" placeholder="Paste range text here...
+
+Supported formats:
+• AA,KK,QQ,JJ:50,TT:25  (commas with optional :frequency)
+• AA-TT,AKs-A2s           (range notation)
+• Mix: AA-QQ,JJ:75,AKs-ATs,AQo:50
+
+Frequency defaults to 100% if not specified."></textarea>
+            <div class="import-preview" id="importPreview"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-action btn-secondary" id="importParseBtn">
+                <i class="fas fa-search"></i> Preview
+            </button>
+            <button class="btn-action btn-primary" id="importApplyBtn" disabled>
+                <i class="fas fa-check"></i> Apply
+            </button>
         </div>
     </div>
 </div>
 
 <style>
-/* Top Header Bar */
-.top-header-bar {
+/* ═══════════════════════════════════════════ */
+/* APP CONTAINER                               */
+/* ═══════════════════════════════════════════ */
+.ranges-app {
+    background: #0f1118;
+    border-radius: 12px;
+    padding: 1.5rem;
+    color: #e0e0e0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ═══════════════════════════════════════════ */
+/* FLOW BAR                                    */
+/* ═══════════════════════════════════════════ */
+.flow-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 20px;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1.25rem;
+    background: linear-gradient(135deg, rgba(102,126,234,0.12), rgba(118,75,162,0.08));
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    border: 1px solid rgba(102,126,234,0.2);
 }
-
-.header-left {
+.flow-info {
     display: flex;
-    gap: 15px;
     align-items: center;
+    gap: 0.6rem;
 }
-
-.game-settings {
-    color: #fff;
-    font-size: 0.9rem;
-    padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-change {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 6px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-}
-
-.btn-change:hover {
-    background: rgba(255, 255, 255, 0.15);
-}
-
-/* Position Bar - matches GTO Wizard style */
-.position-bar {
-    display: flex;
-    gap: 15px;
-    padding: 15px 20px;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    overflow-x: auto;
-}
-
-.position-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: 100px;
-    padding: 10px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.position-item.active {
-    background: rgba(76, 175, 80, 0.3);
-    border-color: #4CAF50;
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
-}
-
-.position-item:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.position-name {
-    color: #fff;
-    font-size: 0.9rem;
+.flow-icon { color: #667eea; font-size: 1rem; }
+.flow-text {
+    color: #d0d0e0;
     font-weight: 600;
-    margin-bottom: 8px;
+    font-size: 0.92rem;
 }
-
-.position-stack {
-    color: #b8b8b8;
-    font-size: 0.75rem;
-    margin-bottom: 8px;
-}
-
-.position-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 100%;
-}
-
-.action-button {
-    padding: 6px 10px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
-    font-size: 0.75rem;
+.btn-reset-flow {
+    background: rgba(255,255,255,0.06);
+    color: #8a8a9a;
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.btn-reset-flow:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+/* ═══════════════════════════════════════════ */
+/* HEADER BAR                                  */
+/* ═══════════════════════════════════════════ */
+.ranges-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+.header-info { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.info-badge {
+    padding: 0.3rem 0.7rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: #8a8a9a;
+}
+.header-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.btn-action {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: rgba(255,255,255,0.04);
+    color: #a0a0b0;
+}
+.btn-action:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.btn-import { background: rgba(102,126,234,0.12); color: #94a8f0; border-color: rgba(102,126,234,0.25); }
+.btn-import:hover { background: rgba(102,126,234,0.22); }
+.btn-export { background: rgba(67,233,123,0.08); color: #6dd5a0; border-color: rgba(67,233,123,0.2); }
+.btn-export:hover { background: rgba(67,233,123,0.18); }
+.btn-edit { background: rgba(255,255,255,0.04); color: #a0a0b0; }
+.btn-edit:hover { background: rgba(255,255,255,0.1); }
+.btn-edit.active { background: rgba(220,53,69,0.18); color: #f07080; border-color: rgba(220,53,69,0.35); }
+.btn-save { background: rgba(67,233,123,0.12); color: #6dd5a0; border-color: rgba(67,233,123,0.25); }
+.btn-reset { background: rgba(255,152,0,0.12); color: #ffb347; border-color: rgba(255,152,0,0.25); }
+.btn-secondary { background: rgba(255,255,255,0.06); color: #b0b0c0; }
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; }
+.btn-primary:hover { box-shadow: 0 4px 12px rgba(102,126,234,0.35); }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+/* ═══════════════════════════════════════════ */
+/* POSITION SELECTOR (GTO Wizard card style)   */
+/* ═══════════════════════════════════════════ */
+.position-selector {
+    margin-bottom: 1.25rem;
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px;
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.pos-cards-row {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+.pos-row-label {
+    color: #6a6a7a;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 0.5rem;
+}
+.pos-vs-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0;
+    color: #4a4a5a;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+.pos-card {
+    flex: 1;
+    min-width: 110px;
+    max-width: 160px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.pos-card:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.15);
+}
+.pos-card.active {
+    background: rgba(76,175,80,0.1);
+    border-color: #4CAF50;
+    box-shadow: 0 0 12px rgba(76,175,80,0.15);
+}
+.pos-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.pos-card-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #8a8a9a;
+    transition: color 0.2s;
+}
+.pos-card.active .pos-card-name { color: #4CAF50; }
+.pos-card-stack {
+    font-size: 0.75rem;
+    color: #5a5a6a;
+    font-weight: 600;
+}
+.pos-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.pos-card-action {
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #7a7a8a;
+    text-align: center;
+    transition: all 0.15s;
+}
+.pos-card.active .pos-card-action.act-raise {
+    background: rgba(220,53,69,0.2);
+    border-color: rgba(220,53,69,0.35);
+    color: #f07080;
+}
+.pos-card.active .pos-card-action.act-call {
+    background: rgba(39,174,96,0.15);
+    border-color: rgba(39,174,96,0.3);
+    color: #6dd5a0;
+}
+.pos-card.active .pos-card-action.act-fold {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.08);
+    color: #8a8a9a;
+}
+.pos-card.active .pos-card-action.act-allin {
+    background: rgba(139,0,0,0.2);
+    border-color: rgba(139,0,0,0.35);
+    color: #e07070;
+}
+.pos-card-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: #5a5a6a;
+    padding-top: 0.25rem;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    margin-top: 0.1rem;
+}
+
+/* Flow card states */
+.pos-card.waiting {
+    opacity: 0.45;
+    cursor: pointer;
+}
+.pos-card.waiting:hover { opacity: 0.7; }
+.pos-card.acted-fold {
+    opacity: 0.28;
+    cursor: pointer;
+}
+.pos-card.acted-fold:hover { opacity: 0.5; }
+.pos-card.acted-raise {
+    border-color: rgba(192,57,43,0.5);
+    background: rgba(192,57,43,0.08);
+    cursor: pointer;
+}
+.pos-card.acted-raise:hover { background: rgba(192,57,43,0.14); }
+.pos-card.acted-call {
+    border-color: rgba(39,174,96,0.4);
+    background: rgba(39,174,96,0.06);
+    cursor: pointer;
+}
+.pos-card.acted-call:hover { background: rgba(39,174,96,0.12); }
+.pos-card.acted-3bet {
+    border-color: rgba(192,57,43,0.5);
+    background: rgba(192,57,43,0.1);
+    cursor: pointer;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.status-fold   { background: rgba(255,255,255,0.05); color: #5a5a6a; }
+.status-raise  { background: rgba(192,57,43,0.2); color: #e07070; }
+.status-call   { background: rgba(39,174,96,0.15); color: #6dd5a0; }
+.status-3bet   { background: rgba(192,57,43,0.25); color: #f07080; }
+
+/* Flow action buttons on active card */
+.flow-action-btn {
+    display: block;
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #b0b0c0;
+    cursor: pointer;
+    transition: all 0.15s;
     text-align: center;
 }
-
-.action-button:hover {
-    background: rgba(255, 255, 255, 0.1);
+.flow-action-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    transform: scale(1.03);
+}
+.flow-action-btn.fa-fold {
+    border-color: rgba(255,255,255,0.08);
+}
+.flow-action-btn.fa-fold:hover {
+    background: rgba(255,255,255,0.08);
+    color: #aaa;
+}
+.flow-action-btn.fa-raise {
+    border-color: rgba(192,57,43,0.35);
+    background: rgba(192,57,43,0.12);
+    color: #f07080;
+}
+.flow-action-btn.fa-raise:hover {
+    background: rgba(192,57,43,0.25);
+    color: #ff8a8a;
+}
+.flow-action-btn.fa-call {
+    border-color: rgba(39,174,96,0.3);
+    background: rgba(39,174,96,0.1);
+    color: #6dd5a0;
+}
+.flow-action-btn.fa-call:hover {
+    background: rgba(39,174,96,0.2);
+    color: #80e8b5;
 }
 
-.action-button.active {
-    background: rgba(220, 53, 69, 0.3);
-    border-color: #dc3545;
-}
-
-.action-button.fold.active {
-    background: rgba(26, 26, 26, 0.6);
-    border-color: rgba(255, 255, 255, 0.3);
-}
-
-/* Main Content Area */
-.main-content-area {
-    display: flex;
-    gap: 25px;
-}
-
-.matrix-area {
+/* ═══════════════════════════════════════════ */
+/* MAIN CONTENT LAYOUT                         */
+/* ═══════════════════════════════════════════ */
+.ranges-main { display: flex; gap: 1.5rem; }
+.matrix-panel {
     flex: 1;
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px;
+    padding: 1.25rem;
+    border: 1px solid rgba(255,255,255,0.05);
     display: flex;
+    align-items: flex-start;
     justify-content: center;
-    align-items: flex-start;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 8px;
-    padding: 25px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-height: 620px;
 }
-
-.analytics-area {
-    flex: 0 0 350px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 8px;
-    padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Analytics Tabs */
-.analytics-tabs {
+.info-panel {
+    flex: 0 0 310px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px;
+    padding: 1.25rem;
+    border: 1px solid rgba(255,255,255,0.05);
+    max-height: 720px;
     display: flex;
-    gap: 5px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-direction: column;
 }
 
-.analytics-tab {
-    background: transparent;
-    border: none;
-    color: #b8b8b8;
-    padding: 10px 15px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: all 0.2s;
-}
-
-.analytics-tab:hover {
-    color: #fff;
-}
-
-.analytics-tab.active {
-    color: #fff;
-    border-bottom-color: #4CAF50;
-}
-
-.analytics-panel {
-    display: none;
-}
-
-.analytics-panel.active {
-    display: block;
-}
-
-/* Matrix */
-.matrix-area {
-    min-height: 600px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-}
-
-.hand-matrix {
-    display: block;
-    width: 100%;
-    min-height: 600px;
-}
-
-.matrix-container {
-    display: block;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.98);
+/* ═══════════════════════════════════════════ */
+/* MATRIX                                      */
+/* ═══════════════════════════════════════════ */
+.hand-matrix { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.matrix-grid {
+    display: inline-block;
     border-radius: 6px;
-    overflow: visible;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    min-width: 600px;
-    min-height: 600px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
-
-.matrix-row {
-    display: flex;
-}
-
+.matrix-row { display: flex; }
 .matrix-cell {
     width: 46px;
     height: 46px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 600;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    color: #fff;
+    font-size: 0.67rem;
+    font-weight: 700;
+    border: 0.5px solid rgba(0,0,0,0.2);
+    cursor: default;
     position: relative;
-    text-align: center;
-    font-family: 'Arial', sans-serif;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    transition: transform 0.12s, box-shadow 0.12s;
     overflow: hidden;
+    letter-spacing: 0.2px;
 }
-
 .matrix-cell:hover {
-    transform: scale(1.1);
+    transform: scale(1.18);
     z-index: 10;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
-    border: 2px solid #fff;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+    outline: 2px solid rgba(255,255,255,0.65);
 }
-
-.matrix-cell.editable {
-    cursor: pointer;
+.matrix-cell .cell-label {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
 }
-
-.matrix-cell.editable:hover {
-    border: 2px solid #4CAF50;
-}
-
-.frequency-input {
+.matrix-cell.editable { cursor: pointer; }
+.matrix-cell .freq-input {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    border: 2px solid #4CAF50;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    border: 2px solid #667eea;
     color: #fff;
     font-size: 0.65rem;
     text-align: center;
     z-index: 20;
+    opacity: 0;
+    transition: opacity 0.15s;
+    width: 100%;
+    height: 100%;
     padding: 0;
     margin: 0;
     border-radius: 0;
-    opacity: 0;
-    transition: opacity 0.2s;
 }
+.matrix-cell.editable:hover .freq-input,
+.matrix-cell .freq-input:focus { opacity: 1; outline: none; }
 
-.matrix-cell.editable:hover .frequency-input {
-    opacity: 1;
+.range-legend {
+    display: flex;
+    gap: 1.25rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
 }
-
-.frequency-input:focus {
-    opacity: 1;
-    outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: #6a6a7a;
 }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; }
 
-.btn-edit-mode, .btn-save, .btn-reset {
-    background: #4CAF50;
-    color: white;
+/* ═══════════════════════════════════════════ */
+/* INFO PANEL                                  */
+/* ═══════════════════════════════════════════ */
+.info-tabs {
+    display: flex;
+    gap: 0.2rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+}
+.info-tab {
+    background: transparent;
     border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
+    color: #5a5a6a;
+    padding: 0.55rem 0.9rem;
     cursor: pointer;
-    margin-left: 10px;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
     transition: all 0.2s;
 }
+.info-tab:hover { color: #c0c0d0; }
+.info-tab.active { color: #e0e0f0; border-bottom-color: #667eea; }
+.info-content { flex: 1; overflow-y: auto; }
 
-.btn-edit-mode:hover, .btn-save:hover, .btn-reset:hover {
-    background: #45a049;
+.action-summary { display: flex; flex-direction: column; gap: 0.55rem; }
+.action-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.action-color { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.action-name { font-weight: 600; font-size: 0.83rem; flex: 1; }
+.action-pct { font-weight: 700; font-size: 0.95rem; min-width: 50px; text-align: right; }
+.action-combos { font-size: 0.72rem; color: #6a6a7a; min-width: 72px; text-align: right; }
+
+.stats-footer {
+    margin-top: 0.75rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.78rem;
+    color: #5a5a6a;
 }
 
-.btn-edit-mode.active {
-    background: #f44336;
+.hand-list { overflow-y: auto; max-height: 560px; }
+.hand-list-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.4rem;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    font-size: 0.78rem;
 }
-
-.btn-edit-mode.active:hover {
-    background: #da190b;
-}
-
-.btn-reset {
-    background: #ff9800;
-}
-
-.btn-reset:hover {
-    background: #f57c00;
-}
-
-/* Partial fill support - straight horizontal fill */
-.matrix-cell.partial-fill {
-    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
-    position: relative;
+.hand-list-row:hover { background: rgba(255,255,255,0.02); }
+.hl-hand { font-weight: 700; width: 42px; color: #c0c0d0; }
+.hl-bar {
+    flex: 1;
+    height: 14px;
+    border-radius: 3px;
     overflow: hidden;
+    background: rgba(255,255,255,0.04);
+    display: flex;
 }
+.hl-raise, .hl-call { height: 100%; }
+.hl-pct { width: 40px; text-align: right; font-size: 0.72rem; color: #6a6a7a; }
 
-.matrix-cell.partial-fill::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: var(--fill-percent, 0%);
-    height: 100%;
-    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-    z-index: 1;
+/* Empty state */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: #4a4a5a;
+    text-align: center;
+    gap: 0.75rem;
 }
+.empty-state i { font-size: 2.5rem; opacity: 0.3; }
+.empty-state p { margin: 0; line-height: 1.5; }
+.empty-state strong { color: #8a8a9a; }
 
-.matrix-cell.partial-fill > span,
-.matrix-cell > span.hand-label {
-    position: relative;
-    z-index: 2;
-    font-weight: 600;
-}
-
-.matrix-cell > span.hand-label {
-    width: 100%;
-    height: 100%;
+/* ═══════════════════════════════════════════ */
+/* IMPORT MODAL                                */
+/* ═══════════════════════════════════════════ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
-    pointer-events: none;
+    backdrop-filter: blur(4px);
 }
-
-.matrix-cell.full-raise {
-    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-    color: white;
+.modal-card {
+    background: #181a2e;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    width: 92%;
+    max-width: 540px;
+    max-height: 82vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
 }
-
-.matrix-cell.full-fold {
-    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
-    color: #fff;
-    opacity: 0.9;
-}
-
-/* Analytics Section */
-.section-title {
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 15px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.action-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.action-card {
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 6px;
-    padding: 12px 15px;
-    border: none;
+.modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 1.15rem 1.4rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-
-.action-card.raise {
-    background: rgba(220, 53, 69, 0.2);
-    border: 1px solid rgba(220, 53, 69, 0.4);
+.modal-header h4 { margin: 0; color: #e0e0f0; font-size: 1rem; font-weight: 600; }
+.modal-close {
+    background: none;
+    border: none;
+    color: #6a6a7a;
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
 }
-
-.action-card.fold {
-    background: rgba(26, 26, 26, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.action-card.allin {
-    background: rgba(139, 0, 0, 0.3);
-    border: 1px solid rgba(139, 0, 0, 0.5);
-}
-
-.action-info {
+.modal-close:hover { color: #fff; }
+.modal-body { padding: 1.4rem; }
+.modal-footer {
+    padding: 0.9rem 1.4rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
     display: flex;
-    flex-direction: column;
-    flex: 1;
+    gap: 0.5rem;
+    justify-content: flex-end;
 }
-
-.action-label {
-    color: #b8b8b8;
+.import-label {
+    display: block;
+    color: #6a6a7a;
     font-size: 0.75rem;
-    margin-bottom: 4px;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
-
-.action-value {
-    color: #fff;
-    font-size: 1.1rem;
-    font-weight: 700;
+.radio-group { display: flex; gap: 1.25rem; margin-bottom: 1rem; }
+.radio-opt {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #c0c0d0;
+    font-size: 0.83rem;
+    cursor: pointer;
+}
+.color-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.dot-raise { background: #c0392b; }
+.dot-call { background: #27ae60; }
+.import-textarea {
+    width: 100%;
+    min-height: 110px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    color: #d0d0e0;
+    padding: 0.7rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    resize: vertical;
+    line-height: 1.5;
+    box-sizing: border-box;
+}
+.import-textarea:focus { outline: none; border-color: rgba(102,126,234,0.5); }
+.import-preview {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    background: rgba(0,0,0,0.18);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: #6a6a7a;
+    min-height: 1.5rem;
+    line-height: 1.5;
 }
 
-.action-combos {
-    color: #b8b8b8;
-    font-size: 0.75rem;
-    margin-top: 2px;
+/* ═══════════════════════════════════════════ */
+/* RESPONSIVE                                  */
+/* ═══════════════════════════════════════════ */
+@media (max-width: 1100px) {
+    .ranges-main { flex-direction: column; }
+    .info-panel { flex: 1; max-height: none; }
 }
-
-/* Responsive */
-@media (max-width: 1200px) {
-    .main-content-area {
-        flex-direction: column;
-    }
-    
-    .analytics-area {
-        flex: 1;
-    }
-}
-
-@media (max-width: 768px) {
-    .matrix-cell {
-        width: 35px;
-        height: 35px;
-        font-size: 0.6rem;
-    }
-    
-    .position-item {
-        min-width: 80px;
-    }
+@media (max-width: 650px) {
+    .matrix-cell { width: 26px; height: 26px; font-size: 0.48rem; }
+    .ranges-app { padding: 0.75rem; }
+    .scenario-btn { font-size: 0.78rem; padding: 0.55rem 0.5rem; }
+    .info-panel { flex: none; }
+    .pos-card { min-width: 85px; padding: 0.5rem; }
+    .pos-card-name { font-size: 0.78rem; }
+    .pos-card-action { font-size: 0.62rem; padding: 0.2rem 0.35rem; }
 }
 </style>
 
 <script>
-// Define RFI ranges with frequencies for each position (GTO Wizard exact data)
-// Format: { hand: frequency (0-100) }
-// UTG target: 17.6% raise = 233.91 combos out of 1326 total
-const rangeFrequencies = {
-    utg: {
-        // Pairs - small pairs with specific frequencies
-        '22': 16, '33': 16, '44': 16, '55': 16, '66': 25, '77': 75,
-        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
-        // Suited - All A2s-AKs, K5s-KQs, Q9s-QJs, J9s-JTs, T9s, 98s, 87s, 76s, 65s, 54s, 43s, 32s
-        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
-        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
-        'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
-        'Q9s': 100, 'QTs': 100, 'QJs': 100,
-        'J9s': 100, 'JTs': 100,
-        'T9s': 100,
-        '98s': 100,
-        '87s': 100,
-        '76s': 100,
-        '65s': 100,
-        '54s': 100,
-        '43s': 100,
-        '32s': 100,
-        // Offsuit - ATo-AKo, KJo-KQo, QJo, JTo
-        'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
-        'KJo': 100, 'KQo': 100,
-        'QJo': 100,
-        'JTo': 100
-    },
-    hj: {
-        // Pairs - all 100% for HJ
-        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
-        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
-        // Suited
-        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
-        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
-        'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
-        'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
-        'J8s': 100, 'J9s': 100, 'JTs': 100,
-        'T8s': 100, 'T9s': 100,
-        '97s': 100, '98s': 100,
-        '86s': 100, '87s': 100,
-        '76s': 100,
-        // Offsuit
-        'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
-        'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
-        'Q9o': 100, 'QTo': 100, 'QJo': 100,
-        'J9o': 100, 'JTo': 100,
-        'T9o': 100
-    },
-    co: {
-        // All hands 100% for CO
-        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
-        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
-        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
-        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
-        'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
-        'Q7s': 100, 'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
-        'J7s': 100, 'J8s': 100, 'J9s': 100, 'JTs': 100,
-        'T7s': 100, 'T8s': 100, 'T9s': 100,
-        '96s': 100, '97s': 100, '98s': 100,
-        '85s': 100, '86s': 100, '87s': 100,
-        '74s': 100, '75s': 100, '76s': 100,
-        '63s': 100, '64s': 100, '65s': 100,
-        '52s': 100, '53s': 100, '54s': 100,
-        '42s': 100, '43s': 100,
-        '32s': 100,
-        'A4o': 100, 'A5o': 100, 'A6o': 100, 'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
-        'K8o': 100, 'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
-        'Q8o': 100, 'Q9o': 100, 'QTo': 100, 'QJo': 100,
-        'J8o': 100, 'J9o': 100, 'JTo': 100,
-        'T8o': 100, 'T9o': 100,
-        '98o': 100
-    },
-    btn: {
-        // All hands 100% for BTN
-        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
-        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
-        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
-        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
-        'K2s': 100, 'K3s': 100, 'K4s': 100, 'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
-        'Q2s': 100, 'Q3s': 100, 'Q4s': 100, 'Q5s': 100, 'Q6s': 100, 'Q7s': 100, 'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
-        'J5s': 100, 'J6s': 100, 'J7s': 100, 'J8s': 100, 'J9s': 100, 'JTs': 100,
-        'T6s': 100, 'T7s': 100, 'T8s': 100, 'T9s': 100,
-        '96s': 100, '97s': 100, '98s': 100,
-        '85s': 100, '86s': 100, '87s': 100,
-        '74s': 100, '75s': 100, '76s': 100,
-        '63s': 100, '64s': 100, '65s': 100,
-        '52s': 100, '53s': 100, '54s': 100,
-        '32s': 100, '42s': 100, '43s': 100,
-        'A2o': 100, 'A3o': 100, 'A4o': 100, 'A5o': 100, 'A6o': 100, 'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
-        'K7o': 100, 'K8o': 100, 'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
-        'Q8o': 100, 'Q9o': 100, 'QTo': 100, 'QJo': 100,
-        'J8o': 100, 'J9o': 100, 'JTo': 100,
-        'T8o': 100, 'T9o': 100,
-        '98o': 100,
-        '87o': 100,
-        '76o': 100,
-        '65o': 100,
-        '54o': 100
-    },
-    sb: {
-        // All hands 100% for SB
-        '22': 100, '33': 100, '44': 100, '55': 100, '66': 100, '77': 100,
-        '88': 100, '99': 100, 'TT': 100, 'JJ': 100, 'QQ': 100, 'KK': 100, 'AA': 100,
-        'A2s': 100, 'A3s': 100, 'A4s': 100, 'A5s': 100, 'A6s': 100, 'A7s': 100,
-        'A8s': 100, 'A9s': 100, 'ATs': 100, 'AJs': 100, 'AQs': 100, 'AKs': 100,
-        'K2s': 100, 'K3s': 100, 'K4s': 100, 'K5s': 100, 'K6s': 100, 'K7s': 100, 'K8s': 100, 'K9s': 100, 'KTs': 100, 'KJs': 100, 'KQs': 100,
-        'Q4s': 100, 'Q5s': 100, 'Q6s': 100, 'Q7s': 100, 'Q8s': 100, 'Q9s': 100, 'QTs': 100, 'QJs': 100,
-        'J6s': 100, 'J7s': 100, 'J8s': 100, 'J9s': 100, 'JTs': 100,
-        'T6s': 100, 'T7s': 100, 'T8s': 100, 'T9s': 100,
-        '96s': 100, '97s': 100, '98s': 100,
-        '85s': 100, '86s': 100, '87s': 100,
-        '74s': 100, '75s': 100, '76s': 100,
-        '43s': 100, '53s': 100, '54s': 100, '63s': 100, '64s': 100, '65s': 100,
-        'A3o': 100, 'A4o': 100, 'A5o': 100, 'A6o': 100, 'A7o': 100, 'A8o': 100, 'A9o': 100, 'ATo': 100, 'AJo': 100, 'AQo': 100, 'AKo': 100,
-        'K6o': 100, 'K7o': 100, 'K8o': 100, 'K9o': 100, 'KTo': 100, 'KJo': 100, 'KQo': 100,
-        'Q7o': 100, 'Q8o': 100, 'Q9o': 100, 'QTo': 100, 'QJo': 100,
-        'J8o': 100, 'J9o': 100, 'JTo': 100,
-        'T8o': 100, 'T9o': 100,
-        '98o': 100,
-        '87o': 100,
-        '76o': 100
-    }
-};
+(function() {
+    'use strict';
 
-// Card ranks
-const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+    const RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+    const RANK_IDX = {};
+    RANKS.forEach((r, i) => RANK_IDX[r] = i);
 
-// Current selected position
-let currentPosition = 'utg';
-
-// Edit mode state
-let editMode = false;
-let originalRanges = null; // Will be initialized after DOM loads
-
-// Edit mode state
-let editMode = false;
-let originalRanges = JSON.parse(JSON.stringify(rangeFrequencies)); // Deep copy for reset
-
-// Position data with stack sizes
-const positionData = {
-    utg: { name: 'UTG', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
-    hj: { name: 'HJ', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
-    co: { name: 'CO', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
-    btn: { name: 'BTN', stack: 100, actions: ['Fold', 'Raise 2.5', 'Allin 100'] },
-    sb: { name: 'SB', stack: 99.5, actions: ['Fold', 'Call', 'Raise 3', 'Allin 100'] },
-    bb: { name: 'BB', stack: 99, actions: ['Fold', 'Call', 'Raise 3', 'Allin 100'] }
-};
-
-// Get number of combos for a hand
-function getCombos(hand) {
-    if (hand.length === 2) {
-        return 6; // Pair
-    } else if (hand.includes('s')) {
-        return 4; // Suited
-    } else {
-        return 12; // Offsuit
-    }
-}
-
-// Get frequency for a hand
-function getFrequency(hand, position) {
-    if (position === 'bb') return 0;
-    const freq = rangeFrequencies[position];
-    if (!freq) return 0;
-    
-    // Normalize: uppercase the ranks but keep 's' and 'o' lowercase
-    // e.g., "AKs" -> "AKs", "AKo" -> "AKo", "AA" -> "AA"
-    let normalized = hand.toUpperCase();
-    // If it ends with 'S' or 'O', convert back to lowercase
-    if (normalized.endsWith('S')) {
-        normalized = normalized.slice(0, -1) + 's';
-    } else if (normalized.endsWith('O')) {
-        normalized = normalized.slice(0, -1) + 'o';
-    }
-    
-    return freq[normalized] || 0;
-}
-
-// Calculate position stats
-function calculatePositionStats(position) {
-    let totalCombos = 0;
-    let raiseCombos = 0;
-    let foldCombos = 0;
-    
-    ranks.forEach((rank1, i) => {
-        ranks.forEach((rank2, j) => {
-            let hand;
-            if (i === j) {
-                hand = rank1 + rank2;
-            } else if (i < j) {
-                hand = rank1 + rank2 + 's';
-            } else {
-                hand = rank2 + rank1 + 'o';
-            }
-            
-            const frequency = getFrequency(hand, position);
-            const combos = getCombos(hand);
-            const raiseComboCount = (frequency / 100) * combos;
-            
-            totalCombos += combos;
-            raiseCombos += raiseComboCount;
-            foldCombos += (combos - raiseComboCount);
-        });
-    });
-    
-    return {
-        total: totalCombos,
-        raise: Math.round(raiseCombos * 100) / 100,
-        fold: Math.round(foldCombos * 100) / 100,
-        raisePercent: (raiseCombos / totalCombos * 100).toFixed(1),
-        foldPercent: (foldCombos / totalCombos * 100).toFixed(1)
+    const SCENARIOS = {
+        rfi:     { label: 'RFI (Open Raise)', aggressive: 'Raise',  passive: null   },
+        vs_open: { label: 'Facing Open',       aggressive: '3-Bet',  passive: 'Call' },
+        vs_3bet: { label: 'Facing 3-Bet',      aggressive: '4-Bet',  passive: 'Call' }
     };
-}
 
-// Create position bar
-function createPositionBar() {
-    const bar = document.getElementById('positionBar');
-    let html = '';
-    
-    Object.keys(positionData).forEach(posKey => {
-        const pos = positionData[posKey];
-        const stats = calculatePositionStats(posKey);
-        const isActive = posKey === currentPosition;
-        
-        html += `<div class="position-item ${isActive ? 'active' : ''}" data-position="${posKey}">`;
-        html += `<div class="position-name" style="color: ${isActive ? '#4CAF50' : '#fff'};">${pos.name}</div>`;
-        html += `<div class="position-stack">${pos.stack}</div>`;
-        html += `<div class="position-actions">`;
-        pos.actions.forEach(action => {
-            const isRaise = action.includes('Raise');
-            const isFold = action === 'Fold';
-            const actionClass = isRaise ? 'raise' : (isFold ? 'fold' : '');
-            html += `<button class="action-button ${actionClass} ${isActive && isRaise ? 'active' : ''}">${action}</button>`;
-        });
-        html += `</div>`;
-        html += `<div class="position-stats" style="margin-top: 8px; font-size: 0.7rem; color: #b8b8b8;">`;
-        html += `<div>Raise: ${stats.raisePercent}%</div>`;
-        html += `<div>Fold: ${stats.foldPercent}%</div>`;
-        html += `</div>`;
-        html += `</div>`;
-    });
-    
-    bar.innerHTML = html;
-    
-    // Add click handlers
-    document.querySelectorAll('.position-item').forEach(item => {
-        item.addEventListener('click', function() {
-            const newPosition = this.getAttribute('data-position');
-            if (newPosition !== currentPosition) {
-                currentPosition = newPosition;
-                createPositionBar();
-                createMatrix(currentPosition);
-                updateAnalytics(currentPosition);
-            }
-        });
-    });
-}
+    const ALL_POS = ['UTG','HJ','CO','BTN','SB','BB'];
+    const RFI_POS = ['UTG','HJ','CO','BTN','SB'];
 
-// Create matrix
-function createMatrix(position) {
-    const matrix = document.getElementById('current-matrix');
-    if (!matrix) {
-        console.error('Matrix element not found!');
-        alert('Error: Matrix element not found. Please refresh the page.');
-        return;
-    }
-    
-    // Clear any existing content
-    matrix.innerHTML = '';
-    
-    console.log('Creating matrix for position:', position);
-    
-    let html = '<div class="matrix-container">';
-    let totalCells = 0;
-    let redCells = 0;
-    
-    ranks.forEach((rank1, i) => {
-        html += '<div class="matrix-row">';
-        
-        ranks.forEach((rank2, j) => {
-            let hand, displayText;
-            
-            if (i === j) {
-                hand = rank1 + rank2;
-                displayText = rank1 + rank2;
-            } else if (i < j) {
-                hand = rank1 + rank2 + 's';
-                displayText = rank1 + rank2 + 's';
-            } else {
-                hand = rank2 + rank1 + 'o';
-                displayText = rank2 + rank1 + 'o';
-            }
-            
-            const frequency = getFrequency(hand, position);
-            
-            let cellClass;
-            if (frequency === 100) {
-                cellClass = 'full-raise';
-                redCells++;
-            } else if (frequency === 0) {
-                cellClass = 'full-fold';
-            } else {
-                cellClass = 'partial-fill';
-                redCells++;
-            }
-            
-            const style = frequency > 0 && frequency < 100 ? `style="--fill-percent: ${frequency}%"` : '';
-            const editClass = editMode ? 'editable' : '';
-            
-            html += `<div class="matrix-cell ${cellClass} ${editClass}" ${style} data-hand="${hand}" data-position="${position}" title="${displayText}: ${frequency.toFixed(1)}%">`;
-            html += `<span class="hand-label">${displayText}</span>`;
-            if (editMode) {
-                html += `<input type="number" class="frequency-input" value="${frequency.toFixed(1)}" min="0" max="100" step="0.1" data-hand="${hand}" placeholder="${frequency.toFixed(1)}">`;
-            }
-            html += `</div>`;
-            totalCells++;
-        });
-        
-        html += '</div>';
-    });
-    
-    html += '</div>';
-    
-    console.log('Setting matrix innerHTML, HTML length:', html.length);
-    matrix.innerHTML = html;
-    console.log('Matrix HTML set, total cells:', totalCells, 'Matrix children:', matrix.children.length);
-    
-    // Verify matrix was created
-    const container = matrix.querySelector('.matrix-container');
-    if (!container) {
-        console.error('Matrix container not found after setting innerHTML!');
-        matrix.innerHTML = '<div style="color: white; padding: 20px; background: red;">ERROR: Matrix container failed to render!</div>';
-        return;
-    }
-    
-    const rows = container.querySelectorAll('.matrix-row');
-    console.log('Matrix rows created:', rows.length, 'Expected: 13');
-    
-    if (rows.length === 0) {
-        console.error('No matrix rows found!');
-        matrix.innerHTML = '<div style="color: white; padding: 20px; background: red;">ERROR: No matrix rows created!</div>';
-        return;
-    }
-    
-    // Add event listeners for editable cells
-    if (editMode) {
-        document.querySelectorAll('.frequency-input').forEach(input => {
-            input.addEventListener('change', function() {
-                const hand = this.getAttribute('data-hand');
-                const cell = this.closest('.matrix-cell');
-                const position = cell.getAttribute('data-position');
-                const newFreq = parseFloat(this.value) || 0;
-                const clampedFreq = Math.max(0, Math.min(100, newFreq));
-                
-                // Update the range data
-                if (!rangeFrequencies[position]) {
-                    rangeFrequencies[position] = {};
-                }
-                rangeFrequencies[position][hand] = clampedFreq;
-                
-                // Update the cell display
-                updateCellDisplay(cell, clampedFreq);
-                
-                // Update analytics
-                updateAnalytics(position);
-            });
-            
-            input.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
-        });
-    }
-}
+    const POS_CONFIG = {
+        UTG: { stack: 100, rfiActions: ['Fold','Raise 2.5','Allin 100'] },
+        HJ:  { stack: 100, rfiActions: ['Fold','Raise 2.5','Allin 100'] },
+        CO:  { stack: 100, rfiActions: ['Fold','Raise 2.5','Allin 100'] },
+        BTN: { stack: 100, rfiActions: ['Fold','Raise 2.5','Allin 100'] },
+        SB:  { stack: 99.5, rfiActions: ['Fold','Call','Raise 3','Allin 100'] },
+        BB:  { stack: 99,   rfiActions: ['Fold','Call','Raise 3','Allin 100'] }
+    };
 
-// Update cell display based on frequency
-function updateCellDisplay(cell, frequency) {
-    const hand = cell.getAttribute('data-hand');
-    const position = cell.getAttribute('data-position');
-    
-    // Remove old classes
-    cell.classList.remove('full-raise', 'full-fold', 'partial-fill');
-    
-    // Add appropriate class
-    if (frequency === 100) {
-        cell.classList.add('full-raise');
-        cell.style.removeProperty('--fill-percent');
-    } else if (frequency === 0) {
-        cell.classList.add('full-fold');
-        cell.style.removeProperty('--fill-percent');
-    } else {
-        cell.classList.add('partial-fill');
-        cell.style.setProperty('--fill-percent', `${frequency}%`);
+    function posAfter(pos) {
+        const idx = ALL_POS.indexOf(pos);
+        return idx >= 0 ? ALL_POS.slice(idx + 1) : [];
     }
-    
-    // Update title
-    cell.setAttribute('title', `${hand}: ${frequency.toFixed(1)}%`);
-    
-    // Update input value
-    const input = cell.querySelector('.frequency-input');
-    if (input) {
-        input.value = frequency.toFixed(1);
-    }
-}
 
-// Update analytics
-function updateAnalytics(position) {
-    const stats = calculatePositionStats(position);
-    const actionsDiv = document.getElementById('current-actions');
-    
-    actionsDiv.innerHTML = `
-        <div class="action-card allin">
-            <div class="action-info">
-                <div class="action-label">Allin 100</div>
-                <div class="action-value">0%</div>
-                <div class="action-combos">(0 combos)</div>
-            </div>
-        </div>
-        <div class="action-card raise">
-            <div class="action-info">
-                <div class="action-label">Raise 2.5</div>
-                <div class="action-value">${stats.raisePercent}%</div>
-                <div class="action-combos">(${stats.raise.toFixed(2)} combos)</div>
-            </div>
-        </div>
-        <div class="action-card fold">
-            <div class="action-info">
-                <div class="action-label">Fold</div>
-                <div class="action-value">${stats.foldPercent}%</div>
-                <div class="action-combos">(${stats.fold.toFixed(2)} combos)</div>
-            </div>
-        </div>
-    `;
-}
-
-// Toggle edit mode
-function toggleEditMode() {
-    editMode = !editMode;
-    const toggleBtn = document.getElementById('editModeToggle');
-    const saveBtn = document.getElementById('saveRangesBtn');
-    const resetBtn = document.getElementById('resetRangesBtn');
-    
-    if (editMode) {
-        toggleBtn.textContent = 'Exit Edit Mode';
-        toggleBtn.classList.add('active');
-        saveBtn.style.display = 'inline-block';
-        resetBtn.style.display = 'inline-block';
-    } else {
-        toggleBtn.textContent = 'Edit Ranges';
-        toggleBtn.classList.remove('active');
-        saveBtn.style.display = 'none';
-        resetBtn.style.display = 'none';
-    }
-    
-    // Recreate matrix with edit mode
-    createMatrix(currentPosition);
-}
-
-// Save ranges to localStorage
-function saveRanges() {
-    localStorage.setItem('customRanges', JSON.stringify(rangeFrequencies));
-    alert('Ranges saved successfully!');
-}
-
-// Load ranges from localStorage
-function loadSavedRanges() {
-    const saved = localStorage.getItem('customRanges');
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            // Merge saved ranges with defaults
-            Object.keys(parsed).forEach(position => {
-                if (rangeFrequencies[position]) {
-                    Object.assign(rangeFrequencies[position], parsed[position]);
-                }
-            });
-        } catch (e) {
-            console.error('Error loading saved ranges:', e);
+    // ─── Default RFI Ranges (approx 100bb 6-max GTO) ───
+    const DEFAULT_RFI = {
+        UTG: {
+            'AA':100,'KK':100,'QQ':100,'JJ':100,'TT':100,'99':100,'88':100,
+            '77':75,'66':25,'55':16,'44':16,'33':16,'22':16,
+            'AKs':100,'AQs':100,'AJs':100,'ATs':100,'A9s':100,'A8s':100,
+            'A7s':100,'A6s':100,'A5s':100,'A4s':100,'A3s':100,'A2s':100,
+            'KQs':100,'KJs':100,'KTs':100,'K9s':100,'K8s':100,'K7s':100,
+            'K6s':100,'K5s':100,
+            'QJs':100,'QTs':100,'Q9s':100,
+            'JTs':100,'J9s':100,
+            'T9s':100,'98s':100,'87s':100,'76s':100,'65s':100,'54s':100,
+            '43s':100,'32s':100,
+            'AKo':100,'AQo':100,'AJo':100,'ATo':100,
+            'KQo':100,'KJo':100,
+            'QJo':100,'JTo':100
+        },
+        HJ: {
+            'AA':100,'KK':100,'QQ':100,'JJ':100,'TT':100,'99':100,'88':100,
+            '77':100,'66':100,'55':100,'44':100,'33':100,'22':100,
+            'AKs':100,'AQs':100,'AJs':100,'ATs':100,'A9s':100,'A8s':100,
+            'A7s':100,'A6s':100,'A5s':100,'A4s':100,'A3s':100,'A2s':100,
+            'KQs':100,'KJs':100,'KTs':100,'K9s':100,'K8s':100,'K7s':100,
+            'QJs':100,'QTs':100,'Q9s':100,'Q8s':100,
+            'JTs':100,'J9s':100,'J8s':100,
+            'T9s':100,'T8s':100,
+            '98s':100,'97s':100,'87s':100,'86s':100,'76s':100,
+            'AKo':100,'AQo':100,'AJo':100,'ATo':100,'A9o':100,'A8o':100,
+            'A7o':100,
+            'KQo':100,'KJo':100,'KTo':100,'K9o':100,
+            'QJo':100,'QTo':100,'Q9o':100,
+            'JTo':100,'J9o':100,'T9o':100
+        },
+        CO: {
+            'AA':100,'KK':100,'QQ':100,'JJ':100,'TT':100,'99':100,'88':100,
+            '77':100,'66':100,'55':100,'44':100,'33':100,'22':100,
+            'AKs':100,'AQs':100,'AJs':100,'ATs':100,'A9s':100,'A8s':100,
+            'A7s':100,'A6s':100,'A5s':100,'A4s':100,'A3s':100,'A2s':100,
+            'KQs':100,'KJs':100,'KTs':100,'K9s':100,'K8s':100,'K7s':100,
+            'K6s':100,'K5s':100,
+            'QJs':100,'QTs':100,'Q9s':100,'Q8s':100,'Q7s':100,
+            'JTs':100,'J9s':100,'J8s':100,'J7s':100,
+            'T9s':100,'T8s':100,'T7s':100,
+            '98s':100,'97s':100,'96s':100,
+            '87s':100,'86s':100,'85s':100,
+            '76s':100,'75s':100,'74s':100,
+            '65s':100,'64s':100,'63s':100,
+            '54s':100,'53s':100,'52s':100,
+            '43s':100,'42s':100,'32s':100,
+            'AKo':100,'AQo':100,'AJo':100,'ATo':100,'A9o':100,'A8o':100,
+            'A7o':100,'A6o':100,'A5o':100,'A4o':100,
+            'KQo':100,'KJo':100,'KTo':100,'K9o':100,'K8o':100,
+            'QJo':100,'QTo':100,'Q9o':100,'Q8o':100,
+            'JTo':100,'J9o':100,'J8o':100,
+            'T9o':100,'T8o':100,'98o':100
+        },
+        BTN: {
+            'AA':100,'KK':100,'QQ':100,'JJ':100,'TT':100,'99':100,'88':100,
+            '77':100,'66':100,'55':100,'44':100,'33':100,'22':100,
+            'AKs':100,'AQs':100,'AJs':100,'ATs':100,'A9s':100,'A8s':100,
+            'A7s':100,'A6s':100,'A5s':100,'A4s':100,'A3s':100,'A2s':100,
+            'KQs':100,'KJs':100,'KTs':100,'K9s':100,'K8s':100,'K7s':100,
+            'K6s':100,'K5s':100,'K4s':100,'K3s':100,'K2s':100,
+            'QJs':100,'QTs':100,'Q9s':100,'Q8s':100,'Q7s':100,'Q6s':100,
+            'Q5s':100,'Q4s':100,'Q3s':100,'Q2s':100,
+            'JTs':100,'J9s':100,'J8s':100,'J7s':100,'J6s':100,'J5s':100,
+            'T9s':100,'T8s':100,'T7s':100,'T6s':100,
+            '98s':100,'97s':100,'96s':100,
+            '87s':100,'86s':100,'85s':100,
+            '76s':100,'75s':100,'74s':100,
+            '65s':100,'64s':100,'63s':100,
+            '54s':100,'53s':100,'52s':100,
+            '43s':100,'42s':100,'32s':100,
+            'AKo':100,'AQo':100,'AJo':100,'ATo':100,'A9o':100,'A8o':100,
+            'A7o':100,'A6o':100,'A5o':100,'A4o':100,'A3o':100,'A2o':100,
+            'KQo':100,'KJo':100,'KTo':100,'K9o':100,'K8o':100,'K7o':100,
+            'QJo':100,'QTo':100,'Q9o':100,'Q8o':100,
+            'JTo':100,'J9o':100,'J8o':100,
+            'T9o':100,'T8o':100,
+            '98o':100,'87o':100,'76o':100,'65o':100,'54o':100
+        },
+        SB: {
+            'AA':100,'KK':100,'QQ':100,'JJ':100,'TT':100,'99':100,'88':100,
+            '77':100,'66':100,'55':100,'44':100,'33':100,'22':100,
+            'AKs':100,'AQs':100,'AJs':100,'ATs':100,'A9s':100,'A8s':100,
+            'A7s':100,'A6s':100,'A5s':100,'A4s':100,'A3s':100,'A2s':100,
+            'KQs':100,'KJs':100,'KTs':100,'K9s':100,'K8s':100,'K7s':100,
+            'K6s':100,'K5s':100,'K4s':100,'K3s':100,'K2s':100,
+            'QJs':100,'QTs':100,'Q9s':100,'Q8s':100,'Q7s':100,'Q6s':100,
+            'Q5s':100,'Q4s':100,
+            'JTs':100,'J9s':100,'J8s':100,'J7s':100,'J6s':100,
+            'T9s':100,'T8s':100,'T7s':100,'T6s':100,
+            '98s':100,'97s':100,'96s':100,
+            '87s':100,'86s':100,'85s':100,
+            '76s':100,'75s':100,'74s':100,
+            '65s':100,'64s':100,'63s':100,
+            '54s':100,'53s':100,'43s':100,
+            'AKo':100,'AQo':100,'AJo':100,'ATo':100,'A9o':100,'A8o':100,
+            'A7o':100,'A6o':100,'A5o':100,'A4o':100,'A3o':100,
+            'KQo':100,'KJo':100,'KTo':100,'K9o':100,'K8o':100,'K7o':100,
+            'K6o':100,
+            'QJo':100,'QTo':100,'Q9o':100,'Q8o':100,'Q7o':100,
+            'JTo':100,'J9o':100,'J8o':100,
+            'T9o':100,'T8o':100,
+            '98o':100,'87o':100,'76o':100
         }
-    }
-}
+    };
 
-// Reset to original ranges
-function resetRanges() {
-    if (confirm('Are you sure you want to reset all ranges to default? This cannot be undone.')) {
-        rangeFrequencies = JSON.parse(JSON.stringify(originalRanges));
-        localStorage.removeItem('customRanges');
-        createMatrix(currentPosition);
-        updateAnalytics(currentPosition);
-        alert('Ranges reset to default!');
-    }
-}
-
-// Toggle edit mode
-function toggleEditMode() {
-    editMode = !editMode;
-    const toggleBtn = document.getElementById('editModeToggle');
-    const saveBtn = document.getElementById('saveRangesBtn');
-    const resetBtn = document.getElementById('resetRangesBtn');
-    
-    if (editMode) {
-        toggleBtn.textContent = 'Exit Edit Mode';
-        toggleBtn.classList.add('active');
-        saveBtn.style.display = 'inline-block';
-        resetBtn.style.display = 'inline-block';
-    } else {
-        toggleBtn.textContent = 'Edit Ranges';
-        toggleBtn.classList.remove('active');
-        saveBtn.style.display = 'none';
-        resetBtn.style.display = 'none';
-    }
-    
-    // Recreate matrix with edit mode
-    createMatrix(currentPosition);
-}
-
-// Save ranges to localStorage
-function saveRanges() {
-    localStorage.setItem('customRanges', JSON.stringify(rangeFrequencies));
-    alert('Ranges saved successfully!');
-}
-
-// Load ranges from localStorage
-function loadSavedRanges() {
-    const saved = localStorage.getItem('customRanges');
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            // Merge saved ranges with defaults
-            Object.keys(parsed).forEach(position => {
-                if (rangeFrequencies[position]) {
-                    Object.assign(rangeFrequencies[position], parsed[position]);
-                }
-            });
-        } catch (e) {
-            console.error('Error loading saved ranges:', e);
+    // ─── Default Facing-Open Ranges (approx 100bb 6-max GTO) ───
+    // Format: { hand: { r: 3bet%, c: call% } }  fold = 100 - r - c
+    const DEFAULT_VS_OPEN = {
+        // ════════════════════════════════
+        // FACING UTG OPEN
+        // ════════════════════════════════
+        'HJ_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:75,c:25},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:75},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:50},
+            'A5s':{r:50,c:0},
+            'KQs':{r:0,c:75},'KJs':{r:0,c:25},
+            'QJs':{r:0,c:25},'JTs':{r:0,c:25},
+            'AKo':{r:75,c:25}
+        },
+        'CO_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:100},'88':{r:0,c:50},
+            'AKs':{r:75,c:25},'AQs':{r:0,c:100},'AJs':{r:0,c:100},'ATs':{r:0,c:50},
+            'A5s':{r:75,c:0},
+            'KQs':{r:0,c:100},'KJs':{r:0,c:50},
+            'QJs':{r:0,c:75},'JTs':{r:0,c:75},'T9s':{r:0,c:50},'98s':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:0,c:25}
+        },
+        'BTN_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:0,c:100},'99':{r:0,c:100},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:75},'55':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:0,c:100},'ATs':{r:0,c:100},
+            'A9s':{r:0,c:50},'A5s':{r:75,c:0},'A4s':{r:50,c:0},
+            'KQs':{r:50,c:50},'KJs':{r:0,c:100},'KTs':{r:0,c:75},
+            'QJs':{r:0,c:100},'QTs':{r:0,c:75},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:50},
+            'T9s':{r:0,c:100},'98s':{r:0,c:100},'87s':{r:0,c:100},
+            '76s':{r:0,c:75},'65s':{r:0,c:50},
+            'AKo':{r:100,c:0},'AQo':{r:50,c:25},'AJo':{r:0,c:50},'KQo':{r:0,c:75}
+        },
+        'SB_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},
+            'JJ':{r:0,c:25},
+            'AKs':{r:100,c:0},'AQs':{r:50,c:0},'A5s':{r:50,c:0},
+            'AKo':{r:100,c:0}
+        },
+        'BB_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:50,c:50},
+            'TT':{r:0,c:100},'99':{r:0,c:100},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:100},'55':{r:0,c:75},'44':{r:0,c:50},'33':{r:0,c:50},'22':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:50,c:50},'AJs':{r:0,c:100},'ATs':{r:0,c:100},
+            'A9s':{r:0,c:75},'A8s':{r:0,c:50},'A7s':{r:0,c:50},'A6s':{r:0,c:50},
+            'A5s':{r:100,c:0},'A4s':{r:50,c:25},'A3s':{r:0,c:50},'A2s':{r:0,c:50},
+            'KQs':{r:0,c:100},'KJs':{r:0,c:100},'KTs':{r:0,c:100},'K9s':{r:0,c:75},'K8s':{r:0,c:50},
+            'QJs':{r:0,c:100},'QTs':{r:0,c:100},'Q9s':{r:0,c:75},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:75},
+            'T9s':{r:0,c:100},'T8s':{r:0,c:50},
+            '98s':{r:0,c:100},'97s':{r:0,c:50},
+            '87s':{r:0,c:100},'76s':{r:0,c:100},'65s':{r:0,c:100},'54s':{r:0,c:100},'43s':{r:0,c:50},
+            'AKo':{r:100,c:0},'AQo':{r:25,c:25},'AJo':{r:0,c:75},'ATo':{r:0,c:100},'A9o':{r:0,c:50},
+            'KQo':{r:0,c:100},'KJo':{r:0,c:75},'KTo':{r:0,c:25},
+            'QJo':{r:0,c:50},'JTo':{r:0,c:50}
+        },
+        // ════════════════════════════════
+        // FACING HJ OPEN
+        // ════════════════════════════════
+        'CO_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:75,c:25},
+            'TT':{r:0,c:100},'99':{r:0,c:100},'88':{r:0,c:75},'77':{r:0,c:25},
+            'AKs':{r:100,c:0},'AQs':{r:50,c:50},'AJs':{r:0,c:100},'ATs':{r:0,c:75},
+            'A5s':{r:75,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:25,c:75},'KJs':{r:0,c:75},
+            'QJs':{r:0,c:100},'QTs':{r:0,c:50},
+            'JTs':{r:0,c:100},'T9s':{r:0,c:75},'98s':{r:0,c:50},'87s':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:25,c:25}
+        },
+        'BTN_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:75,c:25},'99':{r:0,c:100},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:100},'55':{r:0,c:75},'44':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:50,c:50},'ATs':{r:0,c:100},
+            'A9s':{r:0,c:75},'A5s':{r:100,c:0},'A4s':{r:75,c:0},'A3s':{r:25,c:0},
+            'KQs':{r:75,c:25},'KJs':{r:0,c:100},'KTs':{r:0,c:100},'K9s':{r:0,c:50},
+            'QJs':{r:0,c:100},'QTs':{r:0,c:100},'Q9s':{r:0,c:50},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:75},
+            'T9s':{r:0,c:100},'T8s':{r:0,c:50},
+            '98s':{r:0,c:100},'97s':{r:0,c:50},
+            '87s':{r:0,c:100},'86s':{r:0,c:25},'76s':{r:0,c:75},'65s':{r:0,c:50},'54s':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:75,c:0},'AJo':{r:0,c:50},'ATo':{r:0,c:75},
+            'KQo':{r:0,c:75},'KJo':{r:0,c:50},'QJo':{r:0,c:50},'JTo':{r:0,c:25}
+        },
+        'SB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:25,c:25},
+            'AKs':{r:100,c:0},'AQs':{r:75,c:0},'A5s':{r:50,c:0},
+            'AKo':{r:100,c:0},'AQo':{r:25,c:0}
+        },
+        'BB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:50,c:50},'99':{r:0,c:100},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:100},'55':{r:0,c:100},'44':{r:0,c:75},'33':{r:0,c:50},'22':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:75,c:25},'ATs':{r:0,c:100},
+            'A9s':{r:0,c:100},'A8s':{r:0,c:75},'A7s':{r:0,c:75},'A6s':{r:0,c:50},
+            'A5s':{r:100,c:0},'A4s':{r:75,c:0},'A3s':{r:0,c:50},'A2s':{r:0,c:50},
+            'KQs':{r:50,c:50},'KJs':{r:0,c:100},'KTs':{r:0,c:100},'K9s':{r:0,c:100},
+            'K8s':{r:0,c:75},'K7s':{r:0,c:50},'K6s':{r:0,c:50},
+            'QJs':{r:0,c:100},'QTs':{r:0,c:100},'Q9s':{r:0,c:100},'Q8s':{r:0,c:50},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:100},'J8s':{r:0,c:50},
+            'T9s':{r:0,c:100},'T8s':{r:0,c:75},
+            '98s':{r:0,c:100},'97s':{r:0,c:50},
+            '87s':{r:0,c:100},'86s':{r:0,c:50},
+            '76s':{r:0,c:100},'75s':{r:0,c:50},'65s':{r:0,c:100},'64s':{r:0,c:50},
+            '54s':{r:0,c:100},'53s':{r:0,c:50},'43s':{r:0,c:50},
+            'AKo':{r:100,c:0},'AQo':{r:50,c:25},'AJo':{r:0,c:75},'ATo':{r:0,c:100},'A9o':{r:0,c:75},
+            'KQo':{r:0,c:100},'KJo':{r:0,c:100},'KTo':{r:0,c:50},
+            'QJo':{r:0,c:100},'QTo':{r:0,c:50},'JTo':{r:0,c:50}
+        },
+        // ════════════════════════════════
+        // FACING CO OPEN
+        // ════════════════════════════════
+        'BTN_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:100,c:0},'99':{r:0,c:100},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:100},'55':{r:0,c:100},'44':{r:0,c:75},'33':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:75,c:25},'ATs':{r:25,c:75},
+            'A9s':{r:0,c:100},'A8s':{r:0,c:50},'A7s':{r:0,c:25},
+            'A5s':{r:100,c:0},'A4s':{r:100,c:0},'A3s':{r:50,c:0},
+            'KQs':{r:100,c:0},'KJs':{r:50,c:50},'KTs':{r:0,c:100},'K9s':{r:0,c:75},
+            'QJs':{r:50,c:50},'QTs':{r:0,c:100},'Q9s':{r:0,c:75},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:100},
+            'T9s':{r:0,c:100},'T8s':{r:0,c:75},
+            '98s':{r:0,c:100},'97s':{r:0,c:50},
+            '87s':{r:0,c:100},'86s':{r:0,c:50},
+            '76s':{r:0,c:100},'75s':{r:0,c:25},
+            '65s':{r:0,c:100},'64s':{r:0,c:25},
+            '54s':{r:0,c:75},'53s':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:100,c:0},'AJo':{r:50,c:50},'ATo':{r:0,c:100},'A9o':{r:0,c:50},
+            'KQo':{r:0,c:100},'KJo':{r:0,c:75},'KTo':{r:0,c:50},
+            'QJo':{r:0,c:75},'QTo':{r:0,c:50},'JTo':{r:0,c:50}
+        },
+        'SB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:50,c:25},'99':{r:0,c:25},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:50,c:0},'ATs':{r:25,c:0},
+            'A5s':{r:75,c:0},'A4s':{r:50,c:0},
+            'KQs':{r:75,c:0},'KJs':{r:25,c:0},
+            'QJs':{r:25,c:0},
+            'AKo':{r:100,c:0},'AQo':{r:75,c:0},'AJo':{r:25,c:0}
+        },
+        'BB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:50,c:50},'99':{r:0,c:100},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:100},'55':{r:0,c:75},'44':{r:0,c:50},'33':{r:0,c:50},'22':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:75,c:25},
+            'ATs':{r:50,c:50},'A9s':{r:0,c:75},'A8s':{r:0,c:75},
+            'A7s':{r:0,c:75},'A6s':{r:0,c:50},'A5s':{r:75,c:25},
+            'A4s':{r:50,c:50},'A3s':{r:0,c:50},'A2s':{r:0,c:50},
+            'KQs':{r:50,c:50},'KJs':{r:25,c:75},'KTs':{r:0,c:100},
+            'K9s':{r:0,c:75},'K8s':{r:0,c:50},
+            'QJs':{r:25,c:75},'QTs':{r:0,c:100},'Q9s':{r:0,c:75},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:75},
+            'T9s':{r:0,c:100},'T8s':{r:0,c:75},
+            '98s':{r:0,c:100},'97s':{r:0,c:50},
+            '87s':{r:0,c:100},'86s':{r:0,c:50},
+            '76s':{r:0,c:100},'75s':{r:0,c:50},
+            '65s':{r:0,c:100},'64s':{r:0,c:50},
+            '54s':{r:0,c:100},'53s':{r:0,c:50},'43s':{r:0,c:50},
+            'AKo':{r:100,c:0},'AQo':{r:50,c:50},'AJo':{r:0,c:75},
+            'ATo':{r:0,c:75},'A9o':{r:0,c:50},
+            'KQo':{r:0,c:100},'KJo':{r:0,c:75},'KTo':{r:0,c:50},
+            'QJo':{r:0,c:75},'QTo':{r:0,c:50},'JTo':{r:0,c:50}
+        },
+        // ════════════════════════════════
+        // FACING BTN OPEN
+        // ════════════════════════════════
+        'SB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:100,c:0},'99':{r:50,c:0},'88':{r:25,c:0},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:100,c:0},
+            'ATs':{r:75,c:0},'A9s':{r:25,c:0},
+            'A5s':{r:100,c:0},'A4s':{r:100,c:0},'A3s':{r:75,c:0},'A2s':{r:25,c:0},
+            'KQs':{r:100,c:0},'KJs':{r:100,c:0},'KTs':{r:50,c:0},'K9s':{r:25,c:0},
+            'QJs':{r:75,c:0},'QTs':{r:25,c:0},'JTs':{r:25,c:0},
+            'AKo':{r:100,c:0},'AQo':{r:100,c:0},'AJo':{r:100,c:0},'ATo':{r:50,c:0},
+            'KQo':{r:50,c:0},'KJo':{r:25,c:0}
+        },
+        'BB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:50,c:50},'99':{r:25,c:75},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:100},'55':{r:0,c:100},'44':{r:0,c:100},'33':{r:0,c:100},'22':{r:0,c:100},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:100,c:0},
+            'ATs':{r:75,c:25},'A9s':{r:25,c:75},'A8s':{r:0,c:100},
+            'A7s':{r:0,c:100},'A6s':{r:0,c:100},'A5s':{r:100,c:0},
+            'A4s':{r:75,c:25},'A3s':{r:25,c:75},'A2s':{r:0,c:100},
+            'KQs':{r:50,c:50},'KJs':{r:50,c:50},'KTs':{r:0,c:100},
+            'K9s':{r:0,c:100},'K8s':{r:0,c:75},'K7s':{r:0,c:50},
+            'K6s':{r:0,c:50},'K5s':{r:0,c:50},
+            'QJs':{r:50,c:50},'QTs':{r:0,c:100},'Q9s':{r:0,c:100},'Q8s':{r:0,c:75},
+            'JTs':{r:25,c:75},'J9s':{r:0,c:100},'J8s':{r:0,c:75},
+            'T9s':{r:25,c:75},'T8s':{r:0,c:100},'T7s':{r:0,c:50},
+            '98s':{r:0,c:100},'97s':{r:0,c:75},
+            '87s':{r:0,c:100},'86s':{r:0,c:75},
+            '76s':{r:0,c:100},'75s':{r:0,c:50},
+            '65s':{r:0,c:100},'64s':{r:0,c:50},
+            '54s':{r:0,c:100},'53s':{r:0,c:50},'43s':{r:0,c:50},
+            'AKo':{r:100,c:0},'AQo':{r:75,c:25},'AJo':{r:25,c:75},
+            'ATo':{r:0,c:100},'A9o':{r:0,c:75},'A8o':{r:0,c:25},
+            'KQo':{r:0,c:100},'KJo':{r:0,c:100},'KTo':{r:0,c:75},
+            'QJo':{r:0,c:100},'QTo':{r:0,c:75},'JTo':{r:0,c:75}
+        },
+        // ════════════════════════════════
+        // FACING SB OPEN
+        // ════════════════════════════════
+        'BB_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},'JJ':{r:100,c:0},
+            'TT':{r:100,c:0},'99':{r:50,c:50},'88':{r:0,c:100},'77':{r:0,c:100},
+            '66':{r:0,c:100},'55':{r:0,c:100},'44':{r:0,c:100},'33':{r:0,c:100},'22':{r:0,c:100},
+            'AKs':{r:100,c:0},'AQs':{r:100,c:0},'AJs':{r:100,c:0},
+            'ATs':{r:100,c:0},'A9s':{r:50,c:50},'A8s':{r:25,c:75},
+            'A7s':{r:0,c:100},'A6s':{r:0,c:100},'A5s':{r:100,c:0},
+            'A4s':{r:100,c:0},'A3s':{r:75,c:25},'A2s':{r:50,c:50},
+            'KQs':{r:100,c:0},'KJs':{r:75,c:25},'KTs':{r:50,c:50},
+            'K9s':{r:0,c:100},'K8s':{r:0,c:100},'K7s':{r:0,c:75},
+            'K6s':{r:0,c:75},'K5s':{r:0,c:75},'K4s':{r:0,c:50},'K3s':{r:0,c:50},'K2s':{r:0,c:50},
+            'QJs':{r:50,c:50},'QTs':{r:25,c:75},'Q9s':{r:0,c:100},
+            'Q8s':{r:0,c:100},'Q7s':{r:0,c:75},'Q6s':{r:0,c:50},
+            'JTs':{r:25,c:75},'J9s':{r:0,c:100},'J8s':{r:0,c:100},'J7s':{r:0,c:50},
+            'T9s':{r:25,c:75},'T8s':{r:0,c:100},'T7s':{r:0,c:75},
+            '98s':{r:0,c:100},'97s':{r:0,c:75},
+            '87s':{r:0,c:100},'86s':{r:0,c:75},
+            '76s':{r:0,c:100},'75s':{r:0,c:50},
+            '65s':{r:0,c:100},'64s':{r:0,c:50},
+            '54s':{r:0,c:100},'53s':{r:0,c:75},'43s':{r:0,c:75},'32s':{r:0,c:50},
+            'AKo':{r:100,c:0},'AQo':{r:100,c:0},'AJo':{r:50,c:50},
+            'ATo':{r:0,c:100},'A9o':{r:0,c:100},'A8o':{r:0,c:75},'A7o':{r:0,c:50},
+            'KQo':{r:50,c:50},'KJo':{r:0,c:100},'KTo':{r:0,c:100},'K9o':{r:0,c:75},
+            'QJo':{r:0,c:100},'QTo':{r:0,c:100},'Q9o':{r:0,c:75},
+            'JTo':{r:0,c:100},'J9o':{r:0,c:75},
+            'T9o':{r:0,c:75},'T8o':{r:0,c:50},
+            '98o':{r:0,c:50},'87o':{r:0,c:50},'76o':{r:0,c:50}
         }
-    }
-}
+    };
 
-// Reset to original ranges
-function resetRanges() {
-    if (confirm('Are you sure you want to reset all ranges to default? This cannot be undone.')) {
-        rangeFrequencies = JSON.parse(JSON.stringify(originalRanges));
-        localStorage.removeItem('customRanges');
-        createMatrix(currentPosition);
-        updateAnalytics(currentPosition);
-        alert('Ranges reset to default!');
-    }
-}
-
-// Analytics tab switching
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        // Initialize original ranges for reset functionality
-        if (!originalRanges) {
-            originalRanges = JSON.parse(JSON.stringify(rangeFrequencies));
+    // ─── Default vs 3-Bet Ranges (opener facing 3-bet, approx 100bb 6-max GTO) ───
+    // Format: { hand: { r: 4bet%, c: call% } }  fold = 100 - r - c
+    const DEFAULT_VS_3BET = {
+        // ════════════════════════════════
+        // UTG FACING 3-BETS
+        // ════════════════════════════════
+        'UTG_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:25},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:100},'AJs':{r:0,c:50},
+            'A5s':{r:25,c:0},
+            'KQs':{r:0,c:50},
+            'AKo':{r:50,c:50}
+        },
+        'UTG_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:50},
+            'AKs':{r:75,c:25},'AQs':{r:0,c:100},'AJs':{r:0,c:75},
+            'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:75},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:25}
+        },
+        'UTG_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:75},
+            'AKs':{r:75,c:25},'AQs':{r:0,c:100},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:25},'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:75},'KJs':{r:0,c:25},
+            'QJs':{r:0,c:25},'JTs':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:50}
+        },
+        'UTG_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:75,c:25},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:75},
+            'A5s':{r:50,c:0},
+            'KQs':{r:0,c:50},
+            'AKo':{r:100,c:0},'AQo':{r:0,c:25}
+        },
+        'UTG_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:75,c:25},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:25},'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:75},'KJs':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:0,c:50}
+        },
+        // ════════════════════════════════
+        // HJ FACING 3-BETS
+        // ════════════════════════════════
+        'HJ_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:25},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:100},'AJs':{r:0,c:50},
+            'A5s':{r:25,c:0},
+            'KQs':{r:0,c:50},
+            'AKo':{r:50,c:50}
+        },
+        'HJ_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:75},
+            'AKs':{r:75,c:25},'AQs':{r:0,c:100},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:25},'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:75},'KJs':{r:0,c:25},
+            'QJs':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:50}
+        },
+        'HJ_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:75,c:25},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:50},
+            'A5s':{r:50,c:0},
+            'KQs':{r:0,c:50},
+            'AKo':{r:75,c:25}
+        },
+        'HJ_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:75,c:25},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:25},'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:75},'KJs':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:0,c:50}
+        },
+        // ════════════════════════════════
+        // CO FACING 3-BETS
+        // ════════════════════════════════
+        'CO_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:75,c:25},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:50},
+            'AKs':{r:75,c:25},'AQs':{r:0,c:100},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:50},'A5s':{r:50,c:0},'A4s':{r:50,c:0},
+            'KQs':{r:25,c:75},'KJs':{r:0,c:50},
+            'QJs':{r:0,c:50},'JTs':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:25,c:50},'AJo':{r:0,c:25}
+        },
+        'CO_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:75},
+            'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:75},
+            'AKo':{r:100,c:0},'AQo':{r:0,c:50}
+        },
+        'CO_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:25,c:75},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:50},'A5s':{r:75,c:0},'A4s':{r:50,c:0},
+            'KQs':{r:0,c:100},'KJs':{r:0,c:50},
+            'QJs':{r:0,c:50},'JTs':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:25,c:50},'AJo':{r:0,c:25}
+        },
+        // ════════════════════════════════
+        // BTN FACING 3-BETS
+        // ════════════════════════════════
+        'BTN_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:100},
+            '88':{r:0,c:100},'77':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:100},'A9s':{r:0,c:25},
+            'A5s':{r:75,c:0},'A4s':{r:50,c:0},'A3s':{r:25,c:0},
+            'KQs':{r:0,c:100},'KJs':{r:0,c:100},'KTs':{r:0,c:50},
+            'QJs':{r:0,c:100},'QTs':{r:0,c:50},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:25},
+            'T9s':{r:0,c:75},'98s':{r:0,c:50},'87s':{r:0,c:50},
+            '76s':{r:0,c:25},'65s':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:100},'AJo':{r:0,c:75},
+            'ATo':{r:0,c:25},'KQo':{r:0,c:75},'KJo':{r:0,c:25},
+            'QJo':{r:0,c:25}
+        },
+        'BTN_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:100},
+            '88':{r:0,c:75},'77':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:100},'A9s':{r:0,c:50},
+            'A5s':{r:50,c:0},'A4s':{r:50,c:0},'A3s':{r:25,c:0},
+            'KQs':{r:0,c:100},'KJs':{r:0,c:100},'KTs':{r:0,c:75},
+            'QJs':{r:0,c:100},'QTs':{r:0,c:50},
+            'JTs':{r:0,c:100},'J9s':{r:0,c:50},
+            'T9s':{r:0,c:75},'98s':{r:0,c:50},'87s':{r:0,c:50},
+            '76s':{r:0,c:25},'65s':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:100},'AJo':{r:0,c:50},
+            'KQo':{r:0,c:50},'KJo':{r:0,c:25}
+        },
+        // ════════════════════════════════
+        // SB FACING BB 3-BET
+        // ════════════════════════════════
+        'SB_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:100,c:0},
+            'JJ':{r:0,c:100},'TT':{r:0,c:100},'99':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:50,c:50},'AJs':{r:0,c:100},
+            'ATs':{r:0,c:75},'A9s':{r:0,c:25},
+            'A5s':{r:75,c:0},'A4s':{r:50,c:0},'A3s':{r:25,c:0},
+            'KQs':{r:0,c:100},'KJs':{r:0,c:75},'KTs':{r:0,c:25},
+            'QJs':{r:0,c:50},'QTs':{r:0,c:25},
+            'JTs':{r:0,c:50},'T9s':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:25,c:50},'AJo':{r:0,c:50},
+            'ATo':{r:0,c:25},'KQo':{r:0,c:50},'KJo':{r:0,c:25}
         }
-        
-        // Load saved ranges
-        loadSavedRanges();
-        
-        // Initialize
-        console.log('Initializing ranges page...');
-        console.log('Matrix element exists?', !!document.getElementById('current-matrix'));
-        
-        createPositionBar();
-        console.log('Position bar created');
-        
-        // Force matrix creation with delay to ensure DOM is ready
-        setTimeout(() => {
-            createMatrix(currentPosition);
-            console.log('Matrix created');
-            updateAnalytics(currentPosition);
-            console.log('Analytics updated');
-            
-            // Verify matrix is visible
-            const matrixEl = document.getElementById('current-matrix');
-            if (matrixEl) {
-                const container = matrixEl.querySelector('.matrix-container');
-                if (container) {
-                    console.log('Matrix container found, dimensions:', container.offsetWidth, 'x', container.offsetHeight);
+    };
+
+    // ─── State ───
+    let state = {
+        scenario: 'rfi',
+        position: 'UTG',
+        openerPos: 'BTN',
+        responderPos: 'BB',
+        editMode: false,
+        infoTab: 'actions'
+    };
+
+    let rangeData = {
+        rfi:     JSON.parse(JSON.stringify(DEFAULT_RFI)),
+        vs_open: JSON.parse(JSON.stringify(DEFAULT_VS_OPEN)),
+        vs_3bet: JSON.parse(JSON.stringify(DEFAULT_VS_3BET))
+    };
+    const originalData = JSON.parse(JSON.stringify(rangeData));
+
+    // ─── Utilities ───
+    function handName(i, j) {
+        if (i === j) return RANKS[i] + RANKS[j];
+        if (i < j)  return RANKS[i] + RANKS[j] + 's';
+        return RANKS[j] + RANKS[i] + 'o';
+    }
+
+    function handCombos(hand) {
+        if (hand.length === 2) return 6;
+        return hand.endsWith('s') ? 4 : 12;
+    }
+
+    function rangeKey() {
+        if (state.scenario === 'rfi') return state.position;
+        return state.responderPos + '_vs_' + state.openerPos;
+    }
+
+    function currentRange() {
+        return rangeData[state.scenario][rangeKey()] || {};
+    }
+
+    function handActions(hand) {
+        const rng = currentRange();
+        if (state.scenario === 'rfi') {
+            const r = rng[hand] || 0;
+            return { r, c: 0, f: 100 - r };
+        }
+        const d = rng[hand];
+        if (!d) return { r: 0, c: 0, f: 100 };
+        const r = d.r || 0, c = d.c || 0;
+        return { r, c, f: Math.max(0, 100 - r - c) };
+    }
+
+    function calcStats() {
+        let tot = 0, rr = 0, cc = 0, ff = 0;
+        for (let i = 0; i < 13; i++) {
+            for (let j = 0; j < 13; j++) {
+                const h = handName(i, j);
+                const n = handCombos(h);
+                const a = handActions(h);
+                tot += n;
+                rr += n * a.r / 100;
+                cc += n * a.c / 100;
+                ff += n * a.f / 100;
+            }
+        }
+        return {
+            total: tot,
+            raise: rr,  raisePct: rr / tot * 100,
+            call:  cc,  callPct:  cc / tot * 100,
+            fold:  ff,  foldPct:  ff / tot * 100
+        };
+    }
+
+    // ─── Range Text Parser ───
+    function expandPairs(hi, lo) {
+        const a = RANK_IDX[hi], b = RANK_IDX[lo];
+        const out = [];
+        for (let i = Math.min(a,b); i <= Math.max(a,b); i++) out.push(RANKS[i]+RANKS[i]);
+        return out;
+    }
+
+    function expandSuited(r1, hiR2, loR2) {
+        const a = RANK_IDX[hiR2], b = RANK_IDX[loR2];
+        const out = [];
+        for (let i = Math.min(a,b); i <= Math.max(a,b); i++) {
+            if (RANKS[i] !== r1) out.push(r1 + RANKS[i] + 's');
+        }
+        return out;
+    }
+
+    function expandOffsuit(r1, hiR2, loR2) {
+        const a = RANK_IDX[hiR2], b = RANK_IDX[loR2];
+        const out = [];
+        for (let i = Math.min(a,b); i <= Math.max(a,b); i++) {
+            if (RANKS[i] !== r1) out.push(r1 + RANKS[i] + 'o');
+        }
+        return out;
+    }
+
+    function normalizeHand(h) {
+        h = h.trim();
+        if (!h) return null;
+        let s = h.toUpperCase();
+        if (s.endsWith('S')) s = s.slice(0,-1) + 's';
+        else if (s.endsWith('O')) s = s.slice(0,-1) + 'o';
+        if (s.length < 2 || s.length > 3) return null;
+        if (!RANK_IDX.hasOwnProperty(s[0]) || !RANK_IDX.hasOwnProperty(s[1])) return null;
+        return s;
+    }
+
+    function parseToken(raw) {
+        raw = raw.trim();
+        if (!raw) return [];
+
+        let freq = 100;
+        // Check :freq or [freq]
+        const cIdx = raw.lastIndexOf(':');
+        const bIdx = raw.indexOf('[');
+        if (cIdx > 0) {
+            const v = parseFloat(raw.slice(cIdx + 1));
+            if (!isNaN(v)) { freq = Math.max(0, Math.min(100, v)); raw = raw.slice(0, cIdx); }
+        } else if (bIdx > 0) {
+            const v = parseFloat(raw.slice(bIdx+1));
+            if (!isNaN(v)) { freq = Math.max(0, Math.min(100, v)); raw = raw.slice(0, bIdx); }
+        }
+
+        const dash = raw.indexOf('-');
+        if (dash > 0) {
+            const s = raw.slice(0, dash), e = raw.slice(dash + 1);
+            const sn = normalizeHand(s), en = normalizeHand(e);
+            if (!sn || !en) return [];
+
+            if (sn.length === 2 && en.length === 2 && sn[0] === sn[1] && en[0] === en[1]) {
+                return expandPairs(sn[0], en[0]).map(h => ({hand:h, freq}));
+            }
+            if (sn.endsWith('s') && en.endsWith('s') && sn[0] === en[0]) {
+                return expandSuited(sn[0], sn[1], en[1]).map(h => ({hand:h, freq}));
+            }
+            if (sn.endsWith('o') && en.endsWith('o') && sn[0] === en[0]) {
+                return expandOffsuit(sn[0], sn[1], en[1]).map(h => ({hand:h, freq}));
+            }
+            return [];
+        }
+
+        const n = normalizeHand(raw);
+        return n ? [{hand: n, freq}] : [];
+    }
+
+    function parseRangeText(text) {
+        const results = {};
+        const tokens = text.replace(/\n/g, ',').split(',');
+        for (const t of tokens) {
+            for (const {hand, freq} of parseToken(t)) {
+                results[hand] = freq;
+            }
+        }
+        return results;
+    }
+
+    // ─── Colors ───
+    const C_RAISE = [192, 57, 43];
+    const C_CALL  = [39, 174, 96];
+    const C_FOLD  = [24, 24, 40];
+
+    function cellBg(a) {
+        if (a.r === 0 && a.c === 0) return `rgb(${C_FOLD})`;
+        if (a.r === 100 && a.c === 0) return `rgb(${C_RAISE})`;
+        if (a.c === 100 && a.r === 0) return `rgb(${C_CALL})`;
+        if (a.r === 100 && a.c > 0) return `rgb(${C_RAISE})`;
+
+        const stops = [];
+        let p = 0;
+        if (a.r > 0) {
+            stops.push(`rgb(${C_RAISE}) ${p}%`);
+            p += a.r;
+            stops.push(`rgb(${C_RAISE}) ${p}%`);
+        }
+        if (a.c > 0) {
+            stops.push(`rgb(${C_CALL}) ${p}%`);
+            p += a.c;
+            stops.push(`rgb(${C_CALL}) ${p}%`);
+        }
+        if (a.f > 0) {
+            stops.push(`rgb(${C_FOLD}) ${p}%`);
+            stops.push(`rgb(${C_FOLD}) 100%`);
+        }
+        return `linear-gradient(to right, ${stops.join(', ')})`;
+    }
+
+    // ─── Flow State ───
+    let flow = {
+        phase: 'rfi_walk',
+        activeIdx: 0,
+        openerIdx: -1,
+        threeBettorIdx: -1,
+        actions: {}
+    };
+
+    function resetFlow(startIdx) {
+        flow = {
+            phase: 'rfi_walk',
+            activeIdx: startIdx || 0,
+            openerIdx: -1,
+            threeBettorIdx: -1,
+            actions: {}
+        };
+        for (let i = 0; i < (startIdx || 0); i++) {
+            flow.actions[ALL_POS[i]] = 'fold';
+        }
+        syncFlowToState();
+    }
+
+    function syncFlowToState() {
+        const active = ALL_POS[flow.activeIdx] || 'UTG';
+        if (flow.phase === 'rfi_walk') {
+            state.scenario = 'rfi';
+            state.position = active;
+        } else if (flow.phase === 'facing_open') {
+            state.scenario = 'vs_open';
+            state.openerPos = ALL_POS[flow.openerIdx];
+            state.responderPos = active;
+        } else if (flow.phase === 'facing_3bet') {
+            state.scenario = 'vs_3bet';
+            state.openerPos = ALL_POS[flow.threeBettorIdx];
+            state.responderPos = active;
+        }
+        const lbl = document.getElementById('scenarioLabel');
+        if (lbl) lbl.textContent = SCENARIOS[state.scenario].label;
+    }
+
+    function nextUnacted(startIdx) {
+        for (let i = startIdx; i < ALL_POS.length; i++) {
+            if (!flow.actions[ALL_POS[i]]) return i;
+        }
+        return -1;
+    }
+
+    function nextAfter3bet(fromIdx) {
+        for (let i = fromIdx; i < ALL_POS.length; i++) {
+            if (!flow.actions[ALL_POS[i]]) return i;
+        }
+        for (let i = 0; i < flow.threeBettorIdx; i++) {
+            if (!flow.actions[ALL_POS[i]]) return i;
+        }
+        return -1;
+    }
+
+    function handleFlowAction(action) {
+        const pos = ALL_POS[flow.activeIdx];
+        flow.actions[pos] = action;
+
+        if (flow.phase === 'rfi_walk') {
+            if (action === 'fold') {
+                const nxt = nextUnacted(flow.activeIdx + 1);
+                if (nxt === -1 || nxt >= 5) {
+                    flow.phase = 'done';
                 } else {
-                    console.error('Matrix container NOT found after creation!');
+                    flow.activeIdx = nxt;
+                }
+            } else {
+                flow.openerIdx = flow.activeIdx;
+                const nxt = nextUnacted(flow.activeIdx + 1);
+                if (nxt === -1) {
+                    flow.phase = 'done';
+                } else {
+                    flow.activeIdx = nxt;
+                    flow.phase = 'facing_open';
                 }
             }
-        }, 100);
-    } catch (error) {
-        console.error('Error initializing ranges page:', error);
-        alert('Error loading ranges page. Please refresh and check console for details.');
-    }
-    
-    // Edit mode toggle
-    document.getElementById('editModeToggle').addEventListener('click', toggleEditMode);
-    document.getElementById('saveRangesBtn').addEventListener('click', saveRanges);
-    document.getElementById('resetRangesBtn').addEventListener('click', resetRanges);
-    
-    // Analytics tab handlers
-    document.querySelectorAll('.analytics-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            const targetTab = this.getAttribute('data-tab');
-            
-            // Update tab buttons
-            document.querySelectorAll('.analytics-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Update panels
-            document.querySelectorAll('.analytics-panel').forEach(p => p.classList.remove('active'));
-            const targetPanel = document.getElementById(`analytics-${targetTab}`);
-            if (targetPanel) {
-                targetPanel.classList.add('active');
+        } else if (flow.phase === 'facing_open') {
+            if (action === 'fold' || action === 'call') {
+                const nxt = nextUnacted(flow.activeIdx + 1);
+                if (nxt === -1) {
+                    flow.phase = 'done';
+                } else {
+                    flow.activeIdx = nxt;
+                }
+            } else if (action === '3bet') {
+                flow.threeBettorIdx = flow.activeIdx;
+                flow.phase = 'facing_3bet';
+                flow.actions[ALL_POS[flow.openerIdx]] = undefined;
+                for (let i = 0; i < ALL_POS.length; i++) {
+                    if (flow.actions[ALL_POS[i]] === 'call') {
+                        flow.actions[ALL_POS[i]] = undefined;
+                    }
+                }
+                const nxt = nextAfter3bet(flow.activeIdx + 1);
+                if (nxt === -1) {
+                    flow.phase = 'done';
+                } else {
+                    flow.activeIdx = nxt;
+                }
             }
+        } else if (flow.phase === 'facing_3bet') {
+            if (action === 'fold' || action === 'call') {
+                let nxt = -1;
+                if (flow.activeIdx >= flow.threeBettorIdx) {
+                    nxt = nextAfter3bet(flow.activeIdx + 1);
+                } else {
+                    for (let i = flow.activeIdx + 1; i < flow.threeBettorIdx; i++) {
+                        if (!flow.actions[ALL_POS[i]]) { nxt = i; break; }
+                    }
+                }
+                if (nxt === -1) {
+                    flow.phase = 'done';
+                } else {
+                    flow.activeIdx = nxt;
+                }
+            } else if (action === '4bet') {
+                flow.phase = 'done';
+            }
+        }
+
+        syncFlowToState();
+        render();
+    }
+
+    function getFlowDescription() {
+        const active = ALL_POS[flow.activeIdx] || '';
+        const opener = ALL_POS[flow.openerIdx] || '';
+        if (flow.phase === 'rfi_walk') {
+            return `${active} to act — Open or Fold`;
+        } else if (flow.phase === 'facing_open') {
+            return `${active} facing ${opener} Open`;
+        } else if (flow.phase === 'facing_3bet') {
+            const threeBettor = ALL_POS[flow.threeBettorIdx];
+            if (flow.activeIdx === flow.openerIdx) {
+                return `${active} facing ${threeBettor} 3-Bet (you opened)`;
+            }
+            return `${active} cold vs ${threeBettor} 3-Bet (${opener} opened)`;
+        }
+        return 'Action complete — click Reset Table to start over';
+    }
+
+    function getActiveActions() {
+        if (flow.phase === 'rfi_walk') {
+            const cfg = POS_CONFIG[ALL_POS[flow.activeIdx]];
+            return cfg.rfiActions;
+        } else if (flow.phase === 'facing_open') {
+            return ['Fold', 'Call', '3-Bet'];
+        } else if (flow.phase === 'facing_3bet') {
+            return ['Fold', 'Call', '4-Bet'];
+        }
+        return [];
+    }
+
+    function mapActionLabel(label) {
+        const l = label.toLowerCase();
+        if (l === 'fold') return 'fold';
+        if (l === 'call') return 'call';
+        if (l.includes('3-bet') || l.includes('3bet')) return '3bet';
+        if (l.includes('4-bet') || l.includes('4bet')) return '4bet';
+        return 'raise';
+    }
+
+    function actionBtnClass(label) {
+        const l = label.toLowerCase();
+        if (l === 'fold') return 'fa-fold';
+        if (l === 'call') return 'fa-call';
+        return 'fa-raise';
+    }
+
+    // ─── Render: Flow Bar ───
+    function renderFlowBar() {
+        const el = document.getElementById('flowText');
+        if (el) el.textContent = getFlowDescription();
+    }
+
+    // ─── Render: Position Cards (flow-driven) ───
+    function renderPositions() {
+        const el = document.getElementById('positionSelector');
+        if (!el) return;
+
+        let html = '<div class="pos-cards-row">';
+        for (let i = 0; i < ALL_POS.length; i++) {
+            const p = ALL_POS[i];
+            const cfg = POS_CONFIG[p];
+            const acted = flow.actions[p];
+            const isActive = (flow.phase !== 'done' && flow.activeIdx === i);
+
+            let cardClass = 'pos-card';
+            if (isActive) {
+                cardClass += ' active';
+            } else if (acted === 'fold') {
+                cardClass += ' acted-fold';
+            } else if (acted === 'raise' || acted === '4bet') {
+                cardClass += ' acted-raise';
+            } else if (acted === 'call') {
+                cardClass += ' acted-call';
+            } else if (acted === '3bet') {
+                cardClass += ' acted-3bet';
+            } else {
+                cardClass += ' waiting';
+            }
+
+            html += `<div class="${cardClass}" data-idx="${i}">`;
+            html += `<div class="pos-card-header">
+                <span class="pos-card-name">${p}</span>
+                <span class="pos-card-stack">${cfg.stack}</span>
+            </div>`;
+
+            if (isActive) {
+                const actions = getActiveActions();
+                html += '<div class="pos-card-actions">';
+                for (const a of actions) {
+                    html += `<button class="flow-action-btn ${actionBtnClass(a)}" data-flow-action="${mapActionLabel(a)}">${a}</button>`;
+                }
+                html += '</div>';
+            } else if (acted) {
+                const labels = { fold: 'Folded', raise: 'Raised', call: 'Called', '3bet': '3-Bet', '4bet': '4-Bet' };
+                const classes = { fold: 'status-fold', raise: 'status-raise', call: 'status-call', '3bet': 'status-3bet', '4bet': 'status-raise' };
+                html += `<div class="pos-card-actions">
+                    <span class="status-badge ${classes[acted] || 'status-fold'}">${labels[acted] || acted}</span>
+                </div>`;
+            } else {
+                html += `<div class="pos-card-actions">
+                    <div class="pos-card-action act-fold" style="opacity:0.4">—</div>
+                </div>`;
+            }
+
+            html += '</div>';
+        }
+        html += '</div>';
+        el.innerHTML = html;
+
+        // Action button handlers
+        el.querySelectorAll('.flow-action-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleFlowAction(btn.dataset.flowAction);
+            });
         });
+
+        // Click non-active cards to jump to that position
+        el.querySelectorAll('.pos-card:not(.active)').forEach(card => {
+            card.addEventListener('click', () => {
+                const idx = parseInt(card.dataset.idx);
+                if (idx >= 0 && idx <= 4) {
+                    resetFlow(idx);
+                    render();
+                }
+            });
+        });
+    }
+
+    // ─── Render: Matrix ───
+    function renderMatrix() {
+        const el = document.getElementById('matrixContainer');
+        if (!el) return;
+
+        const rng = currentRange();
+        const hasData = Object.keys(rng).length > 0;
+
+        if (!hasData && state.scenario !== 'rfi') {
+            el.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-file-import"></i>
+                    <p><strong>No range data for this spot</strong></p>
+                    <p>Import a range from GTO Wizard or add it manually via Edit mode</p>
+                    <button class="btn-action btn-import" onclick="document.getElementById('importModal').style.display='flex'">
+                        <i class="fas fa-file-import"></i> Import Range
+                    </button>
+                </div>`;
+            return;
+        }
+
+        const sc = SCENARIOS[state.scenario];
+        let html = '<div class="matrix-grid">';
+        for (let i = 0; i < 13; i++) {
+            html += '<div class="matrix-row">';
+            for (let j = 0; j < 13; j++) {
+                const h = handName(i, j);
+                const a = handActions(h);
+                const bg = cellBg(a);
+                const ec = state.editMode ? ' editable' : '';
+                const played = a.r + a.c;
+                const alpha = played > 50 ? 1 : (played > 0 ? 0.85 : 0.5);
+
+                let tip = h;
+                if (state.scenario === 'rfi') {
+                    tip += `: Raise ${a.r.toFixed(0)}%`;
+                } else {
+                    tip += `: ${sc.aggressive} ${a.r.toFixed(0)}%, ${sc.passive} ${a.c.toFixed(0)}%, Fold ${a.f.toFixed(0)}%`;
+                }
+
+                html += `<div class="matrix-cell${ec}" style="background:${bg}" data-hand="${h}" title="${tip}">`;
+                html += `<span class="cell-label" style="opacity:${alpha}">${h}</span>`;
+                if (state.editMode) {
+                    html += `<input type="number" class="freq-input" value="${a.r}" min="0" max="100" step="1" data-hand="${h}" data-act="r">`;
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+        html += '</div>';
+
+        html += '<div class="range-legend">';
+        html += `<div class="legend-item"><div class="legend-dot" style="background:rgb(${C_RAISE})"></div>${sc.aggressive}</div>`;
+        if (sc.passive) {
+            html += `<div class="legend-item"><div class="legend-dot" style="background:rgb(${C_CALL})"></div>${sc.passive}</div>`;
+        }
+        html += `<div class="legend-item"><div class="legend-dot" style="background:rgb(${C_FOLD})"></div>Fold</div>`;
+        html += '</div>';
+
+        el.innerHTML = html;
+
+        if (state.editMode) {
+            el.querySelectorAll('.freq-input').forEach(inp => {
+                inp.addEventListener('change', onFreqChange);
+                inp.addEventListener('click', e => e.stopPropagation());
+            });
+        }
+    }
+
+    function onFreqChange(e) {
+        const hand = e.target.dataset.hand;
+        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+        const bucket = rangeData[state.scenario];
+        const key = rangeKey();
+        if (!bucket[key]) bucket[key] = {};
+
+        if (state.scenario === 'rfi') {
+            bucket[key][hand] = val;
+        } else {
+            if (!bucket[key][hand]) bucket[key][hand] = {r:0, c:0};
+            bucket[key][hand].r = val;
+        }
+        renderMatrix();
+        renderInfo();
+    }
+
+    // ─── Render: Info Panel ───
+    function renderInfo() {
+        const el = document.getElementById('infoContent');
+        if (!el) return;
+
+        document.querySelectorAll('#rangesApp .info-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === state.infoTab);
+        });
+
+        if (state.infoTab === 'actions') renderActions(el);
+        else renderHandList(el);
+    }
+
+    function renderActions(el) {
+        const st = calcStats();
+        const sc = SCENARIOS[state.scenario];
+        let html = '<div class="action-summary">';
+
+        html += `<div class="action-row">
+            <div class="action-color" style="background:rgb(${C_RAISE})"></div>
+            <span class="action-name">${sc.aggressive}</span>
+            <span class="action-pct">${st.raisePct.toFixed(1)}%</span>
+            <span class="action-combos">${st.raise.toFixed(1)} combos</span>
+        </div>`;
+
+        if (sc.passive) {
+            html += `<div class="action-row">
+                <div class="action-color" style="background:rgb(${C_CALL})"></div>
+                <span class="action-name">${sc.passive}</span>
+                <span class="action-pct">${st.callPct.toFixed(1)}%</span>
+                <span class="action-combos">${st.call.toFixed(1)} combos</span>
+            </div>`;
+        }
+
+        html += `<div class="action-row">
+            <div class="action-color" style="background:rgb(${C_FOLD})"></div>
+            <span class="action-name">Fold</span>
+            <span class="action-pct">${st.foldPct.toFixed(1)}%</span>
+            <span class="action-combos">${st.fold.toFixed(1)} combos</span>
+        </div>`;
+
+        html += '</div>';
+        html += `<div class="stats-footer">
+            Total: ${st.total} combos &nbsp;·&nbsp; Playing: ${(st.raisePct + st.callPct).toFixed(1)}%
+        </div>`;
+
+        el.innerHTML = html;
+    }
+
+    function renderHandList(el) {
+        const sc = SCENARIOS[state.scenario];
+        const hands = [];
+        for (let i = 0; i < 13; i++) {
+            for (let j = 0; j < 13; j++) {
+                const h = handName(i, j);
+                const a = handActions(h);
+                if (a.r > 0 || a.c > 0) {
+                    hands.push({ hand: h, r: a.r, c: a.c, total: a.r + a.c });
+                }
+            }
+        }
+        hands.sort((a, b) => b.total - a.total || b.r - a.r);
+
+        if (!hands.length) {
+            el.innerHTML = '<div style="text-align:center;color:#4a4a5a;padding:2.5rem 1rem;">No hands in range</div>';
+            return;
+        }
+
+        let html = '<div class="hand-list">';
+        for (const h of hands) {
+            html += `<div class="hand-list-row">
+                <span class="hl-hand">${h.hand}</span>
+                <div class="hl-bar">
+                    <div class="hl-raise" style="width:${h.r}%;background:rgb(${C_RAISE})"></div>
+                    <div class="hl-call" style="width:${h.c}%;background:rgb(${C_CALL})"></div>
+                </div>
+                <span class="hl-pct">${h.total}%</span>
+            </div>`;
+        }
+        html += '</div>';
+        el.innerHTML = html;
+    }
+
+    // ─── Import / Export ───
+    function openImport() {
+        const ag = document.getElementById('importActionGroup');
+        ag.style.display = state.scenario === 'rfi' ? 'none' : 'block';
+        document.getElementById('importText').value = '';
+        document.getElementById('importPreview').innerHTML = '';
+        document.getElementById('importApplyBtn').disabled = true;
+        document.getElementById('importModal').style.display = 'flex';
+    }
+
+    function previewImport() {
+        const text = document.getElementById('importText').value;
+        const parsed = parseRangeText(text);
+        const count = Object.keys(parsed).length;
+        const preview = document.getElementById('importPreview');
+        const applyBtn = document.getElementById('importApplyBtn');
+
+        if (!count) {
+            preview.innerHTML = '<span style="color:#e74c3c;">No valid hands found. Check the format and try again.</span>';
+            applyBtn.disabled = true;
+            return;
+        }
+
+        const sorted = Object.entries(parsed).sort((a,b) => b[1] - a[1]);
+        const sample = sorted.slice(0, 25).map(([h,f]) => f < 100 ? `${h}:${f}` : h).join(', ');
+        const more = count > 25 ? ` … +${count-25} more` : '';
+        preview.innerHTML = `<span style="color:#27ae60;">&#10003; ${count} hands parsed</span><br>${sample}${more}`;
+        applyBtn.disabled = false;
+    }
+
+    function applyImport() {
+        const text = document.getElementById('importText').value;
+        const parsed = parseRangeText(text);
+        const action = state.scenario === 'rfi' ? 'r' :
+            (document.querySelector('input[name="importAction"]:checked')?.value || 'r');
+
+        const bucket = rangeData[state.scenario];
+        const key = rangeKey();
+        if (!bucket[key]) bucket[key] = {};
+
+        for (const [hand, freq] of Object.entries(parsed)) {
+            if (state.scenario === 'rfi') {
+                bucket[key][hand] = freq;
+            } else {
+                if (!bucket[key][hand]) bucket[key][hand] = {r:0, c:0};
+                bucket[key][hand][action] = freq;
+            }
+        }
+
+        document.getElementById('importModal').style.display = 'none';
+        render();
+    }
+
+    function exportRange() {
+        const rng = currentRange();
+        const parts = [];
+
+        for (let i = 0; i < 13; i++) {
+            for (let j = 0; j < 13; j++) {
+                const h = handName(i, j);
+                const a = handActions(h);
+                if (state.scenario === 'rfi') {
+                    if (a.r === 100) parts.push(h);
+                    else if (a.r > 0) parts.push(`${h}:${a.r}`);
+                } else {
+                    if (a.r > 0 || a.c > 0) {
+                        parts.push(`${h}:${a.r}/${a.c}`);
+                    }
+                }
+            }
+        }
+
+        const text = parts.join(',');
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => flashBtn('exportBtn', 'Copied!')).catch(() => prompt('Copy this range:', text));
+        } else {
+            prompt('Copy this range:', text);
+        }
+    }
+
+    function flashBtn(id, msg) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fas fa-check"></i> ${msg}`;
+        setTimeout(() => btn.innerHTML = orig, 1800);
+    }
+
+    // ─── Edit Mode & Persistence ───
+    function toggleEdit() {
+        state.editMode = !state.editMode;
+        const btn = document.getElementById('editToggle');
+        btn.classList.toggle('active', state.editMode);
+        btn.innerHTML = state.editMode
+            ? '<i class="fas fa-times"></i> Exit Edit'
+            : '<i class="fas fa-edit"></i> Edit';
+        document.getElementById('saveBtn').style.display = state.editMode ? '' : 'none';
+        document.getElementById('resetBtn').style.display = state.editMode ? '' : 'none';
+        renderMatrix();
+    }
+
+    function saveLocal() {
+        try {
+            localStorage.setItem('pokerRangesV2', JSON.stringify(rangeData));
+            flashBtn('saveBtn', 'Saved!');
+        } catch (e) {
+            alert('Failed to save: ' + e.message);
+        }
+    }
+
+    function loadLocal() {
+        try {
+            const raw = localStorage.getItem('pokerRangesV2');
+            if (!raw) return;
+            const saved = JSON.parse(raw);
+            for (const sc of ['rfi','vs_open','vs_3bet']) {
+                if (saved[sc]) {
+                    for (const key of Object.keys(saved[sc])) {
+                        rangeData[sc][key] = saved[sc][key];
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load saved ranges:', e);
+        }
+    }
+
+    function resetAll() {
+        if (!confirm('Reset ALL ranges to defaults? This removes any imported or edited data.')) return;
+        rangeData = JSON.parse(JSON.stringify(originalData));
+        localStorage.removeItem('pokerRangesV2');
+        render();
+    }
+
+    // ─── Master Render ───
+    function render() {
+        renderFlowBar();
+        renderPositions();
+        renderMatrix();
+        renderInfo();
+    }
+
+    // ─── Init ───
+    document.addEventListener('DOMContentLoaded', () => {
+        loadLocal();
+        resetFlow(0);
+
+        document.getElementById('resetFlowBtn').addEventListener('click', () => {
+            resetFlow(0);
+            render();
+        });
+
+        document.querySelectorAll('#rangesApp .info-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                state.infoTab = tab.dataset.tab;
+                renderInfo();
+            });
+        });
+
+        document.getElementById('importBtn').addEventListener('click', openImport);
+        document.getElementById('exportBtn').addEventListener('click', exportRange);
+        document.getElementById('editToggle').addEventListener('click', toggleEdit);
+        document.getElementById('saveBtn').addEventListener('click', saveLocal);
+        document.getElementById('resetBtn').addEventListener('click', resetAll);
+
+        document.getElementById('importClose').addEventListener('click', () => {
+            document.getElementById('importModal').style.display = 'none';
+        });
+        document.getElementById('importParseBtn').addEventListener('click', previewImport);
+        document.getElementById('importApplyBtn').addEventListener('click', applyImport);
+
+        document.getElementById('importModal').addEventListener('click', e => {
+            if (e.target === e.currentTarget) e.target.style.display = 'none';
+        });
+
+        render();
     });
-});
+})();
 </script>

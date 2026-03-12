@@ -1979,8 +1979,8 @@ class LadbrooksPokerHandProcessor:
         action_lines = []
         
         for action in preflop_actions:
-            if action.action_type in ['post_sb', 'post_bb']:
-                continue  # Skip blind postings in action summary
+            if action.action_type in ['post_sb', 'post_bb', 'ante']:
+                continue
             
             action_str = f"{action.actor} "
             if action.action_type == 'fold':
@@ -3928,44 +3928,15 @@ class LadbrooksPokerHandProcessor:
         return cards
 
     def calculate_street_high_card_analysis(self, dataframe, street):
-        """Calculate high card analysis for a specific street (flop, turn, river)"""
+        """Calculate high card analysis for a specific street (flop, turn, river).
+        Only counts hands where Hero was active on that street."""
         analysis = {}
         
-        # Filter to hands that reached this street - check multiple sources
-        street_mask = pd.Series([False] * len(dataframe), index=dataframe.index)
-        
-        # Method 1: Check main flop column
-        if street == 'flop' and 'flop' in dataframe.columns:
-            street_mask = street_mask | (dataframe['flop'] == True)
-        
-        # Method 2: Check if street cards exist
-        if street == 'turn' and 'turn_cards' in dataframe.columns:
-            street_mask = street_mask | ((dataframe['turn_cards'] != 0) & (dataframe['turn_cards'].notna()))
-        elif street == 'river' and 'river_cards' in dataframe.columns:
-            street_mask = street_mask | ((dataframe['river_cards'] != 0) & (dataframe['river_cards'].notna()))
-        
-        # Method 3: Check HU columns (for heads-up hands)
-        if street == 'turn' and 'turn_HU_with_hero' in dataframe.columns:
-            street_mask = street_mask | (dataframe['turn_HU_with_hero'] == True)
-        elif street == 'river' and 'river_HU_with_hero' in dataframe.columns:
-            street_mask = street_mask | (dataframe['river_HU_with_hero'] == True)
-        
-        # Method 4: Check Raw Hand for street markers (most reliable)
-        def has_street_in_raw_hand(raw_hand, street_name):
-            if not raw_hand or not isinstance(raw_hand, str):
-                return False
-            if street_name == 'flop':
-                return '** Dealing Flop **' in raw_hand
-            elif street_name == 'turn':
-                return '** Dealing Turn **' in raw_hand
-            elif street_name == 'river':
-                return '** Dealing River **' in raw_hand
-            return False
-        
-        if 'Raw Hand' in dataframe.columns:
-            street_mask = street_mask | dataframe['Raw Hand'].apply(lambda x: has_street_in_raw_hand(x, street))
-        
-        street_df = dataframe[street_mask].copy()
+        hero_col = f'hero_saw_{street}'
+        if hero_col in dataframe.columns:
+            street_df = dataframe[dataframe[hero_col] == True].copy()
+        else:
+            street_df = dataframe[dataframe.get('flop', pd.Series(False, index=dataframe.index)) == True].copy() if street == 'flop' else pd.DataFrame()
         
         rank_names = {14: 'A', 13: 'K', 12: 'Q', 11: 'J', 10: 'T', 9: '9', 8: '8', 7: '7', 6: '6', 5: '5', 4: '4', 3: '3', 2: '2'}
         
@@ -4021,26 +3992,16 @@ class LadbrooksPokerHandProcessor:
         return analysis
 
     def calculate_board_high_card_analysis(self, dataframe):
-        """Calculate board high card analysis (highest card on the entire board)"""
+        """Calculate board high card analysis (highest card on the entire board).
+        Only counts hands where Hero saw the flop."""
         analysis = {}
         
-        # Filter to hands that reached flop - check multiple sources
-        flop_mask = pd.Series([False] * len(dataframe), index=dataframe.index)
-        
-        # Method 1: Check main flop column
-        if 'flop' in dataframe.columns:
-            flop_mask = flop_mask | (dataframe['flop'] == True)
-        
-        # Method 2: Check Raw Hand for flop marker (most reliable)
-        def has_flop_in_raw_hand(raw_hand):
-            if not raw_hand or not isinstance(raw_hand, str):
-                return False
-            return '** Dealing Flop **' in raw_hand
-        
-        if 'Raw Hand' in dataframe.columns:
-            flop_mask = flop_mask | dataframe['Raw Hand'].apply(has_flop_in_raw_hand)
-        
-        flop_df = dataframe[flop_mask].copy()
+        if 'hero_saw_flop' in dataframe.columns:
+            flop_df = dataframe[dataframe['hero_saw_flop'] == True].copy()
+        elif 'flop' in dataframe.columns:
+            flop_df = dataframe[dataframe['flop'] == True].copy()
+        else:
+            flop_df = pd.DataFrame()
         
         rank_names = {14: 'A', 13: 'K', 12: 'Q', 11: 'J', 10: 'T', 9: '9', 8: '8', 7: '7', 6: '6', 5: '5', 4: '4', 3: '3', 2: '2'}
         
@@ -5184,8 +5145,6 @@ class LadbrooksPokerHandProcessor:
 
     def advanced_processing(self, dataframe):
         results = {}
-
-        df_six_players = dataframe[dataframe['no_players'] == 6]
 
         number_of_hands = len(dataframe)
         if number_of_hands == 0:
@@ -6459,8 +6418,8 @@ class LadbrooksPokerHandProcessor:
         results['VPIP Info'] = vpip
         results['RFI VPIP Info'] = vpip_rfi
         results['Positional Profitability'] = rounded_positional_profitability
-        results['Three bet info'] = self.get_three_bet_metrics(df_six_players)
-        results['Four bet info'] = self.get_four_bet_metrics(df_six_players)
+        results['Three bet info'] = self.get_three_bet_metrics(dataframe)
+        results['Four bet info'] = self.get_four_bet_metrics(dataframe)
         results['IP Profitability'] = ip_profitability
         results['OP Profitability'] = op_profitability
         results['In Position Percentage'] = in_position_percentage

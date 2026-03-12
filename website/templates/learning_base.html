@@ -6,8 +6,9 @@
 
 <style>
     .learning-hero {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        border-radius: 16px;
+        background: linear-gradient(135deg, var(--bg-secondary) 0%, #1e1b4b 50%, var(--bg-secondary) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
         padding: 2.5rem 2rem;
         margin-bottom: 2rem;
         position: relative;
@@ -20,34 +21,45 @@
         right: -20%;
         width: 400px;
         height: 400px;
-        background: radial-gradient(circle, rgba(102,126,234,0.15) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%);
         border-radius: 50%;
+    }
+    .learning-hero::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent-green), var(--accent-purple), transparent);
+        opacity: 0.4;
     }
     .learning-hero h2 {
         color: #fff;
         font-weight: 700;
         margin-bottom: 0.5rem;
     }
+    .learning-hero h2 i { color: var(--accent-green); }
     .learning-hero p {
-        color: rgba(255,255,255,0.65);
+        color: var(--text-secondary);
         margin-bottom: 0;
         font-size: 1.05rem;
     }
 
     .module-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 1.25rem;
         margin-bottom: 2.5rem;
     }
     .module-card {
-        background: var(--card-bg);
+        background: var(--gradient-card);
         border: 1px solid var(--border-color);
         border-radius: 14px;
         padding: 1.75rem 1.5rem;
         text-decoration: none;
-        color: var(--text-color);
-        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        color: var(--text-primary);
+        transition: all 0.25s ease;
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
@@ -56,14 +68,14 @@
     }
     .module-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-        border-color: transparent;
-        color: var(--text-color);
+        box-shadow: var(--shadow-hover), var(--shadow-glow);
+        border-color: var(--border-glow);
+        color: var(--text-primary);
         text-decoration: none;
     }
     .module-card.active {
-        border-color: #667eea;
-        box-shadow: 0 0 0 2px rgba(102,126,234,0.3), 0 8px 24px rgba(102,126,234,0.1);
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 2px var(--accent-green-dim), 0 8px 24px rgba(16,185,129,0.1);
     }
     .module-card .icon-wrap {
         width: 52px;
@@ -80,10 +92,11 @@
         font-weight: 600;
         margin: 0;
         font-size: 1.05rem;
+        color: var(--text-primary);
     }
     .module-card .module-desc {
         font-size: 0.85rem;
-        color: rgba(127,127,127,1);
+        color: var(--text-secondary);
         line-height: 1.45;
         margin: 0;
     }
@@ -103,9 +116,9 @@
     .icon-ranges    { background: linear-gradient(135deg, #43e97b, #38f9d7); }
     .icon-pokermath { background: linear-gradient(135deg, #fa709a, #fee140); }
 
-    .tag-fundamentals { background: rgba(102,126,234,0.12); color: #667eea; }
-    .tag-advanced     { background: rgba(245,87,108,0.12); color: #f5576c; }
-    .tag-strategy     { background: rgba(67,233,123,0.12); color: #2db86b; }
+    .tag-fundamentals { background: var(--accent-green-dim); color: var(--accent-green); }
+    .tag-advanced     { background: var(--accent-purple-dim); color: var(--accent-purple); }
+    .tag-strategy     { background: rgba(67,233,123,0.12); color: #43e97b; }
     .tag-quiz         { background: rgba(250,112,154,0.12); color: #fa709a; }
 
     .section-divider {

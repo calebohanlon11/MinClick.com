@@ -1,7 +1,7 @@
 <!-- Poker Ranges Viewer & Editor -->
 <div class="ranges-app" id="rangesApp">
 
-    <!-- Flow Bar -->
+    <!-- Flow Bar (compact) -->
     <div class="flow-bar" id="flowBar">
         <div class="flow-info">
             <i class="fas fa-play-circle flow-icon"></i>
@@ -12,13 +12,19 @@
         </button>
     </div>
 
-    <!-- Header -->
-    <div class="ranges-header">
-        <div class="header-info">
+    <!-- Toolbar: meta badges + position cards inline -->
+    <div class="ranges-toolbar">
+        <div class="toolbar-meta">
             <span class="info-badge">Cash 100bb</span>
             <span class="info-badge">6-Max</span>
             <span class="info-badge" id="scenarioLabel">RFI (Open Raise)</span>
         </div>
+        <div id="positionSelector" class="position-selector"></div>
+    </div>
+
+    <!-- Actions bar -->
+    <div class="ranges-header">
+        <div class="header-info"></div>
         <div class="header-actions">
             <button class="btn-action btn-import" id="importBtn">
                 <i class="fas fa-file-import"></i> Import
@@ -37,9 +43,6 @@
             </button>
         </div>
     </div>
-
-    <!-- Position Selector -->
-    <div id="positionSelector" class="position-selector"></div>
 
     <!-- Main Content -->
     <div class="ranges-main">
@@ -99,84 +102,102 @@ Frequency defaults to 100% if not specified."></textarea>
 /* ═══════════════════════════════════════════ */
 .ranges-app {
     background: #0f1118;
-    border-radius: 12px;
-    padding: 1.5rem;
+    border-radius: 0;
+    padding: 0;
     color: #e0e0e0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ═══════════════════════════════════════════ */
-/* FLOW BAR                                    */
+/* TOP TOOLBAR (flow + badges + cards inline)  */
 /* ═══════════════════════════════════════════ */
+.ranges-toolbar {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border-bottom: 1px solid #2a2d3a;
+    background: #14161f;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+}
+.toolbar-meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 6px 14px;
+    border-right: 1px solid #2a2d3a;
+    min-width: 110px;
+    gap: 4px;
+}
+.toolbar-meta .info-badge {
+    padding: 0;
+    background: none;
+    border: none;
+    font-size: 0.78rem;
+    color: #808090;
+    line-height: 1.3;
+}
+.toolbar-meta .info-badge:first-child { color: #c0c0d0; font-weight: 700; }
+
+/* Flow bar - compact inline */
 .flow-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.25rem;
-    background: linear-gradient(135deg, rgba(102,126,234,0.12), rgba(118,75,162,0.08));
-    padding: 0.75rem 1.25rem;
-    border-radius: 10px;
-    border: 1px solid rgba(102,126,234,0.2);
+    padding: 6px 14px;
+    background: #14161f;
+    border-bottom: 1px solid #2a2d3a;
 }
 .flow-info {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
 }
-.flow-icon { color: #667eea; font-size: 1rem; }
+.flow-icon { color: #667eea; font-size: 0.85rem; }
 .flow-text {
     color: #d0d0e0;
     font-weight: 600;
-    font-size: 0.92rem;
+    font-size: 0.85rem;
 }
 .btn-reset-flow {
     background: rgba(255,255,255,0.06);
     color: #8a8a9a;
     border: 1px solid rgba(255,255,255,0.1);
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    font-size: 0.78rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
 }
 .btn-reset-flow:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
-/* ═══════════════════════════════════════════ */
-/* HEADER BAR                                  */
-/* ═══════════════════════════════════════════ */
+/* Header actions - compact */
 .ranges-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    margin-bottom: 1.25rem;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    padding: 4px 10px;
+    background: #14161f;
+    border-bottom: 1px solid #2a2d3a;
+    gap: 0.35rem;
 }
-.header-info { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
-.info-badge {
-    padding: 0.3rem 0.7rem;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 6px;
-    font-size: 0.78rem;
-    color: #8a8a9a;
-}
-.header-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.header-info { display: none; }
+.header-actions { display: flex; gap: 0.3rem; flex-wrap: wrap; }
 .btn-action {
-    padding: 0.4rem 0.8rem;
+    padding: 0.3rem 0.65rem;
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px;
-    font-size: 0.78rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.25rem;
     background: rgba(255,255,255,0.04);
     color: #a0a0b0;
 }
@@ -197,20 +218,23 @@ Frequency defaults to 100% if not specified."></textarea>
 .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
 
 /* ═══════════════════════════════════════════ */
-/* POSITION SELECTOR (GTO Wizard card style)   */
+/* POSITION SELECTOR (inline toolbar strip)    */
 /* ═══════════════════════════════════════════ */
 .position-selector {
-    margin-bottom: 1.25rem;
-    background: rgba(255,255,255,0.02);
-    border-radius: 10px;
-    padding: 1rem;
-    border: 1px solid rgba(255,255,255,0.05);
+    margin: 0;
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    flex: 1;
+    min-width: 0;
 }
+/* ── Position Cards Row ── */
 .pos-cards-row {
     display: flex;
-    gap: 0.6rem;
+    gap: 4px;
     overflow-x: auto;
-    padding-bottom: 0.25rem;
+    padding: 4px;
 }
 .pos-row-label {
     color: #6a6a7a;
@@ -229,228 +253,216 @@ Frequency defaults to 100% if not specified."></textarea>
     font-size: 0.85rem;
     font-weight: 700;
 }
+
+/* ── Individual Card ── */
 .pos-card {
-    flex: 1;
-    min-width: 110px;
-    max-width: 160px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    padding: 0.65rem 0.75rem;
+    flex: 0 1 auto;
+    min-width: 120px;
+    max-width: 155px;
+    background: #1a1d28;
+    border: 1px solid #2a2d3a;
+    border-radius: 4px;
+    padding: 0;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.1s;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    overflow: hidden;
 }
 .pos-card:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.15);
+    border-color: #3a3d4a;
 }
 .pos-card.active {
-    background: rgba(76,175,80,0.1);
+    background: #1a2a1f;
     border-color: #4CAF50;
-    box-shadow: 0 0 12px rgba(76,175,80,0.15);
 }
+
+/* ── Card Header (position + stack) ── */
 .pos-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 6px 10px 4px;
 }
 .pos-card-name {
     font-weight: 700;
-    font-size: 0.9rem;
-    color: #8a8a9a;
-    transition: color 0.2s;
+    font-size: 0.95rem;
+    color: #c0c0d0;
+    letter-spacing: 0.3px;
 }
-.pos-card.active .pos-card-name { color: #4CAF50; }
+.pos-card.active .pos-card-name { color: #fff; }
 .pos-card-stack {
-    font-size: 0.75rem;
-    color: #5a5a6a;
+    font-size: 0.88rem;
+    color: #808090;
     font-weight: 600;
 }
+
+/* ── Card Actions Area ── */
 .pos-card-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0;
+    padding: 2px 0;
 }
-.pos-card-action {
-    padding: 0.3rem 0.5rem;
-    border-radius: 4px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
-    font-size: 0.7rem;
+
+/* ── Action Row (non-selected state) ── */
+.action-row-item {
+    padding: 5px 10px;
+    font-size: 0.88rem;
     font-weight: 500;
-    color: #7a7a8a;
-    text-align: center;
-    transition: all 0.15s;
-}
-.pos-card.active .pos-card-action.act-raise {
-    background: rgba(220,53,69,0.2);
-    border-color: rgba(220,53,69,0.35);
-    color: #f07080;
-}
-.pos-card.active .pos-card-action.act-call {
-    background: rgba(39,174,96,0.15);
-    border-color: rgba(39,174,96,0.3);
-    color: #6dd5a0;
-}
-.pos-card.active .pos-card-action.act-fold {
-    background: rgba(255,255,255,0.04);
-    border-color: rgba(255,255,255,0.08);
-    color: #8a8a9a;
-}
-.pos-card.active .pos-card-action.act-allin {
-    background: rgba(139,0,0,0.2);
-    border-color: rgba(139,0,0,0.35);
-    color: #e07070;
-}
-.pos-card-stats {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.68rem;
-    color: #5a5a6a;
-    padding-top: 0.25rem;
-    border-top: 1px solid rgba(255,255,255,0.04);
-    margin-top: 0.1rem;
+    color: #5a5d70;
+    transition: all 0.1s;
+    line-height: 1.4;
+    white-space: nowrap;
 }
 
-/* Flow card states */
+/* ── Selected Action Highlights (background bar like GTO Wizard) ── */
+.action-row-item.selected-fold {
+    background: rgba(255,255,255,0.06);
+    color: #e0e0e8;
+    font-weight: 700;
+}
+.action-row-item.selected-raise {
+    background: rgba(220,53,69,0.18);
+    color: #e0e0e8;
+    font-weight: 700;
+}
+.action-row-item.selected-call {
+    background: rgba(39,174,96,0.18);
+    color: #e0e0e8;
+    font-weight: 700;
+}
+.action-row-item.selected-allin {
+    background: rgba(139,92,246,0.22);
+    color: #e0e0e8;
+    font-weight: 700;
+}
+.action-row-item.selected-5bet {
+    background: rgba(139,92,246,0.22);
+    color: #e0e0e8;
+    font-weight: 700;
+}
+.action-row-item.selected-3bet {
+    background: rgba(220,53,69,0.18);
+    color: #e0e0e8;
+    font-weight: 700;
+}
+.action-row-item.selected-4bet {
+    background: rgba(220,53,69,0.18);
+    color: #e0e0e8;
+    font-weight: 700;
+}
+
+/* ── Flow Card States ── */
 .pos-card.waiting {
-    opacity: 0.45;
+    opacity: 0.5;
     cursor: pointer;
 }
-.pos-card.waiting:hover { opacity: 0.7; }
-.pos-card.acted-fold {
-    opacity: 0.28;
+.pos-card.waiting:hover { opacity: 0.75; }
+.pos-card.acted {
     cursor: pointer;
 }
-.pos-card.acted-fold:hover { opacity: 0.5; }
-.pos-card.acted-raise {
-    border-color: rgba(192,57,43,0.5);
-    background: rgba(192,57,43,0.08);
-    cursor: pointer;
-}
-.pos-card.acted-raise:hover { background: rgba(192,57,43,0.14); }
-.pos-card.acted-call {
-    border-color: rgba(39,174,96,0.4);
-    background: rgba(39,174,96,0.06);
-    cursor: pointer;
-}
-.pos-card.acted-call:hover { background: rgba(39,174,96,0.12); }
-.pos-card.acted-3bet {
-    border-color: rgba(192,57,43,0.5);
-    background: rgba(192,57,43,0.1);
-    cursor: pointer;
-}
+.pos-card.acted:hover { border-color: #3a3d4a; }
 
-.status-badge {
-    display: inline-block;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-.status-fold   { background: rgba(255,255,255,0.05); color: #5a5a6a; }
-.status-raise  { background: rgba(192,57,43,0.2); color: #e07070; }
-.status-call   { background: rgba(39,174,96,0.15); color: #6dd5a0; }
-.status-3bet   { background: rgba(192,57,43,0.25); color: #f07080; }
-
-/* Flow action buttons on active card */
+/* ── Flow Action Buttons (active card) ── */
 .flow-action-btn {
     display: block;
-    width: 100%;
-    padding: 0.4rem 0.5rem;
-    border-radius: 5px;
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.05);
-    font-size: 0.72rem;
+    width: calc(100% - 14px);
+    margin: 0 7px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    border: none;
+    background: transparent;
+    font-size: 0.88rem;
     font-weight: 600;
-    color: #b0b0c0;
+    color: #c0c0d0;
     cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
+    transition: all 0.1s;
+    text-align: left;
+    margin-bottom: 1px;
 }
 .flow-action-btn:hover {
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.1);
     color: #fff;
-    transform: scale(1.03);
 }
 .flow-action-btn.fa-fold {
-    border-color: rgba(255,255,255,0.08);
+    color: #a0a0b0;
 }
 .flow-action-btn.fa-fold:hover {
-    background: rgba(255,255,255,0.08);
-    color: #aaa;
+    background: rgba(255,255,255,0.06);
+    color: #d0d0d8;
 }
 .flow-action-btn.fa-raise {
-    border-color: rgba(192,57,43,0.35);
-    background: rgba(192,57,43,0.12);
-    color: #f07080;
+    color: #c0c0d0;
 }
 .flow-action-btn.fa-raise:hover {
-    background: rgba(192,57,43,0.25);
-    color: #ff8a8a;
+    background: rgba(220,53,69,0.15);
+    color: #fff;
 }
 .flow-action-btn.fa-call {
-    border-color: rgba(39,174,96,0.3);
-    background: rgba(39,174,96,0.1);
-    color: #6dd5a0;
+    color: #c0c0d0;
 }
 .flow-action-btn.fa-call:hover {
-    background: rgba(39,174,96,0.2);
-    color: #80e8b5;
+    background: rgba(39,174,96,0.15);
+    color: #fff;
+}
+.flow-action-btn.fa-allin {
+    color: #c0c0d0;
+}
+.flow-action-btn.fa-allin:hover {
+    background: rgba(139,92,246,0.2);
+    color: #fff;
 }
 
 /* ═══════════════════════════════════════════ */
 /* MAIN CONTENT LAYOUT                         */
 /* ═══════════════════════════════════════════ */
-.ranges-main { display: flex; gap: 1.5rem; }
+.ranges-main { display: flex; gap: 0; min-height: calc(100vh - 180px); }
 .matrix-panel {
     flex: 1;
-    background: rgba(255,255,255,0.02);
-    border-radius: 10px;
-    padding: 1.25rem;
-    border: 1px solid rgba(255,255,255,0.05);
+    background: #0f1118;
+    border-radius: 0;
+    padding: 12px;
+    border: none;
+    border-right: 1px solid #2a2d3a;
     display: flex;
     align-items: flex-start;
-    justify-content: center;
-    min-height: 620px;
+    justify-content: flex-start;
+    min-height: 0;
 }
 .info-panel {
-    flex: 0 0 310px;
-    background: rgba(255,255,255,0.02);
-    border-radius: 10px;
-    padding: 1.25rem;
-    border: 1px solid rgba(255,255,255,0.05);
-    max-height: 720px;
+    flex: 0 0 320px;
+    background: #14161f;
+    border-radius: 0;
+    padding: 12px;
+    border: none;
+    max-height: none;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
 }
 
 /* ═══════════════════════════════════════════ */
 /* MATRIX                                      */
 /* ═══════════════════════════════════════════ */
-.hand-matrix { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.hand-matrix { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
 .matrix-grid {
     display: inline-block;
-    border-radius: 6px;
+    border-radius: 2px;
     overflow: hidden;
     border: 1px solid rgba(255,255,255,0.06);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 .matrix-row { display: flex; }
 .matrix-cell {
-    width: 46px;
-    height: 46px;
+    width: 68px;
+    height: 68px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.67rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    border: 0.5px solid rgba(0,0,0,0.2);
+    border: 1px solid #000;
     cursor: default;
     position: relative;
     color: #fff;
@@ -694,16 +706,15 @@ Frequency defaults to 100% if not specified."></textarea>
 /* ═══════════════════════════════════════════ */
 @media (max-width: 1100px) {
     .ranges-main { flex-direction: column; }
-    .info-panel { flex: 1; max-height: none; }
+    .info-panel { flex: 1; max-height: none; border-right: none; border-top: 1px solid #2a2d3a; }
+    .ranges-toolbar { flex-wrap: wrap; }
 }
-@media (max-width: 650px) {
-    .matrix-cell { width: 26px; height: 26px; font-size: 0.48rem; }
-    .ranges-app { padding: 0.75rem; }
-    .scenario-btn { font-size: 0.78rem; padding: 0.55rem 0.5rem; }
+@media (max-width: 768px) {
+    .matrix-cell { width: 32px; height: 24px; font-size: 0.52rem; }
+    .pos-card { min-width: 80px; }
+    .pos-card-name { font-size: 0.75rem; }
+    .action-row-item { font-size: 0.72rem; padding: 3px 8px; }
     .info-panel { flex: none; }
-    .pos-card { min-width: 85px; padding: 0.5rem; }
-    .pos-card-name { font-size: 0.78rem; }
-    .pos-card-action { font-size: 0.62rem; padding: 0.2rem 0.35rem; }
 }
 </style>
 
@@ -718,7 +729,9 @@ Frequency defaults to 100% if not specified."></textarea>
     const SCENARIOS = {
         rfi:     { label: 'RFI (Open Raise)', aggressive: 'Raise',  passive: null   },
         vs_open: { label: 'Facing Open',       aggressive: '3-Bet',  passive: 'Call' },
-        vs_3bet: { label: 'Facing 3-Bet',      aggressive: '4-Bet',  passive: 'Call' }
+        vs_3bet: { label: 'Facing 3-Bet',      aggressive: '4-Bet',  passive: 'Call' },
+        vs_4bet: { label: 'Facing 4-Bet',      aggressive: '5-Bet All-In', passive: 'Call' },
+        vs_5bet: { label: 'Facing 5-Bet All-In', aggressive: 'Call',  passive: null }
     };
 
     const ALL_POS = ['UTG','HJ','CO','BTN','SB','BB'];
@@ -1245,6 +1258,381 @@ Frequency defaults to 100% if not specified."></textarea>
             'JTs':{r:0,c:50},'T9s':{r:0,c:25},
             'AKo':{r:100,c:0},'AQo':{r:25,c:50},'AJo':{r:0,c:50},
             'ATo':{r:0,c:25},'KQo':{r:0,c:50},'KJo':{r:0,c:25}
+        },
+        // ════════════════════════════════
+        // COLD vs HJ 3-BET (someone else opened, HJ 3-bet)
+        // ════════════════════════════════
+        'CO_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:25},
+            'AKs':{r:25,c:25},
+            'AKo':{r:0,c:25}
+        },
+        'BTN_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:50},
+            'JJ':{r:0,c:25},
+            'AKs':{r:25,c:50},'AQs':{r:0,c:25},
+            'AKo':{r:25,c:25}
+        },
+        'SB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:25},
+            'AKs':{r:25,c:25},
+            'AKo':{r:0,c:25}
+        },
+        'BB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:50},
+            'JJ':{r:0,c:25},
+            'AKs':{r:25,c:50},
+            'AKo':{r:25,c:25}
+        },
+        // ════════════════════════════════
+        // COLD vs CO 3-BET
+        // ════════════════════════════════
+        'BTN_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:50},'TT':{r:0,c:25},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:50},
+            'A5s':{r:25,c:0},
+            'AKo':{r:50,c:25},'AQo':{r:0,c:25}
+        },
+        'SB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:25},
+            'AKs':{r:25,c:50},
+            'AKo':{r:25,c:25}
+        },
+        'BB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:50},'TT':{r:0,c:25},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:25},
+            'AKo':{r:25,c:25}
+        },
+        // ════════════════════════════════
+        // COLD vs BTN 3-BET
+        // ════════════════════════════════
+        'SB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:50},'TT':{r:0,c:25},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:50},
+            'A5s':{r:25,c:0},
+            'AKo':{r:50,c:25}
+        },
+        'BB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:50},
+            'JJ':{r:0,c:75},'TT':{r:0,c:50},'99':{r:0,c:25},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:75},'AJs':{r:0,c:25},
+            'A5s':{r:25,c:0},
+            'KQs':{r:0,c:25},
+            'AKo':{r:50,c:50},'AQo':{r:0,c:25}
+        },
+        // ════════════════════════════════
+        // COLD vs SB 3-BET
+        // ════════════════════════════════
+        'BB_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:75,c:25},
+            'JJ':{r:0,c:75},'TT':{r:0,c:50},'99':{r:0,c:25},
+            'AKs':{r:75,c:25},'AQs':{r:0,c:75},'AJs':{r:0,c:50},
+            'ATs':{r:0,c:25},'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:50},'KJs':{r:0,c:25},
+            'QJs':{r:0,c:25},'JTs':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:50},'AJo':{r:0,c:25}
+        }
+    };
+
+    // ─── Default vs 4-Bet Ranges (3-bettor facing 4-bet, approx 100bb 6-max GTO) ───
+    // Format: { hand: { r: 5bet%, c: call% } }  fold = 100 - r - c
+    const DEFAULT_VS_4BET = {
+        // ════════════════════════════════
+        // 3-BETTOR FACING UTG 4-BET (UTG opened, you 3-bet, UTG 4-bets)
+        // UTG 4-bet range is very strong → very tight response
+        // ════════════════════════════════
+        'HJ_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:50},
+            'AKs':{r:25,c:25}
+        },
+        'CO_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:50},
+            'AKs':{r:25,c:25}
+        },
+        'BTN_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:75},'JJ':{r:0,c:25},
+            'AKs':{r:50,c:50},'AKo':{r:0,c:25}
+        },
+        'SB_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:50},
+            'AKs':{r:25,c:25}
+        },
+        'BB_vs_UTG': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:75},'JJ':{r:0,c:25},
+            'AKs':{r:50,c:50},'AKo':{r:0,c:25}
+        },
+        // ════════════════════════════════
+        // 3-BETTOR FACING HJ 4-BET
+        // ════════════════════════════════
+        'CO_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:50},
+            'AKs':{r:25,c:25}
+        },
+        'BTN_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:75},'JJ':{r:0,c:25},
+            'AKs':{r:50,c:50},'AKo':{r:0,c:25}
+        },
+        'SB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:50},
+            'AKs':{r:25,c:25}
+        },
+        'BB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:75},'JJ':{r:0,c:25},
+            'AKs':{r:50,c:50},'AKo':{r:0,c:25}
+        },
+        // ════════════════════════════════
+        // 3-BETTOR FACING CO 4-BET
+        // ════════════════════════════════
+        'BTN_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:100},'JJ':{r:0,c:50},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:25},
+            'AKo':{r:0,c:50}
+        },
+        'SB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:50},
+            'AKs':{r:50,c:25}
+        },
+        'BB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:100},'JJ':{r:0,c:50},
+            'AKs':{r:50,c:50},'AQs':{r:0,c:25},
+            'AKo':{r:0,c:50}
+        },
+        // ════════════════════════════════
+        // 3-BETTOR FACING BTN 4-BET
+        // BTN opens wide, 4-bet range still strong but you can be wider
+        // ════════════════════════════════
+        'SB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:50,c:50},'JJ':{r:0,c:75},'TT':{r:0,c:25},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:75},'AJs':{r:0,c:25},
+            'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:25}
+        },
+        'BB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:50,c:50},'JJ':{r:0,c:100},'TT':{r:0,c:50},
+            'AKs':{r:100,c:0},'AQs':{r:0,c:100},'AJs':{r:0,c:50},
+            'ATs':{r:0,c:25},'A5s':{r:50,c:0},'A4s':{r:25,c:0},
+            'KQs':{r:0,c:50},'KJs':{r:0,c:25},
+            'AKo':{r:75,c:25},'AQo':{r:0,c:50}
+        },
+        // ════════════════════════════════
+        // BB FACING SB 4-BET (SB opened, BB 3-bet, SB 4-bets)
+        // SB vs BB is a wide battle → widest vs 4-bet range
+        // ════════════════════════════════
+        'BB_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:25},'JJ':{r:0,c:100},'TT':{r:0,c:75},
+            '99':{r:0,c:25},
+            'AKs':{r:100,c:0},'AQs':{r:50,c:50},'AJs':{r:0,c:75},
+            'ATs':{r:0,c:50},'A9s':{r:0,c:25},
+            'A5s':{r:75,c:0},'A4s':{r:50,c:0},'A3s':{r:25,c:0},
+            'KQs':{r:0,c:75},'KJs':{r:0,c:50},'KTs':{r:0,c:25},
+            'QJs':{r:0,c:50},'QTs':{r:0,c:25},
+            'JTs':{r:0,c:50},'T9s':{r:0,c:25},
+            'AKo':{r:100,c:0},'AQo':{r:25,c:50},'AJo':{r:0,c:50},
+            'ATo':{r:0,c:25},'KQo':{r:0,c:50},'KJo':{r:0,c:25}
+        },
+        // ════════════════════════════════
+        // COLD 4-BET RESPONSE RANGES
+        // 3-bettor facing a COLD 4-bet (very tight — cold 4-bet is extremely strong)
+        // ════════════════════════════════
+        'HJ_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:25},'AKs':{r:25,c:0}
+        },
+        'HJ_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:25},'AKs':{r:25,c:0}
+        },
+        'HJ_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:25},'AKs':{r:25,c:0}
+        },
+        'HJ_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:50},'AKs':{r:25,c:25}
+        },
+        'CO_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:75,c:25},
+            'QQ':{r:0,c:50},'AKs':{r:25,c:25}
+        },
+        'CO_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:25},'AKs':{r:25,c:0}
+        },
+        'CO_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:50},'AKs':{r:50,c:25}
+        },
+        'BTN_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:0,c:50},'AKs':{r:50,c:25},'AKo':{r:0,c:25}
+        },
+        'BTN_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:25,c:50},'JJ':{r:0,c:25},
+            'AKs':{r:50,c:50},'AKo':{r:25,c:25}
+        },
+        'SB_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:50,c:50},'JJ':{r:0,c:50},
+            'AKs':{r:75,c:25},'AQs':{r:0,c:25},
+            'AKo':{r:50,c:25}
+        }
+    };
+
+    // ─── Default vs 5-Bet Ranges (4-bettor facing 5-bet all-in, approx 100bb 6-max GTO) ───
+    // Format: { hand: { r: call%, c: 0 } }  fold = 100 - r (no raise option, it's all-in)
+    const DEFAULT_VS_5BET = {
+        // ════════════════════════════════
+        // UTG 4-BET, FACING 5-BET ALL-IN
+        // UTG has a very strong 4-bet range → calling 5-bet with top of it
+        // ════════════════════════════════
+        'UTG_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:50,c:0},
+            'AKs':{r:50,c:0}
+        },
+        'UTG_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:50,c:0},
+            'AKs':{r:50,c:0}
+        },
+        'UTG_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},
+            'AKs':{r:75,c:0},'AKo':{r:25,c:0}
+        },
+        'UTG_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},
+            'AKs':{r:75,c:0},'AKo':{r:25,c:0}
+        },
+        'UTG_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},
+            'AKs':{r:75,c:0},'AKo':{r:50,c:0}
+        },
+        // ════════════════════════════════
+        // HJ 4-BET, FACING 5-BET ALL-IN
+        // ════════════════════════════════
+        'HJ_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:50,c:0},
+            'AKs':{r:50,c:0}
+        },
+        'HJ_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},
+            'AKs':{r:75,c:0},'AKo':{r:25,c:0}
+        },
+        'HJ_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},
+            'AKs':{r:75,c:0},'AKo':{r:25,c:0}
+        },
+        'HJ_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},
+            'AKs':{r:75,c:0},'AKo':{r:50,c:0}
+        },
+        // ════════════════════════════════
+        // CO 4-BET, FACING 5-BET ALL-IN
+        // ════════════════════════════════
+        'CO_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:100,c:0},
+            'AKs':{r:100,c:0},'AKo':{r:50,c:0},
+            'JJ':{r:25,c:0}
+        },
+        'CO_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},
+            'AKs':{r:75,c:0},'AKo':{r:25,c:0}
+        },
+        'CO_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:100,c:0},
+            'AKs':{r:100,c:0},'AKo':{r:50,c:0},
+            'JJ':{r:25,c:0}
+        },
+        // ════════════════════════════════
+        // BTN 4-BET, FACING 5-BET ALL-IN
+        // BTN 4-bet range is wider → calls wider vs 5-bet
+        // ════════════════════════════════
+        'BTN_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:100,c:0},'JJ':{r:50,c:0},
+            'AKs':{r:100,c:0},'AQs':{r:25,c:0},
+            'AKo':{r:100,c:0}
+        },
+        'BTN_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:100,c:0},'JJ':{r:50,c:0},
+            'AKs':{r:100,c:0},'AQs':{r:25,c:0},
+            'AKo':{r:100,c:0}
+        },
+        // ════════════════════════════════
+        // SB 4-BET, FACING BB 5-BET ALL-IN
+        // Widest battle → widest calling range
+        // ════════════════════════════════
+        'SB_vs_BB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:100,c:0},'JJ':{r:75,c:0},'TT':{r:25,c:0},
+            'AKs':{r:100,c:0},'AQs':{r:75,c:0},'AJs':{r:25,c:0},
+            'AKo':{r:100,c:0},'AQo':{r:50,c:0}
+        },
+        // ════════════════════════════════
+        // COLD 4-BETTOR FACING 5-BET ALL-IN
+        // Cold 4-bet range was already very strong → call with top of it
+        // ════════════════════════════════
+        'CO_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0}
+        },
+        'BTN_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0}
+        },
+        'SB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0}
+        },
+        'BB_vs_HJ': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:0}
+        },
+        'BTN_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0}
+        },
+        'SB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0}
+        },
+        'BB_vs_CO': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:0}
+        },
+        'SB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:25,c:0}
+        },
+        'BB_vs_BTN': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},'QQ':{r:50,c:0}
+        },
+        'BB_vs_SB': {
+            'AA':{r:100,c:0},'KK':{r:100,c:0},
+            'QQ':{r:75,c:0},'AKs':{r:50,c:0}
         }
     };
 
@@ -1261,7 +1649,9 @@ Frequency defaults to 100% if not specified."></textarea>
     let rangeData = {
         rfi:     JSON.parse(JSON.stringify(DEFAULT_RFI)),
         vs_open: JSON.parse(JSON.stringify(DEFAULT_VS_OPEN)),
-        vs_3bet: JSON.parse(JSON.stringify(DEFAULT_VS_3BET))
+        vs_3bet: JSON.parse(JSON.stringify(DEFAULT_VS_3BET)),
+        vs_4bet: JSON.parse(JSON.stringify(DEFAULT_VS_4BET)),
+        vs_5bet: JSON.parse(JSON.stringify(DEFAULT_VS_5BET))
     };
     const originalData = JSON.parse(JSON.stringify(rangeData));
 
@@ -1411,28 +1801,22 @@ Frequency defaults to 100% if not specified."></textarea>
     const C_FOLD  = [24, 24, 40];
 
     function cellBg(a) {
-        if (a.r === 0 && a.c === 0) return `rgb(${C_FOLD})`;
-        if (a.r === 100 && a.c === 0) return `rgb(${C_RAISE})`;
-        if (a.c === 100 && a.r === 0) return `rgb(${C_CALL})`;
-        if (a.r === 100 && a.c > 0) return `rgb(${C_RAISE})`;
+        const r = a.r < 3 ? 0 : Math.round(a.r);
+        const c = a.c < 3 ? 0 : Math.round(a.c);
 
-        const stops = [];
-        let p = 0;
-        if (a.r > 0) {
-            stops.push(`rgb(${C_RAISE}) ${p}%`);
-            p += a.r;
-            stops.push(`rgb(${C_RAISE}) ${p}%`);
+        if (r === 0 && c === 0) return `rgb(${C_FOLD})`;
+        if (c === 0) {
+            if (r >= 100) return `rgb(${C_RAISE})`;
+            return `linear-gradient(to right, rgb(${C_RAISE}) 0%, rgb(${C_RAISE}) ${r}%, rgb(${C_FOLD}) ${r}%, rgb(${C_FOLD}) 100%)`;
         }
-        if (a.c > 0) {
-            stops.push(`rgb(${C_CALL}) ${p}%`);
-            p += a.c;
-            stops.push(`rgb(${C_CALL}) ${p}%`);
+        if (r === 0) {
+            if (c >= 100) return `rgb(${C_CALL})`;
+            return `linear-gradient(to right, rgb(${C_CALL}) 0%, rgb(${C_CALL}) ${c}%, rgb(${C_FOLD}) ${c}%, rgb(${C_FOLD}) 100%)`;
         }
-        if (a.f > 0) {
-            stops.push(`rgb(${C_FOLD}) ${p}%`);
-            stops.push(`rgb(${C_FOLD}) 100%`);
-        }
-        return `linear-gradient(to right, ${stops.join(', ')})`;
+        const f = Math.max(0, 100 - r - c);
+        let grad = `rgb(${C_RAISE}) 0%, rgb(${C_RAISE}) ${r}%, rgb(${C_CALL}) ${r}%, rgb(${C_CALL}) ${r+c}%`;
+        if (f > 0) grad += `, rgb(${C_FOLD}) ${r+c}%, rgb(${C_FOLD}) 100%`;
+        return `linear-gradient(to right, ${grad})`;
     }
 
     // ─── Flow State ───
@@ -1441,7 +1825,12 @@ Frequency defaults to 100% if not specified."></textarea>
         activeIdx: 0,
         openerIdx: -1,
         threeBettorIdx: -1,
-        actions: {}
+        fourBettorIdx: -1,
+        fiveBettorIdx: -1,
+        actions: {},
+        actedPhase: {},
+        displayActions: {},
+        displayPhase: {}
     };
 
     function resetFlow(startIdx) {
@@ -1450,10 +1839,18 @@ Frequency defaults to 100% if not specified."></textarea>
             activeIdx: startIdx || 0,
             openerIdx: -1,
             threeBettorIdx: -1,
-            actions: {}
+            fourBettorIdx: -1,
+            fiveBettorIdx: -1,
+            actions: {},
+            actedPhase: {},
+            displayActions: {},
+            displayPhase: {}
         };
         for (let i = 0; i < (startIdx || 0); i++) {
             flow.actions[ALL_POS[i]] = 'fold';
+            flow.actedPhase[ALL_POS[i]] = 'rfi_walk';
+            flow.displayActions[ALL_POS[i]] = 'fold';
+            flow.displayPhase[ALL_POS[i]] = 'rfi_walk';
         }
         syncFlowToState();
     }
@@ -1470,6 +1867,14 @@ Frequency defaults to 100% if not specified."></textarea>
         } else if (flow.phase === 'facing_3bet') {
             state.scenario = 'vs_3bet';
             state.openerPos = ALL_POS[flow.threeBettorIdx];
+            state.responderPos = active;
+        } else if (flow.phase === 'facing_4bet') {
+            state.scenario = 'vs_4bet';
+            state.openerPos = ALL_POS[flow.fourBettorIdx];
+            state.responderPos = active;
+        } else if (flow.phase === 'facing_5bet') {
+            state.scenario = 'vs_5bet';
+            state.openerPos = ALL_POS[flow.fiveBettorIdx] || ALL_POS[flow.threeBettorIdx];
             state.responderPos = active;
         }
         const lbl = document.getElementById('scenarioLabel');
@@ -1493,9 +1898,45 @@ Frequency defaults to 100% if not specified."></textarea>
         return -1;
     }
 
+    function getPhaseActions(phase, posIdx) {
+        if (phase === 'rfi_walk') return POS_CONFIG[ALL_POS[posIdx]].rfiActions;
+        if (phase === 'facing_open') return ['Fold', 'Call', '3-Bet'];
+        if (phase === 'facing_3bet') return ['Fold', 'Call', '4-Bet'];
+        if (phase === 'facing_4bet') return ['Fold', 'Call', '5-Bet All-In'];
+        if (phase === 'facing_5bet') return ['Fold', 'Call'];
+        return [];
+    }
+
+    function nextAfter4bet(fromIdx) {
+        for (let i = fromIdx; i < ALL_POS.length; i++) {
+            if (i === flow.threeBettorIdx) continue;
+            if (!flow.actions[ALL_POS[i]]) return i;
+        }
+        for (let i = 0; i < flow.fourBettorIdx; i++) {
+            if (i === flow.threeBettorIdx) continue;
+            if (!flow.actions[ALL_POS[i]]) return i;
+        }
+        return -1;
+    }
+
+    function nextAfter5bet(fromIdx, fiveBettorIdx) {
+        for (let i = fromIdx; i < ALL_POS.length; i++) {
+            if (i === flow.fourBettorIdx) continue;
+            if (!flow.actions[ALL_POS[i]]) return i;
+        }
+        for (let i = 0; i < fiveBettorIdx; i++) {
+            if (i === flow.fourBettorIdx) continue;
+            if (!flow.actions[ALL_POS[i]]) return i;
+        }
+        return -1;
+    }
+
     function handleFlowAction(action) {
         const pos = ALL_POS[flow.activeIdx];
         flow.actions[pos] = action;
+        flow.actedPhase[pos] = flow.phase;
+        flow.displayActions[pos] = action;
+        flow.displayPhase[pos] = flow.phase;
 
         if (flow.phase === 'rfi_walk') {
             if (action === 'fold') {
@@ -1555,7 +1996,63 @@ Frequency defaults to 100% if not specified."></textarea>
                     flow.activeIdx = nxt;
                 }
             } else if (action === '4bet') {
-                flow.phase = 'done';
+                flow.fourBettorIdx = flow.activeIdx;
+                flow.phase = 'facing_4bet';
+                flow.actions[ALL_POS[flow.threeBettorIdx]] = undefined;
+                for (let i = 0; i < ALL_POS.length; i++) {
+                    if (i === flow.fourBettorIdx) continue;
+                    if (flow.actions[ALL_POS[i]] === 'call') {
+                        flow.actions[ALL_POS[i]] = undefined;
+                    }
+                }
+                const nxt = nextAfter4bet(flow.activeIdx + 1);
+                if (nxt === -1) {
+                    flow.activeIdx = flow.threeBettorIdx;
+                } else {
+                    flow.activeIdx = nxt;
+                }
+            }
+        } else if (flow.phase === 'facing_4bet') {
+            if (action === '5bet') {
+                flow.fiveBettorIdx = flow.activeIdx;
+                flow.phase = 'facing_5bet';
+                flow.actions[ALL_POS[flow.fourBettorIdx]] = undefined;
+                for (let i = 0; i < ALL_POS.length; i++) {
+                    if (i === flow.fiveBettorIdx) continue;
+                    if (flow.actions[ALL_POS[i]] === 'call') {
+                        flow.actions[ALL_POS[i]] = undefined;
+                    }
+                }
+                const nxt = nextAfter5bet(flow.fiveBettorIdx + 1, flow.fiveBettorIdx);
+                if (nxt === -1) {
+                    flow.activeIdx = flow.fourBettorIdx;
+                } else {
+                    flow.activeIdx = nxt;
+                }
+            } else if (action === 'fold' || action === 'call') {
+                if (flow.activeIdx === flow.threeBettorIdx) {
+                    flow.phase = 'done';
+                } else {
+                    const nxt = nextAfter4bet(flow.activeIdx + 1);
+                    if (nxt === -1) {
+                        flow.activeIdx = flow.threeBettorIdx;
+                    } else {
+                        flow.activeIdx = nxt;
+                    }
+                }
+            }
+        } else if (flow.phase === 'facing_5bet') {
+            if (action === 'fold' || action === 'call') {
+                if (flow.activeIdx === flow.fourBettorIdx) {
+                    flow.phase = 'done';
+                } else {
+                    const nxt = nextAfter5bet(flow.activeIdx + 1, flow.fiveBettorIdx);
+                    if (nxt === -1) {
+                        flow.activeIdx = flow.fourBettorIdx;
+                    } else {
+                        flow.activeIdx = nxt;
+                    }
+                }
             }
         }
 
@@ -1576,6 +2073,18 @@ Frequency defaults to 100% if not specified."></textarea>
                 return `${active} facing ${threeBettor} 3-Bet (you opened)`;
             }
             return `${active} cold vs ${threeBettor} 3-Bet (${opener} opened)`;
+        } else if (flow.phase === 'facing_4bet') {
+            const fourBettor = ALL_POS[flow.fourBettorIdx];
+            if (flow.activeIdx === flow.threeBettorIdx) {
+                return `${active} facing ${fourBettor} 4-Bet (you 3-bet)`;
+            }
+            return `${active} cold vs ${fourBettor} 4-Bet`;
+        } else if (flow.phase === 'facing_5bet') {
+            const fiveBettor = ALL_POS[flow.fiveBettorIdx] || ALL_POS[flow.threeBettorIdx];
+            if (flow.activeIdx === flow.fourBettorIdx) {
+                return `${active} facing ${fiveBettor} 5-Bet All-In (you 4-bet)`;
+            }
+            return `${active} facing ${fiveBettor} 5-Bet All-In`;
         }
         return 'Action complete — click Reset Table to start over';
     }
@@ -1588,6 +2097,10 @@ Frequency defaults to 100% if not specified."></textarea>
             return ['Fold', 'Call', '3-Bet'];
         } else if (flow.phase === 'facing_3bet') {
             return ['Fold', 'Call', '4-Bet'];
+        } else if (flow.phase === 'facing_4bet') {
+            return ['Fold', 'Call', '5-Bet All-In'];
+        } else if (flow.phase === 'facing_5bet') {
+            return ['Fold', 'Call'];
         }
         return [];
     }
@@ -1596,8 +2109,10 @@ Frequency defaults to 100% if not specified."></textarea>
         const l = label.toLowerCase();
         if (l === 'fold') return 'fold';
         if (l === 'call') return 'call';
+        if (l.includes('5-bet') || l.includes('5bet')) return '5bet';
         if (l.includes('3-bet') || l.includes('3bet')) return '3bet';
         if (l.includes('4-bet') || l.includes('4bet')) return '4bet';
+        if (l.includes('allin') || l.includes('all-in') || l.includes('all in')) return 'allin';
         return 'raise';
     }
 
@@ -1605,6 +2120,8 @@ Frequency defaults to 100% if not specified."></textarea>
         const l = label.toLowerCase();
         if (l === 'fold') return 'fa-fold';
         if (l === 'call') return 'fa-call';
+        if (l.includes('allin') || l.includes('all-in') || l.includes('all in')) return 'fa-allin';
+        if (l.includes('5-bet') || l.includes('5bet')) return 'fa-allin';
         return 'fa-raise';
     }
 
@@ -1615,6 +2132,18 @@ Frequency defaults to 100% if not specified."></textarea>
     }
 
     // ─── Render: Position Cards (flow-driven) ───
+    function actionSelectedClass(actionLabel, selectedAction) {
+        const mapped = mapActionLabel(actionLabel);
+        if (mapped !== selectedAction) return '';
+        if (mapped === 'fold') return 'selected-fold';
+        if (mapped === 'call') return 'selected-call';
+        if (mapped === 'allin') return 'selected-allin';
+        if (mapped === '5bet') return 'selected-5bet';
+        if (mapped === '3bet') return 'selected-3bet';
+        if (mapped === '4bet') return 'selected-4bet';
+        return 'selected-raise';
+    }
+
     function renderPositions() {
         const el = document.getElementById('positionSelector');
         if (!el) return;
@@ -1623,20 +2152,19 @@ Frequency defaults to 100% if not specified."></textarea>
         for (let i = 0; i < ALL_POS.length; i++) {
             const p = ALL_POS[i];
             const cfg = POS_CONFIG[p];
-            const acted = flow.actions[p];
+            const dispAct = flow.displayActions[p];
+            const dispPhase = flow.displayPhase[p];
+            const isFolded = (dispAct === 'fold');
             const isActive = (flow.phase !== 'done' && flow.activeIdx === i);
+            const actedThisPhase = (flow.actedPhase[p] === flow.phase);
 
             let cardClass = 'pos-card';
             if (isActive) {
                 cardClass += ' active';
-            } else if (acted === 'fold') {
-                cardClass += ' acted-fold';
-            } else if (acted === 'raise' || acted === '4bet') {
-                cardClass += ' acted-raise';
-            } else if (acted === 'call') {
-                cardClass += ' acted-call';
-            } else if (acted === '3bet') {
-                cardClass += ' acted-3bet';
+            } else if (isFolded) {
+                cardClass += ' acted';
+            } else if (dispAct) {
+                cardClass += ' acted';
             } else {
                 cardClass += ' waiting';
             }
@@ -1654,16 +2182,56 @@ Frequency defaults to 100% if not specified."></textarea>
                     html += `<button class="flow-action-btn ${actionBtnClass(a)}" data-flow-action="${mapActionLabel(a)}">${a}</button>`;
                 }
                 html += '</div>';
-            } else if (acted) {
-                const labels = { fold: 'Folded', raise: 'Raised', call: 'Called', '3bet': '3-Bet', '4bet': '4-Bet' };
-                const classes = { fold: 'status-fold', raise: 'status-raise', call: 'status-call', '3bet': 'status-3bet', '4bet': 'status-raise' };
-                html += `<div class="pos-card-actions">
-                    <span class="status-badge ${classes[acted] || 'status-fold'}">${labels[acted] || acted}</span>
-                </div>`;
+            } else if (isFolded && dispPhase) {
+                const phaseActions = getPhaseActions(dispPhase, i);
+                html += '<div class="pos-card-actions">';
+                for (const a of phaseActions) {
+                    const selClass = actionSelectedClass(a, 'fold');
+                    html += `<div class="action-row-item ${selClass}">${a}</div>`;
+                }
+                html += '</div>';
+            } else if (flow.phase !== 'done') {
+                if (actedThisPhase && flow.actions[p]) {
+                    const currentActions = getPhaseActions(flow.phase, i);
+                    html += '<div class="pos-card-actions">';
+                    for (const a of currentActions) {
+                        const selClass = actionSelectedClass(a, flow.actions[p]);
+                        html += `<div class="action-row-item ${selClass}">${a}</div>`;
+                    }
+                    html += '</div>';
+                } else if (dispAct && dispPhase) {
+                    const prevActions = getPhaseActions(dispPhase, i);
+                    html += '<div class="pos-card-actions">';
+                    for (const a of prevActions) {
+                        const selClass = actionSelectedClass(a, dispAct);
+                        html += `<div class="action-row-item ${selClass}">${a}</div>`;
+                    }
+                    html += '</div>';
+                } else {
+                    const currentActions = getPhaseActions(flow.phase, i);
+                    html += '<div class="pos-card-actions">';
+                    for (const a of currentActions) {
+                        html += `<div class="action-row-item" style="opacity:0.25">${a}</div>`;
+                    }
+                    html += '</div>';
+                }
             } else {
-                html += `<div class="pos-card-actions">
-                    <div class="pos-card-action act-fold" style="opacity:0.4">—</div>
-                </div>`;
+                if (dispAct && dispPhase) {
+                    const phaseActions = getPhaseActions(dispPhase, i);
+                    html += '<div class="pos-card-actions">';
+                    for (const a of phaseActions) {
+                        const selClass = actionSelectedClass(a, dispAct);
+                        html += `<div class="action-row-item ${selClass}">${a}</div>`;
+                    }
+                    html += '</div>';
+                } else {
+                    const defaultActions = cfg.rfiActions;
+                    html += '<div class="pos-card-actions">';
+                    for (const a of defaultActions) {
+                        html += `<div class="action-row-item" style="opacity:0.25">${a}</div>`;
+                    }
+                    html += '</div>';
+                }
             }
 
             html += '</div>';
@@ -1671,7 +2239,6 @@ Frequency defaults to 100% if not specified."></textarea>
         html += '</div>';
         el.innerHTML = html;
 
-        // Action button handlers
         el.querySelectorAll('.flow-action-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1679,7 +2246,6 @@ Frequency defaults to 100% if not specified."></textarea>
             });
         });
 
-        // Click non-active cards to jump to that position
         el.querySelectorAll('.pos-card:not(.active)').forEach(card => {
             card.addEventListener('click', () => {
                 const idx = parseInt(card.dataset.idx);

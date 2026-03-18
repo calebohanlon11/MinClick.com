@@ -128,6 +128,40 @@
     }
 </style>
 
+{% if stage %}
+<!-- Back button + section title when inside a module -->
+<div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+    <a href="{{ url_for('views.learning') }}" style="
+        display:inline-flex; align-items:center; gap:0.4rem;
+        padding:0.45rem 1rem; border-radius:6px;
+        background:var(--bg-card); border:1px solid var(--border-color);
+        color:var(--text-secondary); text-decoration:none;
+        font-size:0.85rem; font-weight:600;
+        transition:all 0.15s;
+    " onmouseover="this.style.borderColor='var(--accent-green)';this.style.color='var(--accent-green)'"
+      onmouseout="this.style.borderColor='var(--border-color)';this.style.color='var(--text-secondary)'">
+        <i class="fas fa-arrow-left"></i> Learning Hub
+    </a>
+    <span style="color:var(--text-secondary); font-size:0.85rem;">
+        {% if stage == 'arithmatic' %}
+            <i class="fas fa-calculator me-1" style="color:#f5576c"></i> Arithmetic
+        {% elif stage == 'quant' %}
+            <i class="fas fa-square-root-variable me-1" style="color:#4facfe"></i> Quant Math
+        {% elif stage == 'ranges' %}
+            <i class="fas fa-layer-group me-1" style="color:#43e97b"></i> Poker Ranges
+        {% endif %}
+    </span>
+</div>
+<div>
+    {% if stage == 'arithmatic' %}
+    {% include 'learning/Arithmatic.html' %}
+    {% elif stage == 'quant' %}
+    {% include 'learning/Quant_Math.html' %}
+    {% elif stage == 'ranges' %}
+    {% include 'learning/Poker_Ranges.html' %}
+    {% endif %}
+</div>
+{% else %}
 <!-- Hero -->
 <div class="learning-hero">
     <h2><i class="fas fa-graduation-cap me-2"></i>Learning Hub</h2>
@@ -136,21 +170,21 @@
 
 <!-- Module Cards -->
 <div class="module-grid">
-    <a href="?stage=arithmatic" class="module-card {{ 'active' if stage == 'arithmatic' }}">
+    <a href="?stage=arithmatic" class="module-card">
         <div class="icon-wrap icon-arithmetic"><i class="fas fa-calculator"></i></div>
         <h5>Arithmetic</h5>
         <p class="module-desc">Speed drills for mental math — pot odds, bet sizing, and stack calculations on the fly.</p>
         <span class="module-tag tag-fundamentals">Fundamentals</span>
     </a>
 
-    <a href="?stage=quant" class="module-card {{ 'active' if stage == 'quant' }}">
+    <a href="?stage=quant" class="module-card">
         <div class="icon-wrap icon-quant"><i class="fas fa-square-root-variable"></i></div>
         <h5>Quant Math</h5>
         <p class="module-desc">Probability, combinatorics, and expected value problems for deeper analytical thinking.</p>
         <span class="module-tag tag-advanced">Advanced</span>
     </a>
 
-    <a href="?stage=ranges" class="module-card {{ 'active' if stage == 'ranges' }}">
+    <a href="?stage=ranges" class="module-card">
         <div class="icon-wrap icon-ranges"><i class="fas fa-layer-group"></i></div>
         <h5>Poker Ranges</h5>
         <p class="module-desc">Visualise and memorise preflop opening, 3-betting, and defending ranges by position.</p>
@@ -163,19 +197,6 @@
         <p class="module-desc">Timed quiz covering pot odds, equity, EV, SPR, MDF and more — track your progress.</p>
         <span class="module-tag tag-quiz">Quiz</span>
     </a>
-</div>
-
-<!-- Active Section Content -->
-{% if stage %}
-<hr class="section-divider">
-<div>
-    {% if stage == 'arithmatic' %}
-    {% include 'learning/Arithmatic.html' %}
-    {% elif stage == 'quant' %}
-    {% include 'learning/Quant_Math.html' %}
-    {% elif stage == 'ranges' %}
-    {% include 'learning/Poker_Ranges.html' %}
-    {% endif %}
 </div>
 {% endif %}
 
